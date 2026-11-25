@@ -36,6 +36,8 @@ export class Vehicle {
   bumped = 0;
   /** True while the car is braking by itself for a person. */
   yielding = false;
+  /** Extra speed limit in m/s (e.g. empty tank). */
+  limit = Infinity;
 
   constructor(readonly spec: VehicleSpec, color?: string) {
     this.car = buildCar(spec.shape, color ?? spec.color);
@@ -77,6 +79,7 @@ export class Vehicle {
       else this.speed = Math.max(-5, this.speed - 4 * inp.brake * dt); // reverse
     }
     if (inp.handbrake) this.speed *= Math.pow(0.08, dt);
+    this.speed = THREE.MathUtils.clamp(this.speed, -this.limit, this.limit);
     if (!inp.throttle && !inp.brake) {
       const drag = 1.6 * dt;
       this.speed = Math.abs(this.speed) <= drag ? 0 : this.speed - Math.sign(this.speed) * drag;

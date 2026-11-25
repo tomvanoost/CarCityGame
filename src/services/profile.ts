@@ -13,6 +13,10 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     equipped: { outfit: DEFAULT_OUTFIT },
     lastDailyBonus: 0,
     createdAt: Date.now(),
+    fuel: 1,
+    ownsApartment: false,
+    spawn: 'home',
+    km: 0,
   };
 }
 
@@ -29,6 +33,8 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   if (!p.ownedClothes.includes(DEFAULT_OUTFIT)) p.ownedClothes.unshift(DEFAULT_OUTFIT);
   if (!p.ownedClothes.includes(p.equipped.outfit)) p.equipped.outfit = DEFAULT_OUTFIT;
   if (!p.ownedVehicles.includes(p.selectedVehicle)) p.selectedVehicle = p.ownedVehicles[0];
+  p.fuel = typeof p.fuel === 'number' ? Math.min(1, Math.max(0, p.fuel)) : 1;
+  if (p.spawn === 'apartment' && !p.ownsApartment) p.spawn = 'home';
   return p;
 }
 

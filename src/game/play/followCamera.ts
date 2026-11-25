@@ -44,16 +44,21 @@ export class FollowCamera {
       for (let i = 1; i <= 8; i++) {
         const d = (this.distance * i) / 8;
         if (opts.blocked(this.target.x + Math.sin(this.yaw) * cp * d, this.target.z + Math.cos(this.yaw) * cp * d)) {
-          dist = Math.max(1.5, d - this.distance / 8);
+          dist = Math.max(0.8, d - this.distance / 8);
           break;
         }
       }
     }
     this.shown += (dist - this.shown) * Math.min(1, dt * (dist < this.shown ? 20 : 4));
+    // The closer the camera has to come (wall behind you), the more it looks down from above.
+    const squeeze = 1 - this.shown / this.distance;
+    const pitch = Math.min(1.35, this.pitch + squeeze * 0.9);
+    const lift = squeeze * 3;
+    const c2 = Math.cos(pitch);
     this.camera.position.set(
-      this.target.x + Math.sin(this.yaw) * cp * this.shown,
-      this.target.y + Math.sin(this.pitch) * this.shown,
-      this.target.z + Math.cos(this.yaw) * cp * this.shown,
+      this.target.x + Math.sin(this.yaw) * c2 * this.shown,
+      this.target.y + Math.sin(pitch) * this.shown + lift,
+      this.target.z + Math.cos(this.yaw) * c2 * this.shown,
     );
     this.camera.position.y = Math.max(this.camera.position.y, 0.6);
     this.camera.lookAt(this.target);

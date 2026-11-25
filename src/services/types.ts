@@ -15,6 +15,13 @@ export interface PlayerProfile {
   equipped: Equipped;
   lastDailyBonus: number; // epoch ms
   createdAt: number;
+  /** Fuel in the tank, 0..1. */
+  fuel: number;
+  ownsApartment: boolean;
+  /** Where you start when you press Play. */
+  spawn: 'home' | 'apartment';
+  /** Total km driven (fun statistic). */
+  km: number;
 }
 
 /** Error codes the UI turns into friendly translated messages. */

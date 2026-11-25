@@ -26,7 +26,9 @@ FPS always visible.
    keyboard + tablet mode (steering wheel, gas/brake pedals; joystick + jump when walking)
 6. ✅ **People:** 22–36 pedestrians (adults & kids, 10 looks) walk around blocks, cross at zebra crossings,
    wait for cars and step aside; the car brakes by itself so it can never touch anyone ("Stop! Daar loopt iemand.")
-7. ⬜ **Money & places:** deliveries, taxi, daily bonus, gas station (refuel), your house & apartment
+7. ✅ **Money & places:** delivery & taxi jobs (markers in the city, yellow arrow, green goal, no timers), daily bonus
+   (€500), €2 per 100 m, fuel tank + refueling (free top-up if you can't pay), house & apartment (€5.000) with a
+   simple panel: switch car, change clothes, choose where to start; map pins for house/apartment/gas station
 8. ⬜ **Shops:** vehicle shop (unique cars & motorbikes) and clothes shop, saved to Firebase
 
 ## How the 3D content works

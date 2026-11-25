@@ -71,6 +71,10 @@ users/
     equipped: { outfit: "casual-blue" }
     lastDailyBonus: 0
     createdAt: 1764000000000
+    fuel: 1            # 0..1
+    ownsApartment: false
+    spawn: "home"      # or "apartment"
+    km: 0
 ```
 
 ## Good to know

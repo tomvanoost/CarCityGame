@@ -1,33 +1,62 @@
 import * as THREE from 'three';
 import { createRenderer, fitToCanvas } from '../../engine/renderer';
+import { getProfile, setProfile, updateProfile } from '../../services/session';
 import type { PlayerProfile } from '../../services/types';
 import { Avatar } from '../avatar/avatar';
 import { buildCity, type City } from '../city/cityBuilder';
+import { HALF_CITY, LINES } from '../city/layout';
 import { getVehicle } from '../vehicles/catalog';
 import { createSky, skyEnvironment, SKY, Sun } from '../world/sky';
 import { pickQuality, ResolutionScaler } from '../world/quality';
 import { CollisionWorld } from './collision';
 import { FollowCamera } from './followCamera';
 import type { Input } from './input';
+import { Jobs, type ActiveJob, type PlaceKey } from './jobs';
+import { createArrow, createIcon } from './markers';
 import { Pedestrians } from './pedestrians';
 import { Player } from './player';
 import { Vehicle } from './vehicle';
 
 export type Mode = 'driving' | 'walking';
 
-export interface GameState { mode: Mode; canEnter: boolean; kmh: number; yielding: boolean }
+/** Something you can do right here with the big blue button. */
+export type ContextAction = { kind: 'refuel' } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
+
+export interface GameState {
+  mode: Mode;
+  canEnter: boolean;
+  kmh: number;
+  yielding: boolean;
+  fuel: number;
+  refueling: boolean;
+  context: ContextAction | null;
+  job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number } | null;
+}
 
 export interface GameEvents {
   onProgress(p: number): void;
   onReady(): void;
-  /** Mode changed, or whether "get in" is possible changed. */
   onState(state: GameState): void;
+  /** Money earned (shown as a big "+€" popup). */
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel'): void;
+  onJobStart(job: ActiveJob): void;
+  /** Player walked into the house/apartment. */
+  onPlace(place: 'home' | 'apartment'): void;
+  /** Short message (i18n key + optional number). */
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty', n?: number): void;
 }
 
-/** Distance from the car within which you can get in. */
 const ENTER_DISTANCE = 4;
+export const APARTMENT_PRICE = 5000;
+const DAILY_BONUS = 500;
+/** Money per 100 m driven. */
+const KM_REWARD = 2;
+/** A full tank lasts this many meters. */
+const TANK_METERS = 14000;
+/** Price of a full tank. */
+const TANK_PRICE = 60;
 
-/** The playable game: city + your car + your avatar + camera, driven by Input. */
+/** The playable game: city + car + avatar + people + jobs, driven by Input. */
 export class Game {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -35,13 +64,15 @@ export class Game {
   private follow = new FollowCamera(this.camera);
   private sun: Sun;
   private scaler: ResolutionScaler;
-  private city?: City;
+  city?: City;
   private world?: CollisionWorld;
   vehicle?: Vehicle;
   people?: Pedestrians;
+  jobs?: Jobs;
   player?: Player;
   avatar?: Avatar;
   mode: Mode = 'driving';
+  private arrow = createArrow();
   private raf = 0;
   private last = performance.now();
   private disposed = false;
@@ -50,8 +81,17 @@ export class Game {
   private shake = 0;
   private peopleCount = 24;
   private yieldTimer = 0;
+  private meters = 0;
+  private dirty = false;
+  private lastSave = 0;
+  private refueling = false;
+  private paused = false;
+  private fuelWarned = false;
+  private fuelBill = 0;
+  private pendingCar = false;
+  private pendingContext = false;
 
-  constructor(canvas: HTMLCanvasElement, private input: Input, private profile: PlayerProfile, private events: GameEvents) {
+  constructor(canvas: HTMLCanvasElement, private input: Input, profile: PlayerProfile, private events: GameEvents) {
     const q = pickQuality();
     this.peopleCount = q.name === 'high' ? 36 : 22;
     this.renderer = createRenderer(canvas, { shadows: true });
@@ -62,42 +102,127 @@ export class Game {
     this.scene.add(createSky());
     this.sun = new Sun(this.renderer, q.shadowSize, q.shadowMap);
     this.sun.addTo(this.scene);
-    this.load(q);
+    this.arrow.visible = false;
+    this.scene.add(this.arrow);
+    this.load(q, profile);
     this.loop();
+    document.addEventListener('visibilitychange', this.onHide);
+    window.addEventListener('pagehide', this.onHide);
   }
 
-  private async load(q: ReturnType<typeof pickQuality>) {
+  /** Save right away when the tab is hidden or closed. */
+  private onHide = () => this.save(true);
+
+  private get profile() { return getProfile()!; }
+
+  private async load(q: ReturnType<typeof pickQuality>, profile: PlayerProfile) {
     const [city, avatar] = await Promise.all([
       buildCity(q, (p) => this.events.onProgress(p * 0.95)),
-      Avatar.create(this.profile.gender, this.profile.equipped.outfit),
+      Avatar.create(profile.gender, profile.equipped.outfit),
     ]);
     if (this.disposed) { city.dispose(); avatar.dispose(); return; }
     this.city = city;
     this.avatar = avatar;
     this.scene.add(city.group);
     this.world = new CollisionWorld(city.layout.colliders);
-
-    const vehicle = new Vehicle(getVehicle(this.profile.selectedVehicle));
-    const spawn = city.layout.pois.spawn;
-    vehicle.place(spawn.x, spawn.z, spawn.rot);
-    this.scene.add(vehicle.root);
-    this.vehicle = vehicle;
     this.player = new Player(avatar);
     avatar.root.traverse((o) => { o.castShadow = true; });
+
+    const spawn = this.spawnPoint(profile.spawn);
+    this.setVehicle(profile.selectedVehicle, spawn);
     this.seatAvatar();
     this.follow.yaw = spawn.rot + Math.PI;
     this.focus.set(spawn.x, 1.2, spawn.z);
     this.follow.update(0, this.focus, { behindYaw: this.follow.yaw, distance: 8, pitch: 0.28, snap: true });
     this.sun.follow(this.focus, true);
+
+    // Map pins for important places: always visible, so kids can find them.
+    const pois = city.layout.pois;
+    const pin = (emoji: string, ring: string, x: number, z: number, y: number) => {
+      const s = createIcon(emoji, ring, 0.045);
+      s.position.set(x, y, z);
+      this.scene.add(s);
+    };
+    pin('🏠', '#ff8a2b', pois.home.x, pois.home.z, 16);
+    pin('🏢', '#8e5bd9', pois.apartment.x, pois.apartment.z, 34);
+    pin('⛽', '#e5484d', pois.gasStation.x, pois.gasStation.z, 12);
+
     this.events.onProgress(1);
     this.events.onReady();
-    // People load in the background after the city is visible.
+    this.dailyBonus();
+
+    // People and jobs load in the background after the city is visible.
     this.people = new Pedestrians(city.layout, this.world, this.peopleCount);
     this.scene.add(this.people.group);
     this.people.load();
+    this.jobs = new Jobs(city.layout, {
+      onStart: (job) => this.events.onJobStart(job),
+      onDone: (job) => this.addMoney(job.reward, 'job'),
+    });
+    this.scene.add(this.jobs.group);
   }
 
-  /** Put the avatar in the driver's seat, sitting. */
+  /** A spot on the road lane next to a door, facing along the road. */
+  private roadSpotNear(x: number, z: number) {
+    const near = (v: number) => LINES.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
+    const lx = near(x), lz = near(z);
+    if (Math.abs(lz - z) <= Math.abs(lx - x)) {
+      // horizontal road (runs along X): drive east in the lane on the south side
+      const cx = THREE.MathUtils.clamp(x, -HALF_CITY + 12, HALF_CITY - 12);
+      return { x: cx, z: lz + 2.5, rot: Math.PI / 2 };
+    }
+    const cz = THREE.MathUtils.clamp(z, -HALF_CITY + 12, HALF_CITY - 12);
+    return { x: lx - 2.5, z: cz, rot: 0 };
+  }
+
+  private spawnPoint(where: 'home' | 'apartment') {
+    const pois = this.city!.layout.pois;
+    if (where === 'apartment') return this.roadSpotNear(pois.apartment.door.x, pois.apartment.door.z);
+    return pois.spawn;
+  }
+
+  private setVehicle(id: string, at: { x: number; z: number; rot: number }) {
+    const wasSeated = this.mode === 'driving' && this.avatar?.root.parent === this.vehicle?.car.root;
+    if (wasSeated) this.scene.add(this.avatar!.root);
+    this.vehicle?.dispose();
+    const v = new Vehicle(getVehicle(id));
+    v.place(at.x, at.z, at.rot);
+    this.scene.add(v.root);
+    this.vehicle = v;
+  }
+
+  // ---------------- money ----------------
+
+  private addMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'km') {
+    const p = this.profile;
+    setProfile({ ...p, money: Math.max(0, p.money + amount) });
+    this.dirty = true;
+    if (reason !== 'km' && amount > 0) this.events.onMoney(amount, reason);
+  }
+
+  private dailyBonus() {
+    const p = this.profile;
+    const today = new Date().toDateString();
+    if (new Date(p.lastDailyBonus).toDateString() === today) return;
+    setProfile({ ...p, lastDailyBonus: Date.now() });
+    updateProfile({ lastDailyBonus: Date.now() });
+    setTimeout(() => this.addMoney(DAILY_BONUS, 'daily'), 1200);
+  }
+
+  /** Saves money/fuel/km at most every few seconds (and on exit). */
+  private save(force = false) {
+    if (!this.dirty) return;
+    // Real time (not game time), so slow devices still save every few seconds.
+    const now = performance.now();
+    if (!force && now - this.lastSave < 4000) return;
+    this.lastSave = now;
+    this.dirty = false;
+    const p = this.profile;
+    updateProfile({ money: Math.round(p.money), fuel: Math.round(p.fuel * 1000) / 1000, km: Math.round(p.km * 10) / 10 });
+  }
+
+  // ---------------- car / walking ----------------
+
   private seatAvatar() {
     const v = this.vehicle!, a = this.avatar!;
     v.car.root.add(a.root);
@@ -108,11 +233,10 @@ export class Game {
     this.mode = 'driving';
   }
 
-  /** E / tap the button: get in or out of the car. */
   private toggleCar() {
     const v = this.vehicle!, a = this.avatar!, p = this.player!;
     if (this.mode === 'driving') {
-      if (v.kmh > 8) return; // first slow down
+      if (v.kmh > 8) return;
       v.speed = 0;
       const door = v.localToWorld(v.width / 2 + 0.9, v.car.seat.z);
       this.scene.add(a.root);
@@ -122,7 +246,6 @@ export class Game {
       this.mode = 'walking';
     } else if (this.canEnter()) {
       this.seatAvatar();
-      this.follow.look(0, 0);
     }
   }
 
@@ -131,6 +254,118 @@ export class Game {
     return Math.hypot(this.player.x - this.vehicle.x, this.player.z - this.vehicle.z) < ENTER_DISTANCE;
   }
 
+  // ---------------- places ----------------
+
+  private context(): ContextAction | null {
+    if (!this.city || !this.vehicle || !this.player) return null;
+    const L = this.city.layout, v = this.vehicle;
+    if (this.mode === 'driving') {
+      const c = L.gas.canopy;
+      const under = v.x > c.x0 - 2 && v.x < c.x1 + 2 && v.z > c.z0 - 2 && v.z < c.z1 + 2;
+      if (under && v.kmh < 4 && (this.profile.fuel < 0.98 || this.refueling)) return { kind: 'refuel' };
+      return null;
+    }
+    const p = this.player;
+    const near = (d: { x: number; z: number }) => Math.hypot(p.x - d.x, p.z - d.z) < 3.2;
+    if (near(L.pois.home.door)) return { kind: 'home' };
+    if (near(L.pois.apartment.door)) return this.profile.ownsApartment ? { kind: 'apartment' } : { kind: 'buyApartment', price: APARTMENT_PRICE };
+    return null;
+  }
+
+  private doContext(c: ContextAction) {
+    switch (c.kind) {
+      case 'refuel':
+        this.refueling = !this.refueling;
+        break;
+      case 'home':
+      case 'apartment':
+        this.paused = true;
+        this.events.onPlace(c.kind);
+        break;
+      case 'buyApartment': {
+        const p = this.profile;
+        if (p.money < c.price) { this.events.onMessage('needMoney', c.price - p.money); break; }
+        setProfile({ ...p, money: p.money - c.price, ownsApartment: true });
+        updateProfile({ money: p.money - c.price, ownsApartment: true });
+        this.events.onMoney(-c.price, 'apartment');
+        break;
+      }
+    }
+  }
+
+  private refuel(dt: number, ctx: ContextAction | null) {
+    const p = this.profile;
+    if (!this.refueling) return;
+    // Stop when full, when driving off or when getting out.
+    if (p.fuel >= 0.999 || ctx?.kind !== 'refuel' || this.mode !== 'driving') { this.refueling = false; this.payFuel(true); return; }
+    const add = Math.min(1 - p.fuel, dt * 0.3);
+    const cost = add * TANK_PRICE;
+    if (p.money >= this.fuelBill + cost) {
+      this.fuelBill += cost;
+      setProfile({ ...p, fuel: p.fuel + add });
+      this.payFuel(false);
+    } else if (p.fuel < 0.3) {
+      // Can't pay? The friendly attendant fills you up to 30% for free.
+      setProfile({ ...p, fuel: 0.3 });
+      this.events.onMessage('freeFuel');
+      this.refueling = false;
+    } else {
+      this.refueling = false;
+      this.payFuel(true);
+      this.events.onMessage('needMoney', Math.ceil(cost));
+    }
+    this.dirty = true;
+  }
+
+  /** Money is always whole euros: pay the fuel bill per full euro (and the rest at the end). */
+  private payFuel(final: boolean) {
+    const euros = final ? Math.ceil(this.fuelBill - 1e-6) : Math.floor(this.fuelBill);
+    if (euros <= 0) { if (final) this.fuelBill = 0; return; }
+    this.fuelBill = final ? 0 : this.fuelBill - euros;
+    const p = this.profile;
+    setProfile({ ...p, money: Math.max(0, p.money - euros) });
+  }
+
+  /** From the home panel: switch to another owned car (it appears on the road outside). */
+  swapVehicle(id: string, place: 'home' | 'apartment') {
+    if (!this.profile.ownedVehicles.includes(id)) return;
+    setProfile({ ...this.profile, selectedVehicle: id });
+    updateProfile({ selectedVehicle: id });
+    this.setVehicle(id, this.spawnPoint(place));
+  }
+
+  /** From the home panel: change clothes (owned outfits only). */
+  async changeOutfit(id: string) {
+    const p = this.profile;
+    if (!p.ownedClothes.includes(id) || !this.player) return;
+    setProfile({ ...p, equipped: { outfit: id } });
+    updateProfile({ equipped: { outfit: id } });
+    const next = await Avatar.create(p.gender, id);
+    if (this.disposed) return next.dispose();
+    next.root.traverse((o) => { o.castShadow = true; });
+    const old = this.avatar!;
+    this.avatar = next;
+    const pl = new Player(next);
+    pl.place(this.player.x, this.player.z, this.player.heading);
+    this.player = pl;
+    this.scene.add(next.root);
+    old.dispose();
+  }
+
+  setSpawn(where: 'home' | 'apartment') {
+    setProfile({ ...this.profile, spawn: where });
+    updateProfile({ spawn: where });
+  }
+
+  /** Close the house panel and continue playing. */
+  resume() { this.paused = false; }
+
+  /** HUD buttons. (The E key does: context action first, otherwise get in/out.) */
+  pressCar() { this.pendingCar = true; }
+  pressContext() { this.pendingContext = true; }
+
+  // ---------------- main loop ----------------
+
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop);
     const now = performance.now();
@@ -138,15 +373,37 @@ export class Game {
     this.last = now;
     fitToCanvas(this.renderer, this.camera);
     if (!this.city || !this.vehicle || !this.player || !this.avatar || !this.world) return;
+    this.save();
 
-    if (this.input.takeInteract()) this.toggleCar();
+    const ctx = this.context();
+    const key = this.input.takeInteract();
+    if (!this.paused) {
+      if ((key || this.pendingContext) && ctx) this.doContext(ctx);
+      else if (key || this.pendingCar) this.toggleCar();
+    }
+    this.pendingCar = this.pendingContext = false;
     const look = this.input.takeLook();
     this.follow.look(look.dx, look.dy);
     const jump = this.input.takeJump();
-
     const v = this.vehicle;
-    if (this.mode === 'driving') {
+    const p = this.profile;
+
+    // Fuel: an empty tank still lets you crawl (never stuck) to the gas station.
+    v.limit = p.fuel <= 0 ? 4 : Infinity;
+    if (p.fuel <= 0 && !this.fuelWarned) { this.fuelWarned = true; this.events.onMessage('fuelEmpty'); }
+    if (p.fuel > 0.05) this.fuelWarned = false;
+
+    if (this.mode === 'driving' && !this.paused) {
+      const before = { x: v.x, z: v.z };
       v.update(dt, this.input.drive(), this.world, this.people?.obstacles());
+      const moved = Math.hypot(v.x - before.x, v.z - before.z);
+      if (moved > 0) {
+        this.meters += moved;
+        const fuel = Math.max(0, p.fuel - moved / TANK_METERS);
+        setProfile({ ...p, fuel, km: p.km + moved / 1000 });
+        this.dirty = true;
+        while (this.meters >= 100) { this.meters -= 100; this.addMoney(KM_REWARD, 'km'); }
+      }
       this.focus.set(v.x, v.root.position.y + 1.3, v.z);
       if (v.bumped > 0.25) this.shake = 0.25;
       this.follow.update(dt, this.focus, {
@@ -157,39 +414,80 @@ export class Game {
       });
     } else {
       v.update(dt, null, this.world, this.people?.obstacles());
-      this.player.update(dt, this.input.walk(), jump, this.follow.yaw, this.world);
+      if (!this.paused) this.player.update(dt, this.input.walk(), jump, this.follow.yaw, this.world);
       this.focus.set(this.player.x, this.player.y + 1.4, this.player.z);
       this.follow.update(dt, this.focus, { behindYaw: null, distance: 5.5, pitch: 0.32, blocked: this.blocked });
     }
+    this.refuel(dt, ctx);
     if (this.shake > 0) {
       this.shake -= dt;
       this.camera.position.x += (Math.random() - 0.5) * this.shake * 0.4;
       this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.4;
     }
+    const pos = this.mode === 'driving' ? v : this.player;
     this.people?.update(dt, this.focus.x, this.focus.z, v, this.mode === 'walking' ? this.player : null);
+    this.jobs?.update(dt, pos, this.mode === 'driving', v.kmh);
+    this.updateArrow(dt, pos);
+    // Carry the package in your arms while walking with a delivery.
+    if (this.mode === 'walking' && this.jobs?.active?.kind === 'delivery') {
+      const n = this.avatar.currentName;
+      if (n === 'Walk' || n === 'Run') this.avatar.play(n === 'Walk' ? 'Walk_Carry' : 'Run_Carry', { fade: 0.2 });
+    }
     this.yieldTimer = v.yielding ? 1.2 : Math.max(0, this.yieldTimer - dt);
     this.avatar.update(dt);
     this.sun.follow(this.focus);
     this.city.update(this.camera.position, dt);
     this.scaler.update(dt);
     this.renderer.render(this.scene, this.camera);
+    this.emitState(ctx);
+  };
 
-    const state: GameState = { mode: this.mode, canEnter: this.canEnter(), kmh: Math.round(v.kmh), yielding: this.mode === 'driving' && this.yieldTimer > 0 };
-    const key = `${state.mode}|${state.canEnter}|${state.kmh}|${state.yielding}`;
+  /** Points the yellow arrow at the job destination, or at the gas station when fuel is low. */
+  private updateArrow(dt: number, pos: { x: number; z: number }) {
+    const job = this.jobs?.active;
+    const target = job ? job : this.profile.fuel < 0.15 ? this.city!.layout.pois.gasStation : null;
+    const d = target ? Math.hypot(target.x - pos.x, target.z - pos.z) : 0;
+    this.arrow.visible = !!target && d > 12;
+    if (!target || !this.arrow.visible) return;
+    const y = this.mode === 'driving' ? 2.7 : 2.4;
+    this.arrow.position.set(pos.x, y + Math.sin(performance.now() / 300) * 0.15, pos.z);
+    const want = Math.atan2(target.x - pos.x, target.z - pos.z);
+    const diff = Math.atan2(Math.sin(want - this.arrow.rotation.y), Math.cos(want - this.arrow.rotation.y));
+    this.arrow.rotation.y += diff * Math.min(1, dt * 8);
+    this.arrow.scale.setScalar(this.mode === 'driving' ? 1.15 : 0.65);
+  }
+
+  private emitState(ctx: ContextAction | null) {
+    const v = this.vehicle!, p = this.profile;
+    const job = this.jobs?.active;
+    const pos = this.mode === 'driving' ? v : this.player!;
+    const state: GameState = {
+      mode: this.mode,
+      canEnter: this.canEnter(),
+      kmh: Math.round(v.kmh),
+      yielding: this.mode === 'driving' && this.yieldTimer > 0,
+      fuel: Math.round(p.fuel * 100) / 100,
+      refueling: this.refueling,
+      context: ctx,
+      job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round(Math.hypot(job.x - pos.x, job.z - pos.z) / 10) * 10 } : null,
+    };
+    const key = JSON.stringify(state);
     if (key !== this.lastState) {
       this.lastState = key;
       this.events.onState(state);
     }
-  };
+  }
 
   private blocked = (x: number, z: number) => this.world!.pointBlocked(x, z);
-
-  /** Called by the HUD button (same as pressing E). */
-  interact() { this.input.queueInteract(); }
 
   dispose() {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
+    document.removeEventListener('visibilitychange', this.onHide);
+    window.removeEventListener('pagehide', this.onHide);
+    this.payFuel(true);
+    this.save(true);
+    this.jobs?.dispose();
     this.people?.dispose();
     this.avatar?.dispose();
     this.vehicle?.dispose();
@@ -198,3 +496,4 @@ export class Game {
     this.renderer.dispose();
   }
 }
+
