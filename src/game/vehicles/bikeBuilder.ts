@@ -143,7 +143,7 @@ export function buildBike(shape: BikeShape, color: THREE.ColorRepresentation): B
   return {
     root,
     wheels: { fl: front, fr: front, rl: rear, rr: rear },
-    seat: new THREE.Vector3(0, sy - 0.42, -0.42),
+    seat: new THREE.Vector3(0, sy + 0.04, -0.24),
     setColor: (c) => paint.color.set(c),
     dispose() {
       root.traverse((o) => (o as THREE.Mesh).geometry?.dispose());

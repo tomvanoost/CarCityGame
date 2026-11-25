@@ -6,6 +6,7 @@ import { Avatar } from '../avatar/avatar';
 import { buildCity, type City } from '../city/cityBuilder';
 import { HALF_CITY, LINES } from '../city/layout';
 import { getVehicle } from '../vehicles/catalog';
+import { SEATED_SCALE, seatedRootPosition } from '../vehicles/carBuilder';
 import { createSky, skyEnvironment, SKY, Sun } from '../world/sky';
 import { pickQuality, ResolutionScaler } from '../world/quality';
 import { CollisionWorld } from './collision';
@@ -314,9 +315,9 @@ export class Game {
   private seatAvatar() {
     const v = this.vehicle!, a = this.avatar!;
     v.car.root.add(a.root);
-    a.root.position.set(v.car.seat.x, 0.02, v.car.seat.z - 0.1);
+    a.root.position.copy(seatedRootPosition(v.car.seat));
     a.root.rotation.set(0, 0, 0);
-    a.root.scale.setScalar(0.74);
+    a.root.scale.setScalar(SEATED_SCALE);
     a.play('SitDown', { once: true, fade: 0.2, then: null });
     this.mode = 'driving';
   }

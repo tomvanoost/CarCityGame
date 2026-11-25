@@ -16,7 +16,7 @@ export interface BuiltCar {
   /** Wheel pivots: rotate .rotation.x to spin, front ones .rotation.y to steer. */
   wheels: { fl: THREE.Group; fr: THREE.Group; rl: THREE.Group; rr: THREE.Group };
   setColor(color: THREE.ColorRepresentation): void;
-  /** Driver seat position (local), for putting the avatar inside. */
+  /** Where the driver's hips go (vehicle-local). Use `seatedRootPosition()` to place a character. */
   seat: THREE.Vector3;
   dispose(): void;
 }
@@ -98,6 +98,19 @@ export function mergeStaticParts(root: THREE.Group, keep: Set<THREE.Object3D>) {
     for (const m of list) { m.removeFromParent(); m.geometry.dispose(); }
     root.add(merged);
   }
+}
+
+/**
+ * Hip position of a character in the end pose of the SitDown animation, relative to the
+ * character's root, at scale 1 (measured from the shared character skeleton).
+ */
+const SEATED_HIP = { y: 0.34, z: -0.19 };
+/** Scale of characters sitting in vehicles. */
+export const SEATED_SCALE = 0.74;
+
+/** Root position that puts a seated character's hips on `seat`. */
+export function seatedRootPosition(seat: THREE.Vector3, scale = SEATED_SCALE): THREE.Vector3 {
+  return new THREE.Vector3(seat.x, seat.y - SEATED_HIP.y * scale, seat.z - SEATED_HIP.z * scale);
 }
 
 // ---------- curve helper: smooth monotone interpolation ----------
@@ -378,24 +391,37 @@ export function buildCar(shape: CarShape, color: THREE.ColorRepresentation): Bui
   const dash = new THREE.Mesh(new THREE.BoxGeometry(innerW, 0.18, 0.32), mats.interior);
   dash.position.set(0, top(r0 + 0.02) - 0.02, dashZ);
   root.add(dash);
-  const seatZ = zOf(tMid) + 0.1;
-  const seatGeo = new THREE.BoxGeometry(0.46, 0.5, 0.12).translate(0, 0.25, 0);
-  for (const sx of doors === 2 ? [-1, 1] : [-1, 1]) {
+  // Driver position: the hips sit ~0.5 m behind the steering wheel, high enough that the
+  // head shows in the window, low enough that it stays under the roof (sports cars are low).
+  const hipZ = dashZ - 0.7;
+  const tHip = (L / 2 - hipZ) / L;
+  const hipY = Math.min(top(tHip) - 0.32, roof(tHip) - 0.8);
+  const hipX = W * 0.2;
+  const seatGeo = new THREE.BoxGeometry(0.46, 0.62, 0.12).translate(0, 0.31, 0);
+  const cushionGeo = new THREE.BoxGeometry(0.46, 0.12, 0.46);
+  for (const sx of [-1, 1]) {
     const back = new THREE.Mesh(seatGeo, mats.seat);
-    back.position.set(sx * W * 0.2, floorY + 0.15, seatZ - 0.32);
-    back.rotation.x = -0.18;
+    back.position.set(sx * hipX, hipY - 0.08, hipZ - 0.22);
+    back.rotation.x = -0.2;
     root.add(back);
+    const cushion = new THREE.Mesh(cushionGeo, mats.seat);
+    cushion.position.set(sx * hipX, hipY - 0.12, hipZ + 0.02);
+    root.add(cushion);
   }
   if (doors === 4) {
-    const bench = new THREE.Mesh(new THREE.BoxGeometry(innerW * 0.9, 0.45, 0.12).translate(0, 0.22, 0), mats.seat);
-    bench.position.set(0, floorY + 0.15, zOf(tMid) - 0.75);
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(innerW * 0.9, 0.5, 0.12).translate(0, 0.25, 0), mats.seat);
+    bench.position.set(0, hipY - 0.1, hipZ - 0.95);
     bench.rotation.x = -0.15;
     root.add(bench);
   }
   const wheelRing = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.022, 6, 20), mats.black);
-  wheelRing.position.set(W * 0.2, top(r0 + 0.02) + 0.05, dashZ - 0.22);
+  wheelRing.position.set(hipX, hipY + 0.32, hipZ + 0.45);
   wheelRing.rotation.x = -0.45;
   root.add(wheelRing);
+  const column = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8), mats.black);
+  column.position.set(hipX, hipY + 0.27, hipZ + 0.58);
+  column.rotation.x = -0.45 + Math.PI / 2;
+  root.add(column);
 
   // Chassis filler (hides see-through between wheel arches).
   const chassis = new THREE.Mesh(
@@ -474,7 +500,7 @@ export function buildCar(shape: CarShape, color: THREE.ColorRepresentation): Bui
     rr: makeWheel(-wx, axles[1]),
   };
 
-  const seat = new THREE.Vector3(W * 0.2, top(tMid) - 0.35, zOf(tMid) + 0.1);
+  const seat = new THREE.Vector3(hipX, hipY, hipZ);
 
   // Soft contact shadow so the car sits on the road.
   const shadowMesh = contactShadow(W * 1.35, L * 1.15);

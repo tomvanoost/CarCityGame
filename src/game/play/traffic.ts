@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PAINT_COLORS, VEHICLES } from '../vehicles/catalog';
-import type { BuiltCar } from '../vehicles/carBuilder';
+import { SEATED_SCALE, seatedRootPosition, type BuiltCar } from '../vehicles/carBuilder';
 import { buildVehicle, vehicleDims } from '../vehicles/factory';
 import type { VehicleSpec } from '../vehicles/types';
 import { groundHeight } from './collision';
@@ -167,8 +167,8 @@ export class Traffic {
         const drv = people.makeDriver();
         if (drv) {
           car.built.root.add(drv);
-          drv.position.set(car.built.seat.x, 0.02, car.built.seat.z - 0.1);
-          drv.scale.multiplyScalar(0.74);
+          drv.position.copy(seatedRootPosition(car.built.seat));
+          drv.scale.multiplyScalar(SEATED_SCALE);
           car.hasDriver = true;
         }
       }
