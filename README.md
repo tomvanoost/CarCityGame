@@ -16,6 +16,14 @@ npm run dev
 ```
 Then open http://localhost:5173.
 
+## Controls
+| | Keyboard | Tablet mode (auto on touch screens, toggle with the tablet button) |
+|---|---|---|
+| Drive | W A S D / arrows (S = brake, hold to reverse), Space = handbrake | Steering wheel + green gas / red brake pedal |
+| Walk | W A S D / arrows, Shift = run, Space = jump | Joystick (left half of the screen), jump button |
+| Get in / out | E | Big orange/green button |
+| Look around | Drag with the mouse | Drag on the screen |
+
 ## Deploy to fly.io
 1. Install the CLI: <https://fly.io/docs/flyctl/install/>, then run `fly auth login`.
 2. Change `app = "carcitygame"` in `fly.toml` to a unique name.

@@ -12,6 +12,7 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
 body {
   font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -150,3 +151,54 @@ button, input { font: inherit; color: inherit; }
 .loading-text { font-size: 20px; font-weight: 900; color: #fff; text-shadow: 0 2px 8px rgba(0, 60, 140, .3); }
 .load-bar { width: min(320px, 70vw); height: 14px; border-radius: 10px; background: rgba(255, 255, 255, .5); overflow: hidden; }
 .load-bar-fill { height: 100%; width: 0; background: var(--blue); border-radius: 10px; transition: width .2s; }
+
+/* --- HUD --- */
+.tablet-btn { top: calc(max(12px, env(safe-area-inset-top)) + 46px); right: 12px; }
+.tablet-btn.active { background: var(--blue); color: #fff; }
+.speed { position: absolute; left: 50%; transform: translateX(-50%); bottom: max(16px, env(safe-area-inset-bottom)); display: flex; align-items: baseline; gap: 4px;
+  background: rgba(29, 43, 68, .78); color: #fff; padding: 6px 16px; border-radius: 16px; pointer-events: none; }
+.speed b { font-size: 26px; font-weight: 900; min-width: 2ch; text-align: right; }
+.speed small { font-size: 13px; opacity: .8; }
+.tablet .speed { bottom: auto; top: calc(max(6px, env(safe-area-inset-top)) + 30px); }
+.action-btn { position: absolute; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 8px;
+  border: 0; border-radius: 18px; padding: 14px 20px; font-size: 19px; font-weight: 900; color: #fff; background: #ff8a2b;
+  box-shadow: 0 6px 0 #d96a12, var(--shadow); cursor: pointer; transition: transform .1s, opacity .2s; }
+.action-btn.enter { background: #20b76b; box-shadow: 0 6px 0 #15924f, var(--shadow); animation: pulse 1.2s ease-in-out infinite; }
+.action-btn.disabled { opacity: .45; }
+.action-btn:active { transform: translateY(4px); }
+.action-btn kbd { font: 800 13px/1 ui-monospace, monospace; background: rgba(255,255,255,.25); padding: 4px 7px; border-radius: 6px; }
+.tablet .action-btn { right: 50%; transform: translateX(50%); bottom: auto; top: calc(max(6px, env(safe-area-inset-top)) + 84px); }
+.tablet .action-btn:active { transform: translateX(50%) translateY(3px); }
+@keyframes pulse { 50% { filter: brightness(1.12); } }
+.keys-hint { position: absolute; left: 50%; transform: translateX(-50%); top: max(44px, env(safe-area-inset-top)); background: rgba(29, 43, 68, .82); color: #fff;
+  padding: 10px 16px; border-radius: 14px; font-size: 14px; max-width: calc(100% - 200px); text-align: center; transition: opacity .6s; pointer-events: none; }
+.keys-hint.hide { opacity: 0; }
+
+/* steering wheel + pedals */
+.touch-drive, .touch-walk { position: absolute; inset: 0; pointer-events: none; }
+.touch-drive[hidden], .touch-walk[hidden] { display: none; }
+.wheel { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: max(18px, env(safe-area-inset-bottom)); width: 170px; height: 170px;
+  color: rgba(255, 255, 255, .92); filter: drop-shadow(0 4px 10px rgba(0,0,0,.35)); pointer-events: auto; touch-action: none; }
+.wheel svg { width: 100%; height: 100%; }
+.pedals { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); display: flex; align-items: flex-end; gap: 14px; pointer-events: none; }
+.pedal { pointer-events: auto; touch-action: none; display: grid; place-items: center; border-radius: 18px; color: #fff; font-size: 22px;
+  box-shadow: 0 6px 0 rgba(0,0,0,.25), 0 8px 20px rgba(0,0,0,.25); transition: transform .08s; user-select: none; }
+.pedal.brake { width: 92px; height: 92px; background: #e5484d; }
+.pedal.gas { width: 92px; height: 140px; background: #20b76b; }
+.pedal.down { transform: translateY(5px) scale(.97); box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+
+/* joystick */
+.joy-zone { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; pointer-events: auto; touch-action: none; }
+.joy-base { position: absolute; width: 130px; height: 130px; margin: -65px 0 0 -65px; border-radius: 50%; background: rgba(255,255,255,.22);
+  border: 3px solid rgba(255,255,255,.6); opacity: 0; transition: opacity .15s; pointer-events: none; }
+.joy-base.on { opacity: 1; }
+.joy-knob { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 3px 10px rgba(0,0,0,.3); }
+.jump-btn { position: absolute; right: max(24px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); width: 92px; height: 92px; border-radius: 50%; border: 0;
+  background: rgba(47, 139, 255, .92); color: #fff; display: grid; place-items: center; pointer-events: auto; touch-action: none; box-shadow: 0 6px 0 var(--blue-dark), var(--shadow); }
+.jump-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--blue-dark); }
+@media (max-width: 600px) {
+  .wheel { width: 140px; height: 140px; }
+  .pedal.brake { width: 76px; height: 76px; }
+  .pedal.gas { width: 76px; height: 116px; }
+  .keys-hint { display: none; }
+}

@@ -32,7 +32,10 @@ const dict = {
     shopSoon: 'De winkels komen in stap 8!',
     dragToTurn: 'Sleep om te draaien',
     loadingCity: 'De stad wordt gebouwd…',
-    tourHint: 'Sleep om te bewegen, knijp om te zoomen. Rijden komt in stap 5!',
+    getIn: 'Instappen',
+    getOut: 'Uitstappen',
+    tabletMode: 'Tabletbediening aan/uit',
+    keysHint: 'W A S D of pijltjes: rijden en lopen · E: in- en uitstappen · Spatie: springen · Sleep: rondkijken',
     back: 'Terug',
   },
   en: {
@@ -66,7 +69,10 @@ const dict = {
     shopSoon: 'The shops are coming in step 8!',
     dragToTurn: 'Drag to turn',
     loadingCity: 'Building the city…',
-    tourHint: 'Drag to move, pinch to zoom. Driving is coming in step 5!',
+    getIn: 'Get in',
+    getOut: 'Get out',
+    tabletMode: 'Tablet controls on/off',
+    keysHint: 'W A S D or arrows: drive and walk · E: get in and out · Space: jump · Drag: look around',
     back: 'Back',
   },
 } as const;

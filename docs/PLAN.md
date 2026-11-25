@@ -21,8 +21,9 @@ FPS always visible.
 2. ✅ **Login / Register:** username, password, confirm, boy/girl; demo mode without Firebase
 3. ✅ **Game menu:** 3D avatar top-left (animated, tap to cheer), car showroom (drag to turn), owned-car picker, shop & Play buttons
 4. ✅ **City:** ~1×1 km grid city: downtown towers, townhouses, shops, apartments, houses with gardens, park with pond & fountain, gas station, forest ring + hills; sun, shadows, sky, fog. Play opens a city tour (drag/pinch)
-5. ⬜ **Driving & walking:** starter car "Golfo 2025", get in/out, keyboard + tablet controls
-   (steering wheel, gas/brake; joystick when walking, Roblox-style)
+5. ✅ **Driving & walking:** start in your selected car next to your house; get in/out (sit/stand animations);
+   arcade car physics (no damage, gentle bumps); walk/run/jump; follow camera (drag to look, avoids buildings);
+   keyboard + tablet mode (steering wheel, gas/brake pedals; joystick + jump when walking)
 6. ⬜ **People:** pedestrians walk around and step aside; the car always stops before touching anyone
 7. ⬜ **Money & places:** deliveries, taxi, daily bonus, gas station (refuel), your house & apartment
 8. ⬜ **Shops:** vehicle shop (unique cars & motorbikes) and clothes shop, saved to Firebase

@@ -18,12 +18,13 @@ export class Avatar {
   private mixer: THREE.AnimationMixer;
   private actions = new Map<string, THREE.AnimationAction>();
   private current?: THREE.AnimationAction;
+  private afterOnce: AnimName | null = 'Idle';
 
   private constructor(model: THREE.Object3D, clips: THREE.AnimationClip[]) {
     this.root.add(model);
     this.mixer = new THREE.AnimationMixer(model);
     for (const clip of clips) this.actions.set(clip.name, this.mixer.clipAction(clip));
-    this.mixer.addEventListener('finished', () => this.play('Idle'));
+    this.mixer.addEventListener('finished', () => { if (this.afterOnce) this.play(this.afterOnce); });
   }
 
   /** Loads the outfit + shared animations and returns a ready-to-use avatar. */
@@ -58,15 +59,24 @@ export class Avatar {
     return avatar;
   }
 
-  play(name: AnimName, opts: { once?: boolean; fade?: number } = {}) {
+  /**
+   * Plays an animation. `once` plays it one time, then `then` (default Idle);
+   * pass `then: null` to hold the last pose (e.g. sitting in the car).
+   */
+  play(name: AnimName, opts: { once?: boolean; fade?: number; then?: AnimName | null } = {}) {
     const next = this.actions.get(name);
     if (!next || (next === this.current && !opts.once)) return;
+    if (opts.once) this.afterOnce = opts.then === undefined ? 'Idle' : opts.then;
     next.reset();
     next.setLoop(opts.once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
     next.clampWhenFinished = !!opts.once;
     next.fadeIn(opts.fade ?? 0.25).play();
     this.current?.fadeOut(opts.fade ?? 0.25);
     this.current = next;
+  }
+
+  get currentName(): string | undefined {
+    return this.current?.getClip().name;
   }
 
   update(dt: number) {

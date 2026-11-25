@@ -328,7 +328,10 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       if (!rng.chance(0.55)) continue;
       const px = x + rng.range(-8, 8), pz = z + rng.range(-8, 8);
       if (rng.chance(0.12)) addSmall(px, pz, rng.pick(['Bush_1', 'Bush_2', 'Rock_Moss_1', 'Rock_Moss_2']), 2);
-      else L.nature.push({ model: rng.chance(0.45) ? rng.pick(PINES) : rng.pick(TREES), x: px, z: pz, rot: rng.range(0, 6.28), scale: rng.range(1, 1.5) });
+      else {
+        L.nature.push({ model: rng.chance(0.45) ? rng.pick(PINES) : rng.pick(TREES), x: px, z: pz, rot: rng.range(0, 6.28), scale: rng.range(1, 1.5) });
+        L.colliders.push({ x0: px - 0.5, z0: pz - 0.5, x1: px + 0.5, z1: pz + 0.5 });
+      }
     }
   }
 
