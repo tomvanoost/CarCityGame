@@ -1,0 +1,21 @@
+{
+  "klio": {
+    "color": "#2f6fd0"
+  },
+  "yarus": {
+    "color": "#d0101c",
+    "paint": [
+      "Default_Material",
+      "Mirrors"
+    ]
+  },
+  "mersedez-c": {
+    "rotate": 180
+  },
+  "volvu-xc90": {
+    "color": "#1c2a3a"
+  },
+  "modelo-y": {
+    "color": "#f2f2f2"
+  }
+}

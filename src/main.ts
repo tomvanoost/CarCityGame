@@ -51,7 +51,9 @@ async function boot() {
 
 const carLab = new URLSearchParams(location.search).get('carlab');
 const assetLab = new URLSearchParams(location.search).get('assetlab');
-if (import.meta.env.DEV && carLab) import('./dev/carLab').then((m) => m.startCarLab(carLab));
+const sfLab = new URLSearchParams(location.search).get('sflab');
+if (import.meta.env.DEV && sfLab) import('./dev/sketchfabLab').then((m) => m.startSketchfabLab(Number(sfLab), new URLSearchParams(location.search).has('lod')));
+else if (import.meta.env.DEV && carLab) import('./dev/carLab').then((m) => m.startCarLab(carLab));
 else if (import.meta.env.DEV && assetLab)
   import('./dev/assetLab').then((m) => m.startAssetLab(assetLab, new URLSearchParams(location.search).get('files')!.split(',')));
 else boot();

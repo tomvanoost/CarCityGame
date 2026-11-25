@@ -152,7 +152,8 @@ export class Game {
     avatar.root.traverse((o) => { o.castShadow = true; });
 
     const spawn = this.spawnPoint(profile.spawn);
-    this.setVehicle(profile.selectedVehicle, spawn);
+    await this.setVehicle(profile.selectedVehicle, spawn);
+    if (this.disposed) return;
     this.seatAvatar();
     this.follow.yaw = spawn.rot + Math.PI;
     this.focus.set(spawn.x, 1.2, spawn.z);
@@ -270,11 +271,13 @@ export class Game {
     return pois.spawn;
   }
 
-  private setVehicle(id: string, at: { x: number; z: number; rot: number }) {
+  private async setVehicle(id: string, at: { x: number; z: number; rot: number }) {
+    // Load the model first, so the old car stays until the new one is ready.
+    const v = await Vehicle.create(getVehicle(id), this.profile.vehicleColors[id]);
+    if (this.disposed) { v.dispose(); return; }
     const wasSeated = this.mode === 'driving' && this.avatar?.root.parent === this.vehicle?.car.root;
     if (wasSeated) this.scene.add(this.avatar!.root);
     this.vehicle?.dispose();
-    const v = new Vehicle(getVehicle(id), this.profile.vehicleColors[id]);
     v.place(at.x, at.z, at.rot);
     this.scene.add(v.root);
     this.vehicle = v;
@@ -420,7 +423,7 @@ export class Game {
     if (!this.profile.ownedVehicles.includes(id)) return;
     setProfile({ ...this.profile, selectedVehicle: id });
     updateProfile({ selectedVehicle: id });
-    this.setVehicle(id, this.spawnPoint(place));
+    void this.setVehicle(id, this.spawnPoint(place));
   }
 
   /** From the home panel: change clothes (owned outfits only). */

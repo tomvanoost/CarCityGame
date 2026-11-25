@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { BuiltCar } from '../vehicles/carBuilder';
-import { buildVehicle, vehicleDims } from '../vehicles/factory';
+import { loadVehicle, vehicleDims } from '../vehicles/factory';
 import type { VehicleSpec } from '../vehicles/types';
 import { groundHeight, type CollisionWorld } from './collision';
 
@@ -40,8 +40,13 @@ export class Vehicle {
   /** Extra speed limit in m/s (e.g. empty tank). */
   limit = Infinity;
 
-  constructor(readonly spec: VehicleSpec, color?: string) {
-    this.car = buildVehicle(spec, color);
+  /** Loads the vehicle's model (Sketchfab or built-in) and returns a ready Vehicle. */
+  static async create(spec: VehicleSpec, color?: string) {
+    return new Vehicle(spec, await loadVehicle(spec, color));
+  }
+
+  constructor(readonly spec: VehicleSpec, car: BuiltCar) {
+    this.car = car;
     this.root.add(this.car.root);
     const d = vehicleDims(spec);
     this.dims = d;
