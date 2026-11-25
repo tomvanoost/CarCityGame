@@ -7,6 +7,7 @@ Built with **TypeScript + Three.js**, hosted on **fly.io**, saved in **Firebase*
 - 📋 Plan & progress: [docs/PLAN.md](docs/PLAN.md)
 - 🔥 Firebase setup: [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md)
 - 🎨 Credits & model sources: [CREDITS.md](CREDITS.md)
+- 🧊 Sketchfab models: [docs/SKETCHFAB_SETUP.md](docs/SKETCHFAB_SETUP.md)
 
 ## Run locally
 ```bash
