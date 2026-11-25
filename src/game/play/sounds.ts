@@ -17,7 +17,8 @@ class Sounds {
   private engineOsc: OscillatorNode[] = [];
   private engineFilter: BiquadFilterNode | null = null;
   private muted = loadMuted();
-  private lastHorn = 0;
+  /** The toot that is playing now (its own volume node), so a new tap can cut it off. */
+  private hornBus: { gain: GainNode; oscs: OscillatorNode[] } | null = null;
 
   get isMuted() { return this.muted; }
 
@@ -72,7 +73,7 @@ class Sounds {
     this.engineGain!.gain.setTargetAtTime(on ? 0.05 + k * 0.05 + throttle * 0.03 : 0, t, on ? 0.15 : 0.08);
   }
 
-  private tone(ctx: AudioContext, type: OscillatorType, freq: number, start: number, dur: number, vol: number, endFreq?: number) {
+  private tone(ctx: AudioContext, type: OscillatorType, freq: number, start: number, dur: number, vol: number, endFreq?: number, out?: AudioNode) {
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type;
     o.frequency.setValueAtTime(freq, start);
@@ -80,20 +81,38 @@ class Sounds {
     g.gain.setValueAtTime(0.0001, start);
     g.gain.exponentialRampToValueAtTime(vol, start + 0.012);
     g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-    o.connect(g).connect(this.master!);
+    o.connect(g).connect(out ?? this.master!);
     o.start(start);
     o.stop(start + dur + 0.02);
+    return o;
   }
 
-  /** Cheerful two-tone toot toot. */
+  /**
+   * Cheerful two-tone toot toot. Tapping again cuts the old toot off (quick
+   * fade, no click) and starts a new one from the beginning.
+   */
   horn() {
     const ctx = this.ready();
-    if (!ctx || ctx.currentTime - this.lastHorn < 0.5) return;
-    const t = (this.lastHorn = ctx.currentTime);
-    for (const [s, f] of [[0, 440], [0.18, 554]] as const) {
-      this.tone(ctx, 'square', f, t + s, 0.16, 0.06);
-      this.tone(ctx, 'triangle', f * 1.5, t + s, 0.16, 0.05);
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const old = this.hornBus;
+    if (old) {
+      old.gain.gain.cancelScheduledValues(t);
+      old.gain.gain.setValueAtTime(old.gain.gain.value, t);
+      old.gain.gain.linearRampToValueAtTime(0, t + 0.015);
+      for (const o of old.oscs) { try { o.stop(t + 0.02); } catch { /* already stopped */ } }
     }
+    const gain = ctx.createGain();
+    gain.connect(this.master!);
+    const oscs: OscillatorNode[] = [];
+    const start = t + 0.005;
+    for (const [s, f] of [[0, 440], [0.18, 554]] as const) {
+      oscs.push(this.tone(ctx, 'square', f, start + s, 0.16, 0.06, undefined, gain));
+      oscs.push(this.tone(ctx, 'triangle', f * 1.5, start + s, 0.16, 0.05, undefined, gain));
+    }
+    const bus = { gain, oscs };
+    this.hornBus = bus;
+    oscs[oscs.length - 1].onended = () => { gain.disconnect(); if (this.hornBus === bus) this.hornBus = null; };
   }
 
   /** Bright coin "ching". */
