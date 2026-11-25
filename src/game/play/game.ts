@@ -19,6 +19,7 @@ import { Pedestrians } from './pedestrians';
 import { Wildlife } from './wildlife';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Garage, type GarageSpot } from './garage';
+import { DAY, EVENING, headlightRig, loadEvening, saveEvening, StreetLamps } from '../world/evening';
 import { awardSticker } from '../../ui/stickers';
 import { RoadGraph, type P } from './roads';
 import { Traffic } from './traffic';
@@ -94,6 +95,9 @@ export class Game {
   wildlife?: Wildlife;
   carWash?: CarWash;
   garage?: Garage;
+  lamps?: StreetLamps;
+  /** Soft evening light on (street lamps and headlights glow). */
+  evening = loadEvening();
   jobs?: Jobs;
   traffic?: Traffic;
   roads?: RoadGraph;
@@ -201,6 +205,9 @@ export class Game {
     this.scene.add(this.wildlife.group);
     this.carWash = new CarWash(city.layout);
     this.scene.add(this.carWash.group);
+    this.lamps = new StreetLamps(city.layout);
+    this.scene.add(this.lamps.group);
+    if (this.evening) this.applyLight();
     this.jobs = new Jobs(city.layout, {
       onStart: (job) => this.events.onJobStart(job),
       onDone: (job) => {
@@ -216,6 +223,7 @@ export class Game {
     this.scene.add(this.nav.arrows);
     this.traffic = new Traffic(this.roads, this.trafficCount);
     this.scene.add(this.traffic.group);
+    this.traffic.setLights(this.evening);
   }
 
   /** Pick a destination (from the big map), or null to stop navigating. */
@@ -305,6 +313,9 @@ export class Game {
     if (wasSeated) this.scene.add(this.avatar!.root);
     this.vehicle?.dispose();
     v.place(at.x, at.z, at.rot);
+    const lights = headlightRig(v.length, v.width);
+    lights.visible = this.evening;
+    v.root.add(lights);
     this.scene.add(v.root);
     this.vehicle = v;
   }
@@ -487,6 +498,36 @@ export class Game {
         }
       }
     });
+  }
+
+  /** 🌙 / ☀️ button: switch between day and the soft evening light (remembered on this device). */
+  setEvening(on: boolean) {
+    this.evening = on;
+    saveEvening(on);
+    this.applyLight();
+  }
+
+  private applyLight() {
+    const L = this.evening ? EVENING : DAY;
+    SKY.zenith.set(L.zenith);
+    SKY.horizon.set(L.horizon);
+    SKY.sunDir.set(L.sunDir[0], L.sunDir[1], L.sunDir[2]).normalize();
+    (this.scene.fog as THREE.Fog).color.copy(SKY.horizon);
+    this.sun.light.color.set(L.sun);
+    this.sun.light.intensity = L.sunI;
+    this.sun.hemi.color.set(L.hemiSky);
+    this.sun.hemi.groundColor.set(L.hemiGround);
+    this.sun.hemi.intensity = L.hemiI;
+    // Reflections come from the sky: bake them again for the new colors (only when switching).
+    const old = this.scene.environment;
+    this.scene.environment = skyEnvironment(this.renderer);
+    old?.dispose();
+    this.scene.environmentIntensity = L.env;
+    this.sun.follow(this.focus, true);
+    if (this.lamps) this.lamps.group.visible = this.evening;
+    const head = this.vehicle?.root.getObjectByName('CCG_HEADLIGHTS');
+    if (head) head.visible = this.evening;
+    this.traffic?.setLights(this.evening);
   }
 
   swapVehicle(id: string, place: 'home' | 'apartment') {
@@ -713,6 +754,9 @@ export class Game {
     this.wildlife?.dispose();
     this.carWash?.dispose();
     this.garage?.dispose();
+    this.lamps?.dispose();
+    // The sky colors are shared (also used by the menu backdrop): put the day colors back.
+    SKY.zenith.set(DAY.zenith); SKY.horizon.set(DAY.horizon); SKY.sunDir.set(DAY.sunDir[0], DAY.sunDir[1], DAY.sunDir[2]).normalize();
     this.avatar?.dispose();
     this.vehicle?.dispose();
     this.city?.dispose();

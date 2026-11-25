@@ -51,6 +51,10 @@ export const gameScreen: Screen = (root, nav) => {
   };
   renderSound();
   soundBtn.addEventListener('click', () => { sounds.unlock(); sounds.setMuted(!sounds.isMuted); renderSound(); });
+  // 🌙 / ☀️: soft evening light with street lamps and headlights, or daylight.
+  const eveningBtn = h('button', { class: 'icon-btn evening-btn', title: t('eveningOnOff'), 'aria-label': t('eveningOnOff') });
+  const renderEvening = () => { eveningBtn.textContent = game.evening ? '☀️' : '🌙'; eveningBtn.classList.toggle('active', game.evening); };
+  eveningBtn.addEventListener('click', () => { game.setEvening(!game.evening); renderEvening(); });
   // Browsers only allow sound after a tap or key press.
   window.addEventListener('pointerdown', sounds.unlock);
   window.addEventListener('keydown', sounds.unlock);
@@ -93,7 +97,7 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, hint, popups, back, money, tabletBtn, soundBtn, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, hint, popups, back, money, tabletBtn, soundBtn, eveningBtn, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
   let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null };
@@ -181,6 +185,7 @@ export const gameScreen: Screen = (root, nav) => {
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
   });
   action.addEventListener('click', () => game.pressCar());
+  renderEvening();
   ctxBtn.addEventListener('click', () => game.pressContext());
   tabletBtn.addEventListener('click', () => {
     tablet = !tablet;

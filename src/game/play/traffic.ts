@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PAINT_COLORS, VEHICLES } from '../vehicles/catalog';
 import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
+import { headlightRig } from '../world/evening';
 import { SEATED_SCALE, seatedRootPosition, type BuiltCar } from '../vehicles/carBuilder';
 import { loadVehicle, vehicleDims } from '../vehicles/factory';
 import type { VehicleSpec } from '../vehicles/types';
@@ -53,6 +54,7 @@ const right = (d: P) => ({ x: -d.z, z: d.x });
 export class Traffic {
   readonly group = new THREE.Group();
   readonly cars: Car[] = [];
+  private lights = false;
   private owners = new Map<number, Car>();
   private pending: number;
   private building = false;
@@ -141,6 +143,9 @@ export class Traffic {
     const root = new THREE.Group();
     root.add(built.root);
     const dims = vehicleDims(spec);
+    const head = headlightRig(dims.length, dims.width);
+    head.visible = this.lights;
+    root.add(head);
     const car: Car = {
       spec, built, root, half: dims.length / 2, radius: dims.width / 2,
       from: 0, to: 0, seg: this.lineSeg(...this.graph.edges[0]), d: 0, speed: 0, x: 0, z: 0, heading: 0,
@@ -149,6 +154,12 @@ export class Traffic {
     this.cars.push(car);
     this.group.add(root);
     if (!this.place(car, focus)) root.visible = false;
+  }
+
+  /** Evening: headlights on for every traffic car. */
+  setLights(on: boolean) {
+    this.lights = on;
+    for (const c of this.cars) { const h = c.root.getObjectByName('CCG_HEADLIGHTS'); if (h) h.visible = on; }
   }
 
   /** Circles (x, z, r) covering each traffic car, for collisions. */
