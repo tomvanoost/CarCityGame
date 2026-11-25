@@ -75,6 +75,11 @@ users/
     ownsApartment: false
     spawn: "home"      # or "apartment"
     km: 0
+    vehicleColors: { "golfo-2025": "#2f6fd0" }
+    tutorialDone: true     # first-time tips were shown
+    stickers: ["honk", "firstDelivery"]
+    deliveries: 3          # finished jobs (for stickers)
+    taxiRides: 1
 ```
 
 ## Good to know
