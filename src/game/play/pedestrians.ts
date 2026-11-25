@@ -29,13 +29,21 @@ const EYES = '#2b1d16';
 interface Template { scene: THREE.Object3D; clips: THREE.AnimationClip[] }
 
 type State = 'walk' | 'wait' | 'cross' | 'dodge';
+type Anim = 'Idle' | 'Walk' | 'Run' | 'Victory';
+
+/** People this close to a honking car wave at it. */
+const HONK_RANGE = 22;
 
 interface Person {
   root: THREE.Object3D;
   mesh: THREE.Object3D;
   mixer: THREE.AnimationMixer;
-  actions: Record<'Idle' | 'Walk' | 'Run', THREE.AnimationAction>;
-  anim: 'Idle' | 'Walk' | 'Run';
+  actions: Record<Anim, THREE.AnimationAction | undefined>;
+  anim: Anim;
+  /** Seconds left of a friendly wave (after a honk), and where to look while waving. */
+  wave: number;
+  wx: number;
+  wz: number;
   x: number;
   z: number;
   heading: number;
@@ -159,13 +167,16 @@ export class Pedestrians {
         const child = this.rng.chance(0.25);
         root.scale.setScalar(child ? this.rng.range(0.62, 0.72) : this.rng.range(0.92, 1.05));
         const mixer = new THREE.AnimationMixer(root);
-        const clip = (n: string) => mixer.clipAction(tpl.clips.find((c) => c.name === n)!);
-        const actions = { Idle: clip('Idle'), Walk: clip('Walk'), Run: clip('Run') };
-        actions.Walk.play();
+        const clip = (n: string) => {
+          const c = tpl.clips.find((k) => k.name === n);
+          return c ? mixer.clipAction(c) : undefined;
+        };
+        const actions = { Idle: clip('Idle'), Walk: clip('Walk'), Run: clip('Run'), Victory: clip('Victory') };
+        actions.Walk?.play();
         mixer.update(this.rng.range(0, 2)); // desync
         let mesh: THREE.Object3D = root;
         root.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) mesh = o; });
-        p = { root, mesh, mixer, actions, anim: 'Walk', x, z, heading: 0, speed: 1, block, corner: 0, dir: 1, state: 'walk', tx: 0, tz: 0, timer: 0, active: true };
+        p = { root, mesh, mixer, actions, anim: 'Walk', x, z, heading: 0, speed: 1, block, corner: 0, dir: 1, state: 'walk', tx: 0, tz: 0, timer: 0, active: true, wave: 0, wx: 0, wz: 0 };
         this.group.add(root);
         this.people.push(p);
       }
@@ -174,6 +185,7 @@ export class Pedestrians {
       p.corner = p.dir === 1 ? (corner + 1) % 4 : corner;
       p.speed = this.rng.range(1.1, 1.6) * (p.root.scale.x < 0.8 ? 0.85 : 1);
       p.state = 'walk';
+      p.wave = 0;
       p.next = undefined;
       const c = this.rings[block][p.corner];
       p.tx = c.x; p.tz = c.z;
@@ -182,10 +194,10 @@ export class Pedestrians {
     return p;
   }
 
-  private play(p: Person, name: 'Idle' | 'Walk' | 'Run') {
-    if (p.anim === name) return;
-    p.actions[name].reset().fadeIn(0.25).play();
-    p.actions[p.anim].fadeOut(0.25);
+  private play(p: Person, name: Anim) {
+    if (p.anim === name || !p.actions[name]) return;
+    p.actions[name]!.reset().fadeIn(0.25).play();
+    p.actions[p.anim]?.fadeOut(0.25);
     p.anim = name;
   }
 
@@ -248,6 +260,19 @@ export class Pedestrians {
     return root;
   }
 
+  /**
+   * The car honks at (x, z): people nearby on the sidewalk stop and wave happily.
+   * People who are crossing the road keep walking, so they get off the road.
+   */
+  honk(x: number, z: number) {
+    for (const p of this.people) {
+      if (!p.active || !p.actions.Victory || p.state === 'cross' || p.state === 'dodge') continue;
+      if (Math.hypot(p.x - x, p.z - z) > HONK_RANGE) continue;
+      p.wave = Math.max(p.wave, Math.min(2.6, p.actions.Victory.getClip().duration));
+      p.wx = x; p.wz = z;
+    }
+  }
+
   /** Positions of people, as circles the car must not touch. */
   obstacles(): { x: number; z: number; r: number }[] {
     return this.people.filter((p) => p.active).map((p) => ({ x: p.x, z: p.z, r: 0.45 }));
@@ -279,7 +304,15 @@ export class Pedestrians {
       }
 
       let speed = p.speed;
-      if (p.state === 'wait') {
+      const waving = p.wave > 0 && p.state !== 'dodge';
+      if (p.state === 'dodge') p.wave = 0;
+      if (waving) {
+        p.wave -= dt;
+        speed = 0;
+        const target = Math.atan2(p.wx - p.x, p.wz - p.z);
+        const diff = Math.atan2(Math.sin(target - p.heading), Math.cos(target - p.heading));
+        p.heading += diff * Math.min(1, dt * 6);
+      } else if (p.state === 'wait') {
         speed = 0;
         const here = this.rings[p.block][p.corner];
         if (!this.carComing(car, (here.x + p.tx) / 2, (here.z + p.tz) / 2, 30)) p.state = 'cross';
@@ -310,7 +343,7 @@ export class Pedestrians {
           const c = this.rings[p.block][p.corner];
           p.tx = c.x; p.tz = c.z;
         }
-      } else if (d < 0.15 && p.state !== 'wait') {
+      } else if (!waving && d < 0.15 && p.state !== 'wait') {
         if (p.state === 'cross' && p.next) {
           p.block = p.next.block;
           p.corner = p.next.corner;
@@ -340,8 +373,8 @@ export class Pedestrians {
       }
 
       const moving = speed > 0 && d > 0.05;
-      this.play(p, !moving ? 'Idle' : speed > 2.5 ? 'Run' : 'Walk');
-      p.actions.Walk.timeScale = speed / (1.4 * p.root.scale.x);
+      this.play(p, waving ? 'Victory' : !moving ? 'Idle' : speed > 2.5 ? 'Run' : 'Walk');
+      if (p.actions.Walk) p.actions.Walk.timeScale = speed / (1.4 * p.root.scale.x);
       const visible = dist < 95;
       p.root.visible = visible;
       if (visible) {

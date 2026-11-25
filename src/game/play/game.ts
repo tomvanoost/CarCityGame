@@ -491,7 +491,10 @@ export class Game {
 
     const driveInput = this.input.drive();
     const driving = this.mode === 'driving' && !this.paused;
-    if (this.input.takeHorn() && this.mode === 'driving' && !this.paused) sounds.horn();
+    if (this.input.takeHorn() && this.mode === 'driving' && !this.paused) {
+      sounds.horn();
+      this.people?.honk(v.x, v.z);
+    }
     sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0);
     if (driving) {
       const before = { x: v.x, z: v.z };

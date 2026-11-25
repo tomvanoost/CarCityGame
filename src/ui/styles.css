@@ -190,6 +190,13 @@ button, input { font: inherit; color: inherit; }
 .pedal.gas { width: 92px; height: 140px; background: #20b76b; }
 .pedal.down { transform: translateY(5px) scale(.97); box-shadow: 0 1px 0 rgba(0,0,0,.25); }
 
+/* horn: bottom-left on desktop, above the pedals in tablet mode */
+.horn-btn { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom)); width: 72px; height: 72px; border-radius: 50%; border: 0;
+  background: #ffc933; font-size: 36px; line-height: 1; display: grid; place-items: center; touch-action: none; cursor: pointer; box-shadow: 0 6px 0 #d99a00, var(--shadow); z-index: 5; }
+.horn-btn[hidden] { display: none; }
+.horn-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d99a00; }
+.tablet .horn-btn { left: auto; right: max(18px, env(safe-area-inset-right)); bottom: calc(max(18px, env(safe-area-inset-bottom)) + 156px); }
+
 /* joystick */
 .joy-zone { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; pointer-events: auto; touch-action: none; }
 .joy-base { position: absolute; width: 130px; height: 130px; margin: -65px 0 0 -65px; border-radius: 50%; background: rgba(255,255,255,.22);
@@ -203,6 +210,7 @@ button, input { font: inherit; color: inherit; }
   .wheel { width: 140px; height: 140px; }
   .pedal.brake { width: 76px; height: 76px; }
   .pedal.gas { width: 76px; height: 116px; }
+  .tablet .horn-btn { width: 62px; height: 62px; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 128px); }
   .keys-hint { display: none; }
 }
 

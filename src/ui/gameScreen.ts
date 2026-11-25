@@ -54,6 +54,10 @@ export const gameScreen: Screen = (root, nav) => {
   window.addEventListener('pointerdown', sounds.unlock);
   window.addEventListener('keydown', sounds.unlock);
 
+  // Horn: a friendly toot; people nearby wave back.
+  const hornBtn = h('button', { class: 'horn-btn', title: t('honk'), 'aria-label': t('honk') });
+  hornBtn.textContent = '📯';
+  hornBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); sounds.unlock(); input.queueHorn(); });
   const fuelFill = h('i', {});
   const fuel = h('div', { class: 'fuel' }, h('span', {}, '⛽'), h('div', { class: 'fuel-bar' }, fuelFill));
   const speed = h('div', { class: 'speed' }, h('b', {}, '0'), h('small', {}, 'km/h'));
@@ -88,7 +92,7 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hint, popups, back, money, tabletBtn, soundBtn, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, hint, popups, back, money, tabletBtn, soundBtn, mapWrap, panel, mapOverlay, loading);
 
   let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, context: null, job: null, dest: null };
   const render = () => {
@@ -98,6 +102,7 @@ export const gameScreen: Screen = (root, nav) => {
     touch.drive.hidden = !(tablet && driving) || !panel.hidden;
     touch.walk.hidden = !(tablet && !driving) || !panel.hidden;
     dash.hidden = !driving;
+    hornBtn.hidden = !driving || !panel.hidden || !mapOverlay.hidden;
     speed.firstElementChild!.textContent = String(state.kmh);
     fuelFill.style.width = `${Math.max(3, state.fuel * 100)}%`;
     fuel.classList.toggle('low', state.fuel < 0.2);
