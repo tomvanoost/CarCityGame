@@ -7,6 +7,16 @@ app = 'carcitygame'
 primary_region = 'ams'
 
 [build]
+
+# Firebase web config (login + saving). These values are NOT secret: every Firebase website
+# sends them to the browser; the database rules protect the data. docker-entrypoint.sh writes
+# them into /config.js when the app starts.
+[env]
+  FIREBASE_API_KEY = 'AIzaSyAFy34o0haloOZfAJOsyWdOiJWFT7kj7ms'
+  FIREBASE_AUTH_DOMAIN = 'carcitygame-v2.firebaseapp.com'
+  FIREBASE_DATABASE_URL = 'https://carcitygame-v2-default-rtdb.europe-west1.firebasedatabase.app'
+  FIREBASE_PROJECT_ID = 'carcitygame-v2'
+  FIREBASE_APP_ID = '1:661782964456:web:201d760946e334bb56815d'
 [http_service]
   internal_port = 8080
   force_https = true
