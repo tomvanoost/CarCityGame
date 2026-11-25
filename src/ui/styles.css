@@ -87,19 +87,54 @@ button, input { font: inherit; color: inherit; }
 .lang-toggle button { border: 0; background: transparent; padding: 6px 10px; border-radius: 9px; font-size: 13px; font-weight: 800; color: var(--muted); cursor: pointer; }
 .lang-toggle button.active { background: var(--blue); color: #fff; }
 
-.fps { position: fixed; left: 10px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 100; padding: 4px 9px; border-radius: 9px; font: 800 12px/1.2 ui-monospace, monospace; color: #fff; background: rgba(0, 0, 0, .45); pointer-events: none; }
+.fps { position: fixed; left: 50%; transform: translateX(-50%); top: max(6px, env(safe-area-inset-top)); z-index: 100; padding: 4px 9px; border-radius: 9px; font: 800 12px/1.2 ui-monospace, monospace; color: #fff; background: rgba(0, 0, 0, .45); pointer-events: none; }
 .fps[data-level='good'] { color: #7dffa0; }
 .fps[data-level='ok'] { color: #ffd65a; }
 .fps[data-level='bad'] { color: #ff7a7a; }
 
-/* --- Menu (placeholder for step 3) --- */
-.menu-bg { position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, #8fd0ff, #3a8ef0 70%); }
-.menu-top { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 14px; right: 110px; display: flex; gap: 10px; flex-wrap: wrap; }
-.player-chip, .money-chip { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 16px; padding: 8px 14px; font-size: 18px; box-shadow: var(--shadow); }
-.money-chip { color: #c88a00; }
-.menu-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
-.soon { color: #fff; opacity: .85; }
-.logout { position: absolute; bottom: max(14px, env(safe-area-inset-bottom)); right: 14px; background: var(--card); }
+/* --- Game menu --- */
+.showroom-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.showroom-canvas:active { cursor: grabbing; }
+
+.avatar-card { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 12px; width: 170px; padding: 0 0 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; overflow: hidden;
+  background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.92)); }
+.avatar-canvas { width: 170px; height: 210px; display: block; cursor: pointer; background: radial-gradient(circle at 50% 70%, #ffffff 0%, rgba(255,255,255,0) 65%); }
+.avatar-name { font-size: 18px; font-weight: 900; margin-top: -6px; }
+.money-chip { display: flex; align-items: center; gap: 6px; color: #b07900; background: #fff6d6; border-radius: 12px; padding: 4px 12px; font-size: 17px; font-weight: 900; }
+
+.drag-hint { position: absolute; left: 50%; top: calc(max(6px, env(safe-area-inset-top)) + 30px); transform: translateX(-50%); color: #4a6a90; font-size: 13px; opacity: .7; pointer-events: none; white-space: nowrap; }
+
+.car-picker { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 108px); display: flex; align-items: center; gap: 12px; }
+.car-name { display: flex; flex-direction: column; align-items: center; background: var(--card); border-radius: 16px; padding: 8px 20px; box-shadow: var(--shadow); font-size: 19px; font-weight: 900; white-space: nowrap; }
+.car-name small { font-size: 12px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+.round-btn { width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--card); color: var(--blue); display: grid; place-items: center; box-shadow: var(--shadow); cursor: pointer; transition: transform .1s; }
+.round-btn:active { transform: scale(.9); }
+.round-btn[hidden] { display: none; }
+
+.menu-actions { position: absolute; left: 50%; transform: translateX(-50%); bottom: max(16px, env(safe-area-inset-bottom)); display: flex; align-items: flex-end; gap: 14px; }
+.btn-tile { flex-direction: column; gap: 4px; width: 128px; height: 84px; background: var(--card); color: var(--ink); font-size: 15px; box-shadow: 0 6px 0 #c9d8ea, var(--shadow); }
+.btn-tile svg { color: var(--blue); }
+.btn-tile:active { transform: translateY(4px); box-shadow: 0 2px 0 #c9d8ea; }
+.btn-play { flex-direction: column; gap: 2px; width: 150px; height: 96px; font-size: 24px; border-radius: 22px; }
+
+.icon-btn { position: absolute; width: 44px; height: 44px; border-radius: 14px; border: 0; background: var(--card); color: var(--muted); display: grid; place-items: center; cursor: pointer; box-shadow: var(--shadow); }
+.icon-btn.logout { top: calc(max(12px, env(safe-area-inset-top)) + 46px); right: 12px; }
+
+.toast { position: fixed; left: 50%; bottom: 140px; transform: translate(-50%, 20px); background: rgba(29, 43, 68, .92); color: #fff; padding: 12px 20px; border-radius: 16px; font-size: 16px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60; text-align: center; max-width: calc(100% - 32px); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 600px) {
+  .avatar-card { width: 120px; }
+  .avatar-canvas { width: 120px; height: 150px; }
+  .avatar-name { font-size: 15px; }
+  .money-chip { font-size: 14px; padding: 3px 9px; }
+  .drag-hint { display: none; }
+  .menu-actions { gap: 8px; width: calc(100% - 24px); justify-content: center; }
+  .btn-tile { width: auto; flex: 1; height: 76px; font-size: 13px; }
+  .btn-play { width: auto; flex: 1.2; height: 88px; font-size: 20px; }
+  .car-picker { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 100px); }
+  .car-name { font-size: 16px; padding: 6px 14px; }
+}
 
 @media (max-width: 520px) {
   .auth-wrap { justify-content: flex-start; padding-top: max(60px, calc(env(safe-area-inset-top) + 52px)); }

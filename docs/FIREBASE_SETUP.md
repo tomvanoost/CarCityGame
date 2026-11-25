@@ -67,8 +67,8 @@ users/
     money: 1000
     ownedVehicles: ["golfo-2025"]
     selectedVehicle: "golfo-2025"
-    ownedClothes: []
-    equipped: { hat, top, bottom, shoes }
+    ownedClothes: ["casual-blue"]
+    equipped: { outfit: "casual-blue" }
     lastDailyBonus: 0
     createdAt: 1764000000000
 ```

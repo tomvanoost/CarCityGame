@@ -1,4 +1,5 @@
 import { DEFAULT_VEHICLE, START_MONEY } from '../config';
+import { DEFAULT_OUTFIT } from '../game/avatar/clothes';
 import type { Gender, PlayerProfile } from './types';
 
 export function newProfile(username: string, gender: Gender): PlayerProfile {
@@ -8,8 +9,8 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     money: START_MONEY,
     ownedVehicles: [DEFAULT_VEHICLE],
     selectedVehicle: DEFAULT_VEHICLE,
-    ownedClothes: [],
-    equipped: { hat: null, top: null, bottom: null, shoes: null },
+    ownedClothes: [DEFAULT_OUTFIT],
+    equipped: { outfit: DEFAULT_OUTFIT },
     lastDailyBonus: 0,
     createdAt: Date.now(),
   };
@@ -24,7 +25,9 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
     equipped: { ...base.equipped, ...(raw.equipped ?? {}) },
   };
   p.ownedVehicles = toArray(raw.ownedVehicles, base.ownedVehicles);
-  p.ownedClothes = toArray(raw.ownedClothes, []);
+  p.ownedClothes = toArray(raw.ownedClothes, base.ownedClothes);
+  if (!p.ownedClothes.includes(DEFAULT_OUTFIT)) p.ownedClothes.unshift(DEFAULT_OUTFIT);
+  if (!p.ownedClothes.includes(p.equipped.outfit)) p.equipped.outfit = DEFAULT_OUTFIT;
   if (!p.ownedVehicles.includes(p.selectedVehicle)) p.selectedVehicle = p.ownedVehicles[0];
   return p;
 }

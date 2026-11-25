@@ -1,10 +1,8 @@
 export type Gender = 'boy' | 'girl';
 
 export interface Equipped {
-  hat: string | null;
-  top: string | null;
-  bottom: string | null;
-  shoes: string | null;
+  /** Clothes item id (see game/avatar/clothes.ts). */
+  outfit: string;
 }
 
 export interface PlayerProfile {

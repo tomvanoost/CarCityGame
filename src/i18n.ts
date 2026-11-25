@@ -29,6 +29,9 @@ const dict = {
     myVehicles: 'Mijn voertuigen',
     play: 'Spelen',
     comingSoon: 'Komt binnenkort',
+    shopSoon: 'De winkels komen in stap 8!',
+    playSoon: 'De stad komt in stap 4!',
+    dragToTurn: 'Sleep om te draaien',
   },
   en: {
     username: 'Username',
@@ -58,6 +61,9 @@ const dict = {
     myVehicles: 'My vehicles',
     play: 'Play',
     comingSoon: 'Coming soon',
+    shopSoon: 'The shops are coming in step 8!',
+    playSoon: 'The city is coming in step 4!',
+    dragToTurn: 'Drag to turn',
   },
 } as const;
 

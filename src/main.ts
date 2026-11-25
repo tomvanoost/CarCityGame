@@ -43,4 +43,6 @@ async function boot() {
   onLangChange(() => navigate(current));
 }
 
-boot();
+const carLab = new URLSearchParams(location.search).get('carlab');
+if (import.meta.env.DEV && carLab) import('./dev/carLab').then((m) => m.startCarLab(carLab));
+else boot();
