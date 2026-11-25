@@ -71,16 +71,10 @@ Office towers downtown, roads, street lights and small props stay built-in / CC0
 
 | Category | Model | Author | License | Search (rank) |
 |---|---|---|---|---|
-| house | [Dutch House](https://sketchfab.com/3d-models/dutch-house-48186aa36d644ad296f135035d0d9aad) | [Bjarne Stokhof](https://sketchfab.com/stokhuis) | CC Attribution | "dutch house" #1 |
 | house | [Stylized Amsterdam House](https://sketchfab.com/3d-models/stylized-amsterdam-house-c523ef1f9e55415caff7e4349a04d53d) | [ChrisCLP](https://sketchfab.com/ChrisCLP) | CC Attribution | "dutch house" #4 |
 | townhouse | [Amsterdam Canal House by Jungle Jim](https://sketchfab.com/3d-models/amsterdam-canal-house-by-jungle-jim-153c5531d1e34f5f822b3447b661079d) | [Jungle Jim](https://sketchfab.com/jungle_jim) | CC Attribution | "amsterdam canal house" #1 |
-| townhouse | [Amsterdam Canal House](https://sketchfab.com/3d-models/amsterdam-canal-house-69310c8b49bf4758aeee368af543b0d0) | [Jungle Jim](https://sketchfab.com/jungle_jim) | CC Attribution | "amsterdam canal house" #2 |
 | shop | [Brick Shop Building | Lowpoly](https://sketchfab.com/3d-models/brick-shop-building-lowpoly-548d4a0e62b54efcab4483fb6d0c3611) | [Frid.blend](https://sketchfab.com/Fridqeir) | CC Attribution | "shop building" #1 |
-| shop | [Apartment building and shop](https://sketchfab.com/3d-models/apartment-building-and-shop-3765e750a77e4ddfa58bae42a2c6bb4c) | [swjeta](https://sketchfab.com/swjeta) | CC Attribution | "shop building" #3 |
-| shop | [Isometric low-poly shop building](https://sketchfab.com/3d-models/isometric-low-poly-shop-building-e6ba7a5e51724299a288eafcea112655) | [daviddickball](https://sketchfab.com/daviddickball) | CC Attribution | "shop building" #6 |
 | apartment | [Futuristic Building](https://sketchfab.com/3d-models/futuristic-building-e73f9bb9981d469c8a8ccdc1f168faad) | [3DHaupt](https://sketchfab.com/dennish2010) | CC Attribution-NonCommercial | "apartment building" #1 |
-| apartment | [Old Apartment Building](https://sketchfab.com/3d-models/old-apartment-building-a2a27bec2e364496b34ae399ee93cb67) | [jimbogies](https://sketchfab.com/jimbogies) | CC Attribution | "apartment building" #4 |
-| apartment | [Apartment Building - 3D Model](https://sketchfab.com/3d-models/apartment-building-3d-model-16ed96dee1e04f7a8e1c80c956669b94) | [rohit-manglik](https://sketchfab.com/rohit-manglik) | CC Attribution | "apartment building" #5 |
 | pine | [Pine tree](https://sketchfab.com/3d-models/pine-tree-e52769d653cd4e52a4acff3041961e65) | [Andriy Shekh](https://sketchfab.com/sheh5262) | CC Attribution | "pine tree" #1 |
 | pine | [Pine Tree](https://sketchfab.com/3d-models/pine-tree-d45218a3fab349e5b1de040f29e7b6f9) | [evolveduk](https://sketchfab.com/evolveduk) | CC Attribution | "pine tree" #2 |
 | bush | [Real Bush](https://sketchfab.com/3d-models/real-bush-62618c3260b142cfb7ef499d75a8d21a) | [Marbles studio](https://sketchfab.com/marblesstudio) | CC Attribution | "bush" #1 |
@@ -112,6 +106,12 @@ Skipped results (and why):
 - "Maple tree" ("tree" #1): leaves are thin cards that vanish when simplified; too heavy for 3,500 street trees
 - "Tree" ("low poly tree" #3): bare winter tree
 - "Tree" ("low poly tree" #4): bare winter tree
+- "Dutch House" ("dutch house" #1): blurry washed-out textures, rough shape
+- "Amsterdam Canal House" ("amsterdam canal house" #2): crumbly photo-scan with a damaged roof (run-down look)
+- "Apartment building and shop" ("shop building" #3): flat striped block, low detail
+- "Isometric low-poly shop building" ("shop building" #6): crude flat boxes, low quality
+- "Old Apartment Building" ("apartment building" #4): stretched noisy brick texture, run-down look
+- "Apartment Building - 3D Model" ("apartment building" #5): unfinished: missing walls and window panes
 <!-- sketchfab-city:end -->
 
 ## Rebuilding the models

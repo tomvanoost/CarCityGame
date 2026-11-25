@@ -63,15 +63,27 @@
     "skip": "leaves are thin cards that vanish when simplified; too heavy for 3,500 street trees"
   },
   "sf_house_1": {
-    "dropNodes": [
-      "props",
-      "alpha"
-    ]
+    "skip": "blurry washed-out textures, rough shape"
   },
   "sf_tree_10": {
     "skip": "bare winter tree"
   },
   "sf_tree_11": {
     "skip": "bare winter tree"
+  },
+  "sf_townhouse_2": {
+    "skip": "crumbly photo-scan with a damaged roof (run-down look)"
+  },
+  "sf_shop_3": {
+    "skip": "flat striped block, low detail"
+  },
+  "sf_shop_5": {
+    "skip": "crude flat boxes, low quality"
+  },
+  "sf_apartment_3": {
+    "skip": "stretched noisy brick texture, run-down look"
+  },
+  "sf_apartment_4": {
+    "skip": "unfinished: missing walls and window panes"
   }
 }

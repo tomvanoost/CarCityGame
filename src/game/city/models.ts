@@ -2,10 +2,17 @@ import * as THREE from 'three';
 import { loadGltf } from '../../engine/assets';
 import { SKETCHFAB_CITY, type SfCategory } from './sketchfabCity';
 
-/** Sketchfab models of a category, or the built-in (CC0) fallback when there are none. */
-const sf = <T extends readonly string[]>(cat: SfCategory, fallback: T): readonly string[] => {
+/**
+ * Sketchfab models of a category. With fewer than 3 good ones the built-in (CC0) models are
+ * mixed in (buildings only), so streets don't repeat one building over and over (low-quality Sketchfab results
+ * are skipped in scripts/city-fixes.json).
+ */
+const sf = <T extends readonly string[]>(cat: SfCategory, fallback: T, mix = true): readonly string[] => {
   const ids = Object.keys(SKETCHFAB_CITY).filter((id) => SKETCHFAB_CITY[id].category === cat);
-  return ids.length ? ids : fallback;
+  if (!ids.length) return fallback;
+  if (ids.length >= 3 || !mix) return ids;
+  // Each Sketchfab model about as often as two CC0 models, so the good ones still stand out.
+  return [...ids.flatMap((id) => [id, id]), ...fallback];
 };
 export const isSketchfabCity = (name: string) => name in SKETCHFAB_CITY;
 
@@ -20,8 +27,8 @@ export const TOWNHOUSES = sf('townhouse', CC0_TOWNHOUSES);
 export const HOUSES = sf('house', CC0_HOUSES);
 export const SHOPS = sf('shop', CC0_SHOPS);
 export const APARTMENTS = sf('apartment', CC0_APARTMENTS);
-export const TREES = sf('tree', CC0_TREES);
-export const PINES = sf('pine', CC0_PINES);
+export const TREES = sf('tree', CC0_TREES, false);
+export const PINES = sf('pine', CC0_PINES, false);
 export const BUSHES = sf('bush', ['Bush_1', 'Bush_2', 'BushBerries_1'] as const);
 export const SMALL_NATURE = ['Bush_1', 'Bush_2', 'BushBerries_1', 'Flowers', 'Rock_Moss_1', 'Rock_Moss_2', 'Lilypad'] as const;
 export const PROPS = ['Streetlight_Single', 'TrafficLight_2'] as const;

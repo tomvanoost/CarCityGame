@@ -5,20 +5,6 @@ export interface SfCityModel {
   credit: { name: string; author: string; authorUrl: string; license: string; url: string };
 }
 export const SKETCHFAB_CITY: Record<string, SfCityModel> = {
-  "sf_house_1": {
-    "category": "house",
-    "x": 3.951645612716675,
-    "y": 8,
-    "z": 6.1263041496276855,
-    "lod": true,
-    "credit": {
-      "name": "Dutch House",
-      "author": "Bjarne Stokhof",
-      "authorUrl": "https://sketchfab.com/stokhuis",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/dutch-house-48186aa36d644ad296f135035d0d9aad"
-    }
-  },
   "sf_house_4": {
     "category": "house",
     "x": 3.7430949211120605,
@@ -47,20 +33,6 @@ export const SKETCHFAB_CITY: Record<string, SfCityModel> = {
       "url": "https://sketchfab.com/3d-models/amsterdam-canal-house-by-jungle-jim-153c5531d1e34f5f822b3447b661079d"
     }
   },
-  "sf_townhouse_2": {
-    "category": "townhouse",
-    "x": 8.228129386901855,
-    "y": 13,
-    "z": 7.9191718101501465,
-    "lod": true,
-    "credit": {
-      "name": "Amsterdam Canal House",
-      "author": "Jungle Jim",
-      "authorUrl": "https://sketchfab.com/jungle_jim",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/amsterdam-canal-house-69310c8b49bf4758aeee368af543b0d0"
-    }
-  },
   "sf_shop_1": {
     "category": "shop",
     "x": 8.421228408813477,
@@ -75,34 +47,6 @@ export const SKETCHFAB_CITY: Record<string, SfCityModel> = {
       "url": "https://sketchfab.com/3d-models/brick-shop-building-lowpoly-548d4a0e62b54efcab4483fb6d0c3611"
     }
   },
-  "sf_shop_3": {
-    "category": "shop",
-    "x": 25.58497428894043,
-    "y": 7,
-    "z": 11.406370162963867,
-    "lod": true,
-    "credit": {
-      "name": "Apartment building and shop",
-      "author": "swjeta",
-      "authorUrl": "https://sketchfab.com/swjeta",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/apartment-building-and-shop-3765e750a77e4ddfa58bae42a2c6bb4c"
-    }
-  },
-  "sf_shop_5": {
-    "category": "shop",
-    "x": 4.5,
-    "y": 7,
-    "z": 9.5,
-    "lod": true,
-    "credit": {
-      "name": "Isometric low-poly shop building",
-      "author": "daviddickball",
-      "authorUrl": "https://sketchfab.com/daviddickball",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/isometric-low-poly-shop-building-e6ba7a5e51724299a288eafcea112655"
-    }
-  },
   "sf_apartment_1": {
     "category": "apartment",
     "x": 16.520111083984375,
@@ -115,34 +59,6 @@ export const SKETCHFAB_CITY: Record<string, SfCityModel> = {
       "authorUrl": "https://sketchfab.com/dennish2010",
       "license": "CC Attribution-NonCommercial",
       "url": "https://sketchfab.com/3d-models/futuristic-building-e73f9bb9981d469c8a8ccdc1f168faad"
-    }
-  },
-  "sf_apartment_3": {
-    "category": "apartment",
-    "x": 25.892902374267578,
-    "y": 18,
-    "z": 11.546701431274414,
-    "lod": true,
-    "credit": {
-      "name": "Old Apartment Building",
-      "author": "jimbogies",
-      "authorUrl": "https://sketchfab.com/jimbogies",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/old-apartment-building-a2a27bec2e364496b34ae399ee93cb67"
-    }
-  },
-  "sf_apartment_4": {
-    "category": "apartment",
-    "x": 16.11428451538086,
-    "y": 18,
-    "z": 15,
-    "lod": true,
-    "credit": {
-      "name": "Apartment Building - 3D Model",
-      "author": "rohit-manglik",
-      "authorUrl": "https://sketchfab.com/rohit-manglik",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/apartment-building-3d-model-16ed96dee1e04f7a8e1c80c956669b94"
     }
   },
   "sf_pine_1": {
