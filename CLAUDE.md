@@ -26,7 +26,8 @@ TypeScript + Three.js + Vite, hosted on fly.io, accounts in Firebase (demo mode 
 - `src/game/play/` game loop (`game.ts`), vehicle physics, player, pedestrians, jobs, markers
 - `src/game/vehicles/` car shape generator, car/bike builders, catalog
 - `src/game/avatar/` avatar + clothes catalog
-- `docs/PLAN.md` overview, `docs/BACKLOG.md` upgrade ideas, `docs/FIREBASE_SETUP.md`
+- `docs/ROADMAP.md` goal + next steps, `docs/PROGRESS.md` done / state / known problems / blocked hosts,
+  `docs/PLAN.md` overview and history, `docs/FIREBASE_SETUP.md`
 
 ## How to check your work
 ```bash
@@ -38,6 +39,27 @@ npm run smoke               # browser smoke test (register, shops, city, drive, 
 - The smoke test saves screenshots in `smoke-screenshots/` — look at them.
 - Dev tools: `/?carlab=all` (all vehicles), `/?carlab=<id>`, and `window.carcityDebug` in the game (dev only).
 - The headless browser uses software rendering: low FPS there is normal and not a bug.
+
+## Each run (scheduled task): one step
+1. **Sync:** `git fetch origin`, check out `claude/hourly-upgrades`, pull, then merge `origin/claude/stoic-shannon-4k32uu`.
+   Stop and report if the merge has conflicts you cannot resolve safely.
+2. **Pick:** the first unchecked step in `docs/ROADMAP.md`. Do only that step, small and polished.
+3. **Build it** following every requirement above.
+4. **Verify:** `npm ci`; `npm run build` must pass; copy `public/config.example.js` to `public/config.js` if it
+   is missing (never commit it); make sure `npm run dev` runs; `npm run smoke` must pass. Look at the smoke
+   screenshots, and take extra screenshots that show the change up close in the game (park the car / point
+   the camera with `window.carcityDebug`). Fix anything that looks wrong; check FPS-relevant numbers
+   (draw calls, triangles) did not grow much.
+5. **Done:** move the step from `docs/ROADMAP.md` to the top of "Done" in `docs/PROGRESS.md` with a one-line
+   note; update "Current state", "Known problems" and "Blocked hosts" there if anything changed. Commit.
+6. **Push:** `claude/hourly-upgrades`, then fast-forward the deploy branch:
+   `git push origin claude/hourly-upgrades:claude/stoic-shannon-4k32uu`. If that is rejected because the deploy
+   branch has new commits: fetch, merge them, verify again, push both. Never force-push, never push other
+   branches, never open or merge pull requests.
+7. **Can't finish?** Don't push broken code: revert, add a short note under the step in `docs/ROADMAP.md`
+   (what blocked it), commit and push that note as in step 6. If the roadmap has no unchecked step, do nothing.
+8. **Report:** send a short push notification (in English): the step you did, test results (build, smoke),
+   the next step, and any blocked hosts.
 
 ## Git
 - Commit messages: a short title line, then what changed and why.

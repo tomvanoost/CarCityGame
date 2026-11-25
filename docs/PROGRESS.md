@@ -1,14 +1,28 @@
-# Upgrade backlog
+# Progress
 
-The hourly upgrade task picks the **first unchecked item**, implements it completely (small and
-polished beats big and half-done), checks it, and ticks it off here with a one-line note.
-Every item must respect the requirements in `CLAUDE.md` (no violence, simple UI, fast on tablets, NL/EN).
+What is finished, the current state and known problems. The newest finished step goes on top of
+"Done". The plan and next steps are in `docs/ROADMAP.md`.
 
-## Next up
-- [ ] **Car wash** at the gas station: drive through, bubbles, the car gets a shine (for fun, small price).
-- [ ] **Garage at home**: owned cars parked in the driveway / street next to your house.
-- [ ] **Day / evening light**: optional soft evening light with street lights and car headlights on.
-- [ ] **Apartment view**: a cozy simple 3D room when you go inside your apartment.
+## Current state
+- Playable: login/register (Firebase accounts, live database updates; demo mode without Firebase),
+  menu with avatar, sticker book and graphics setting (Mooi/Snel), vehicle and clothes shops, the city
+  with driving, walking, traffic, pedestrians, jobs, fuel, house and apartment, ducks and birds in the park.
+- Deployed by the user from branch `claude/stoic-shannon-4k32uu` on fly.io (`fly.toml` holds the Firebase
+  web config). Runs push to `claude/hourly-upgrades` and fast-forward `claude/stoic-shannon-4k32uu`.
+- Vehicles: 27 Sketchfab models (wheels cut out and spinning), 7 cars use the built-in shape (see roadmap).
+  City: CC0 buildings mixed with a few good Sketchfab buildings, CC0 street trees, Sketchfab pines/bushes.
+
+## Known problems
+- Downtown office towers are plain up close; the vespo scooter looks old and rusty.
+- In the headless test browser the game runs at ~1–3 FPS (software rendering): CSS popups and animations
+  barely play there; use `animations: 'disabled'` screenshots or check them in the menu.
+
+## Blocked hosts / environment limits
+- `carcitygame.fly.dev` cannot be reached from the cloud environment (connection fails): the live site
+  can't be checked from here.
+- No Docker daemon in the cloud environment (nginx config was checked with a locally installed nginx).
+- Raw Sketchfab downloads (`assets-src/`) are not in the repo; processed models are fixed in place with
+  `scripts/flip-vehicles.mjs` and `scripts/vehicle-wheels.mjs`.
 
 ## Done
 - [x] **Ducks and birds**: two duck families (mom + yellow ducklings in a row) paddle around the pond, little birds hop/peck on the park grass and flutter away when you come close, a flock circles over the park trees. Own low-poly shapes, 5 instanced draw calls, only near the park (`play/wildlife.ts`). Birds sit on the grass instead of tree tops (the game camera never looks up into the crowns).
