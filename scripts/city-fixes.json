@@ -85,5 +85,11 @@
   },
   "sf_apartment_4": {
     "skip": "unfinished: missing walls and window panes"
+  },
+  "sf_tree_12": {
+    "skip": "huge dark canopy and thick crooked trunk, blocks the view over the road"
+  },
+  "sf_tree_13": {
+    "skip": "stands on a big lime-green grass dome that looks odd on sidewalks"
   }
 }

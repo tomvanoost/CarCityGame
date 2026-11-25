@@ -288,10 +288,21 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   parts.push(coloredBox(c.x1 - c.x0, 0.9, c.z1 - c.z0, '#f4f6f8', (c.x0 + c.x1) / 2, top + ch, (c.z0 + c.z1) / 2));
   parts.push(coloredBox(c.x1 - c.x0 + 0.1, 0.35, c.z1 - c.z0 + 0.1, '#2f8bff', (c.x0 + c.x1) / 2, top + ch + 0.3, (c.z0 + c.z1) / 2));
   for (const p of g.pumps) {
+    // Island with yellow bumper posts at both ends.
     parts.push(coloredBox(1.6, 0.25, 3.0, '#c9cdd1', p.x, top, p.z));
-    parts.push(coloredBox(0.9, 1.7, 0.6, '#ffffff', p.x, top + 0.25, p.z));
-    parts.push(coloredBox(0.92, 0.35, 0.62, '#2f8bff', p.x, top + 1.95, p.z));
-    parts.push(coloredBox(0.6, 0.4, 0.64, '#1d2b44', p.x, top + 1.3, p.z));
+    parts.push(coloredBox(1.66, 0.06, 3.06, '#f2c230', p.x, top + 0.25, p.z));
+    for (const dz of [-1.3, 1.3]) parts.push(coloredCylinder(0.11, 0.85, '#ffc933', p.x, top + 0.3, p.z + dz, 10));
+    // Pump: white body on a dark plinth, blue top, display and nozzles on both sides.
+    parts.push(coloredBox(0.86, 0.18, 0.66, '#3a4556', p.x, top + 0.3, p.z));
+    parts.push(coloredBox(0.8, 1.6, 0.6, '#ffffff', p.x, top + 0.48, p.z));
+    parts.push(coloredBox(0.84, 0.38, 0.64, '#2f8bff', p.x, top + 2.06, p.z));
+    parts.push(coloredBox(0.86, 0.06, 0.66, '#1f6fd6', p.x, top + 2.44, p.z));
+    parts.push(coloredBox(0.84, 0.34, 0.42, '#1d2b44', p.x, top + 1.55, p.z)); // screen
+    parts.push(coloredBox(0.83, 0.1, 0.5, '#20b76b', p.x, top + 1.32, p.z)); // fuel stripe
+    for (const dz of [-0.17, 0.17]) {
+      parts.push(coloredBox(0.96, 0.22, 0.14, '#2b2f36', p.x, top + 0.95, p.z + dz)); // nozzle holders
+      parts.push(coloredBox(1.02, 0.12, 0.07, dz < 0 ? '#20b76b' : '#e5484d', p.x, top + 1.05, p.z + dz)); // nozzles
+    }
   }
   parts.push(coloredBox(0.8, 9, 0.8, '#e8ecef', c.x0 - 3, top, c.z1 + 2));
   parts.push(coloredBox(3.2, 3, 0.9, '#2f8bff', c.x0 - 3, top + 8, c.z1 + 2));

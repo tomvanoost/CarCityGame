@@ -27,9 +27,11 @@ export const TOWNHOUSES = sf('townhouse', CC0_TOWNHOUSES);
 export const HOUSES = sf('house', CC0_HOUSES);
 export const SHOPS = sf('shop', CC0_SHOPS);
 export const APARTMENTS = sf('apartment', CC0_APARTMENTS);
-export const TREES = sf('tree', CC0_TREES, false);
+// The Sketchfab street trees looked out of place (a huge dark blob; a cone on a grass dome):
+// the built-in trees match the built-in buildings better.
+export const TREES = CC0_TREES;
 export const PINES = sf('pine', CC0_PINES, false);
-export const BUSHES = sf('bush', ['Bush_1', 'Bush_2', 'BushBerries_1'] as const);
+export const BUSHES = sf('bush', ['Bush_1', 'Bush_2', 'BushBerries_1'] as const, false);
 export const SMALL_NATURE = ['Bush_1', 'Bush_2', 'BushBerries_1', 'Flowers', 'Rock_Moss_1', 'Rock_Moss_2', 'Lilypad'] as const;
 export const PROPS = ['Streetlight_Single', 'TrafficLight_2'] as const;
 const WITH_LOD = new Set<string>([...CC0_TOWNHOUSES, ...CC0_HOUSES, ...CC0_SHOPS, ...CC0_APARTMENTS, ...CC0_TREES, ...CC0_PINES, 'Willow_1']);

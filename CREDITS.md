@@ -33,17 +33,10 @@ uncolored models were given colors (`scripts/build-vehicles.mjs`). In the game t
 | kuper | [Mini Cooper S Facelift](https://sketchfab.com/3d-models/mini-cooper-s-facelift-2baca439d2494e02b99596014b49ebd3) | [Mona x Supercars](https://sketchfab.com/Car2022) | CC Attribution | "mini cooper se" #1 |
 | klio | [2024 Renault Clio](https://sketchfab.com/3d-models/2024-renault-clio-5556b5741cf24e408dc03396d6d4caee) | [tonielpro520](https://sketchfab.com/tonielpro520) | CC Attribution | "2024 renault clio" #1 |
 | yarus | [2020 Toyota Yaris Cross](https://sketchfab.com/3d-models/2020-toyota-yaris-cross-1b6dd834e8184851887ddeab1e83bc28) | [tonielpro520](https://sketchfab.com/tonielpro520) | CC Attribution | "2024 toyota yaris" #1 |
-| teslo-modelo3 | [2024 Tesla Model 3 + Interior](https://sketchfab.com/3d-models/2024-tesla-model-3-interior-61ddcbdbd3854c239e0c95bf60b00022) | [tonielpro520](https://sketchfab.com/tonielpro520) | CC Attribution | "2024 tesla model 3" #1 |
 | seel | [2024 BYD Seal](https://sketchfab.com/3d-models/2024-byd-seal-2e82d2aaaa3d47debf39b1160d3fe376) | [Ddiaz Design](https://sketchfab.com/ddiaz-design) | CC Attribution-NonCommercial-ShareAlike | "2024 byd seal" #1 |
-| oudi-a4 | [2024 Audi A4 B9 Car](https://sketchfab.com/3d-models/2024-audi-a4-b9-car-ed10dde4fab24ac89f8799597c8fe931) | [Maroi Mister Let Me Think Official 3D Studio](https://sketchfab.com/homicivan53) | CC Attribution | "2024 audi a4" #1 |
-| beemer-3 | [2023 bmw 3 series](https://sketchfab.com/3d-models/2023-bmw-3-series-82534fdddd7e46e4bdb202d6c1d3c0e7) | [solid3DDD](https://sketchfab.com/solid3ddd) | CC Attribution | "2024 bmw 3 series" #1 |
-| mersedez-c | [Mercedes-Benz C-Class W206 AMG-Line 2022](https://sketchfab.com/3d-models/mercedes-benz-c-class-w206-amg-line-2022-21393b5f402543848db2f26f95a2e9fa) | [ceron_alex](https://sketchfab.com/ceron_alex) | CC Attribution-NonCommercial | "2024 mercedes c-class" #1 |
 | taykan | [2025 Porsche Taycan Turbo GT Weissach Package](https://sketchfab.com/3d-models/2025-porsche-taycan-turbo-gt-weissach-package-4e1abafe7cf5413587a421377624ba08) | [Ddiaz Design](https://sketchfab.com/ddiaz-design) | CC Attribution-NonCommercial-ShareAlike | "2024 porsche taycan" #1 |
-| modelo-y | [2025 Tesla Model Y](https://sketchfab.com/3d-models/2025-tesla-model-y-619601e7800d418da5922c4fa7833f74) | [BloxBloger](https://sketchfab.com/BloxBloger) | CC Attribution-NonCommercial | "tesla model y" #1 |
 | id-vier | [2021 Volkswagen ID.4 X](https://sketchfab.com/3d-models/2021-volkswagen-id4-x-898fcce37f0948499d1b4c1effc051d1) | [Ddiaz Design](https://sketchfab.com/ddiaz-design) | CC Attribution-NonCommercial-ShareAlike | "2024 volkswagen id.4" #1 |
 | atto-3 | [2024 BYD Atto 3](https://sketchfab.com/3d-models/2024-byd-atto-3-f7ef899186d445d48e4781ddfc84fddc) | [Ddiaz Design](https://sketchfab.com/ddiaz-design) | CC Attribution-NonCommercial-ShareAlike | "2024 byd atto 3" #1 |
-| kio-ev6 | [2022 Kia EV6](https://sketchfab.com/3d-models/2022-kia-ev6-44d11e83ef40492bb4bc3d9fbc41e5e0) | [tonielpro520](https://sketchfab.com/tonielpro520) | CC Attribution | "kia ev6" #1 |
-| volvu-xc90 | [Volvo XC90](https://sketchfab.com/3d-models/volvo-xc90-8135a6c9c9344079bfaefc9d747e2ceb) | [Nieve5677](https://sketchfab.com/niev) | CC Attribution | "volvo xc90" #6 (first result was a photoscan with ground attached) |
 | rangy-rover | [2023 Land Rover Range Rover Sport](https://sketchfab.com/3d-models/2023-land-rover-range-rover-sport-c1105996547b4c4c8a4cfc3523a4c726) | [Silyboy](https://sketchfab.com/kaleemullah550) | CC Attribution | "2024 range rover" #1 |
 | id-bus | [2023 Volkswagen ID Buzz GTX](https://sketchfab.com/3d-models/2023-volkswagen-id-buzz-gtx-3cc84dbea5b2495ba1f9468e8b4668d9) | [BloxBloger](https://sketchfab.com/BloxBloger) | CC Attribution-NonCommercial | "2024 volkswagen id. buzz" #1 |
 | jiep | [2013 Equipped Jeep Wrangler Unlimited Rubicon](https://sketchfab.com/3d-models/2013-equipped-jeep-wrangler-unlimited-rubicon-e3ecbf7d1fda464cb84d4bf41925d383) | [Ddiaz Design](https://sketchfab.com/ddiaz-design) | CC Attribution-NonCommercial-ShareAlike | "2024 jeep wrangler" #1 |
@@ -63,11 +56,20 @@ uncolored models were given colors (`scripts/build-vehicles.mjs`). In the game t
 | dukati | [2021 Ducati Panigale V4 SP](https://sketchfab.com/3d-models/2021-ducati-panigale-v4-sp-8c0632e4c54249758114490390f0b73f) | [Carlito](https://sketchfab.com/brainlesszombie5) | CC Attribution | "2024 ducati panigale v4" #1 |
 <!-- sketchfab-vehicles:end -->
 
+Skipped (low quality, the game uses its own built-in car shape for these):
+- teslo-modelo3: glass roof shows a grey pattern, plain white wheels
+- oudi-a4: noisy camouflage wrap all over the car
+- beemer-3: crumpled, dented doors
+- mersedez-c: broken: loose black/red pieces, hood missing
+- modelo-y: untextured grey, doors open, no windows
+- kio-ev6: hood open, parts missing
+- volvu-xc90: untextured grey clay look
+
 <!-- sketchfab-city:start -->
 ## Buildings and trees (Sketchfab)
-Houses, townhouses, shops, apartments, trees, pines and bushes come from Sketchfab (downloadable,
+Some houses, townhouses, shops and apartments, the pines and the bushes come from Sketchfab (downloadable,
 first usable results per search term), modified for the game (`scripts/build-city-sf.mjs`).
-Office towers downtown, roads, street lights and small props stay built-in / CC0.
+Office towers downtown, street trees, the other buildings, roads, street lights and small props are built-in / CC0.
 
 | Category | Model | Author | License | Search (rank) |
 |---|---|---|---|---|
@@ -79,8 +81,6 @@ Office towers downtown, roads, street lights and small props stay built-in / CC0
 | pine | [Pine Tree](https://sketchfab.com/3d-models/pine-tree-d45218a3fab349e5b1de040f29e7b6f9) | [evolveduk](https://sketchfab.com/evolveduk) | CC Attribution | "pine tree" #2 |
 | bush | [Real Bush](https://sketchfab.com/3d-models/real-bush-62618c3260b142cfb7ef499d75a8d21a) | [Marbles studio](https://sketchfab.com/marblesstudio) | CC Attribution | "bush" #1 |
 | bush | [Stylized Bush](https://sketchfab.com/3d-models/stylized-bush-9d9ce79d3ae040619e96d5b22c7de1a6) | [Daniel](https://sketchfab.com/danielpetrov) | CC Attribution | "bush" #2 |
-| tree | [Giant Low Poly Tree](https://sketchfab.com/3d-models/giant-low-poly-tree-acfd2b7f80894848b56c2ac8e7e59572) | [Sahir Virmani](https://sketchfab.com/sahirvirmani) | CC Attribution | "low poly tree" #5 |
-| tree | [Low Poly Tree](https://sketchfab.com/3d-models/low-poly-tree-4598c065d5534c40b6050c16b69d1b77) | [Šimon Ustal](https://sketchfab.com/simonustal) | CC Attribution | "low poly tree" #7 |
 
 Skipped results (and why):
 - "Dutch Canals House Amsterdam #1" ("dutch house" #3): same model as sf_townhouse_3
@@ -112,6 +112,8 @@ Skipped results (and why):
 - "Isometric low-poly shop building" ("shop building" #6): crude flat boxes, low quality
 - "Old Apartment Building" ("apartment building" #4): stretched noisy brick texture, run-down look
 - "Apartment Building - 3D Model" ("apartment building" #5): unfinished: missing walls and window panes
+- "Giant Low Poly Tree" ("low poly tree" #5): huge dark canopy and thick crooked trunk, blocks the view over the road
+- "Low Poly Tree" ("low poly tree" #7): stands on a big lime-green grass dome that looks odd on sidewalks
 <!-- sketchfab-city:end -->
 
 ## Rebuilding the models

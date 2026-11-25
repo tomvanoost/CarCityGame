@@ -116,33 +116,5 @@ export const SKETCHFAB_CITY: Record<string, SfCityModel> = {
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/stylized-bush-9d9ce79d3ae040619e96d5b22c7de1a6"
     }
-  },
-  "sf_tree_12": {
-    "category": "tree",
-    "x": 10.147979736328125,
-    "y": 8,
-    "z": 9.248061180114746,
-    "lod": true,
-    "credit": {
-      "name": "Giant Low Poly Tree",
-      "author": "Sahir Virmani",
-      "authorUrl": "https://sketchfab.com/sahirvirmani",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/giant-low-poly-tree-acfd2b7f80894848b56c2ac8e7e59572"
-    }
-  },
-  "sf_tree_13": {
-    "category": "tree",
-    "x": 4.070197582244873,
-    "y": 8,
-    "z": 4.0701985359191895,
-    "lod": true,
-    "credit": {
-      "name": "Low Poly Tree",
-      "author": "Šimon Ustal",
-      "authorUrl": "https://sketchfab.com/simonustal",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/low-poly-tree-4598c065d5534c40b6050c16b69d1b77"
-    }
   }
 };
