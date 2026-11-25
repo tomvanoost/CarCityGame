@@ -98,6 +98,7 @@ function markPaint(doc, paintNames = []) {
 
 const only = process.argv.slice(2);
 for (const [id, p] of Object.entries(picks)) {
+  if (fixes[id]?.skip) { delete manifest[id]; console.log(id.padEnd(14), 'skipped:', fixes[id].skip); continue; }
   if (only.length && !only.includes(id)) continue;
   if (!existsSync(`${RAW}/${id}.glb`) && !existsSync(`${RAW}/${id}/scene.gltf`)) { console.log(id.padEnd(14), 'not downloaded'); continue; }
   try {

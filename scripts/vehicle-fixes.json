@@ -10,20 +10,24 @@
     ]
   },
   "mersedez-c": {
-    "rotate": 180
+    "rotate": 180,
+    "skip": "broken: loose black/red pieces, hood missing"
   },
   "volvu-xc90": {
     "color": "#1c2a3a",
-    "rotate": 180
+    "rotate": 180,
+    "skip": "untextured grey clay look"
   },
   "modelo-y": {
-    "color": "#f2f2f2"
+    "color": "#f2f2f2",
+    "skip": "untextured grey, doors open, no windows"
   },
   "kuper": {
     "rotate": 180
   },
   "beemer-3": {
-    "rotate": 180
+    "rotate": 180,
+    "skip": "crumpled, dented doors"
   },
   "hondo-cbr": {
     "rotate": 180
@@ -39,5 +43,14 @@
   },
   "vespo": {
     "wheels": false
+  },
+  "teslo-modelo3": {
+    "skip": "glass roof shows a grey pattern, plain white wheels"
+  },
+  "oudi-a4": {
+    "skip": "noisy camouflage wrap all over the car"
+  },
+  "kio-ev6": {
+    "skip": "hood open, parts missing"
   }
 }

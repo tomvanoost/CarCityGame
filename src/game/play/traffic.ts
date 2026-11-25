@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PAINT_COLORS, VEHICLES } from '../vehicles/catalog';
+import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
 import { SEATED_SCALE, seatedRootPosition, type BuiltCar } from '../vehicles/carBuilder';
 import { loadVehicle, vehicleDims } from '../vehicles/factory';
 import type { VehicleSpec } from '../vehicles/types';
@@ -130,7 +131,10 @@ export class Traffic {
   }
 
   private async build(focus: P) {
-    const cars = VEHICLES.filter((v) => v.kind === 'car' && v.price < 100000);
+    // Traffic uses the realistic (Sketchfab) cars only, so the street looks consistent.
+    const all = VEHICLES.filter((v) => v.kind === 'car' && v.price < 100000);
+    const real = all.filter((v) => v.id in SKETCHFAB_VEHICLES);
+    const cars = real.length >= 4 ? real : all;
     const spec = cars[Math.floor(Math.random() * cars.length)];
     const built = await loadVehicle(spec, PAINT_COLORS[Math.floor(Math.random() * PAINT_COLORS.length)], { lod: true });
     if (this.disposed) { built.dispose(); return; }
