@@ -1,0 +1,77 @@
+{
+  "sf_house_3": {
+    "skip": "same model as sf_townhouse_3"
+  },
+  "sf_shop_2": {
+    "skip": "graffiti wall, run-down look"
+  },
+  "sf_shop_4": {
+    "skip": "abandoned shack"
+  },
+  "sf_apartment_2": {
+    "skip": "loose modular row, 180 m long"
+  },
+  "sf_tower_2": {
+    "skip": "a whole scene with a tiny tower"
+  },
+  "sf_tree_2": {
+    "skip": "no 3D faces (point cloud / empty)"
+  },
+  "sf_tree_3": {
+    "skip": "stylized fantasy scene, not a city tree"
+  },
+  "sf_tree_4": {
+    "skip": "a cartoon character (Pokemon), not a tree"
+  },
+  "sf_tree_7": {
+    "skip": "no 3D faces"
+  },
+  "sf_tree_8": {
+    "skip": "a diorama scene"
+  },
+  "sf_house_2": {
+    "skip": "walled compound with 17 separate parts (too many draw calls)"
+  },
+  "sf_townhouse_4": {
+    "skip": "24 separate parts (too many draw calls)"
+  },
+  "sf_shop_6": {
+    "skip": "no textures (plain white)"
+  },
+  "sf_shop_7": {
+    "skip": "a white statue, not a shop"
+  },
+  "sf_tree_5": {
+    "skip": "a 96 m row of tiny figures"
+  },
+  "sf_tree_6": {
+    "skip": "a tree log, not a tree"
+  },
+  "sf_tree_9": {
+    "skip": "white dead trees"
+  },
+  "sf_tower_1": {
+    "skip": "55k triangles after simplifying; procedural towers are used downtown"
+  },
+  "sf_tower_3": {
+    "skip": "dark cyberpunk spire; procedural towers are used downtown"
+  },
+  "sf_townhouse_3": {
+    "skip": "hundreds of separate parts: 9k triangles even far away (too heavy for 126 copies)"
+  },
+  "sf_tree_1": {
+    "skip": "leaves are thin cards that vanish when simplified; too heavy for 3,500 street trees"
+  },
+  "sf_house_1": {
+    "dropNodes": [
+      "props",
+      "alpha"
+    ]
+  },
+  "sf_tree_10": {
+    "skip": "bare winter tree"
+  },
+  "sf_tree_11": {
+    "skip": "bare winter tree"
+  }
+}

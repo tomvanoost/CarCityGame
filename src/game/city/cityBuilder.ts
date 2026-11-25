@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CURB_HEIGHT, HALF_CITY, ROAD_WIDTH, generateCity, type CityLayout, type District, type Placement, type Rect } from './layout';
 import { createBatchMaterial, createRoadMaterial, createTerrainMaterial, createTowerMaterial, createWaterMaterial } from './materials';
-import { ALL_CITY_MODELS, loadCityModels, type CityModel } from './models';
+import { ALL_CITY_MODELS, isSketchfabCity, loadCityModels, type CityModel } from './models';
+import { SKETCHFAB_CITY } from './sketchfabCity';
+import { SfInstances } from './sfInstances';
 
 export interface CityQuality {
   /** Distance where buildings switch to their light version. */
@@ -10,6 +12,8 @@ export interface CityQuality {
   /** Distance where trees switch to their light version / disappear. */
   natureLod: number;
   natureMax: number;
+  /** Beyond this distance the fog hides everything. */
+  fogFar: number;
 }
 
 export interface City {
@@ -180,15 +184,34 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
 
   // ---------- batched buildings, trees and props ----------
   const batchMat = track(createBatchMaterial());
-  const bModels = [...new Set(layout.buildings.map((p) => p.model))].map((n) => models.get(n)!);
-  const buildings = new LodBatch(bModels, layout.buildings.length, batchMat);
-  for (const p of layout.buildings) buildings.add(p, top, p.color);
-  const nModels = [...new Set([...layout.nature, ...layout.props].map((p) => p.model))].map((n) => models.get(n)!);
-  const nature = new LodBatch(nModels, layout.nature.length + layout.props.length, batchMat);
-  for (const p of layout.nature) {
-    const inCity = Math.max(Math.abs(p.x), Math.abs(p.z)) < HALF_CITY + ROAD_WIDTH;
-    nature.add(p, inCity ? top : 0);
+  // Sketchfab models are drawn with instancing (SfInstances); the rest stays in the batches.
+  const groundY = (p: Placement) => (Math.max(Math.abs(p.x), Math.abs(p.z)) < HALF_CITY + ROAD_WIDTH ? top : 0);
+  const sfPlacements = new Map<string, { p: Placement; y: number }[]>();
+  const oldBuildings = layout.buildings.filter((p) => !isSketchfabCity(p.model));
+  const oldNature = layout.nature.filter((p) => !isSketchfabCity(p.model));
+  for (const p of [...layout.buildings, ...layout.nature]) {
+    if (!isSketchfabCity(p.model)) continue;
+    const list = sfPlacements.get(p.model) ?? [];
+    list.push({ p, y: layout.buildings.includes(p) ? top : groundY(p) });
+    sfPlacements.set(p.model, list);
   }
+  const sfInst = new SfInstances();
+  await Promise.all([...sfPlacements].map(([model, list]) => {
+    const cat = SKETCHFAB_CITY[model].category;
+    const isNature = cat === 'tree' || cat === 'pine' || cat === 'bush';
+    const near = isNature ? quality.natureLod : quality.buildingLod;
+    // Buildings beyond the fog can't be seen: don't draw them.
+    const max = cat === 'bush' ? quality.natureMax * 0.5 : isNature ? quality.natureMax : quality.fogFar * 1.05;
+    return sfInst.add(model, list, near, max);
+  }));
+  group.add(sfInst.group);
+
+  const bModels = [...new Set(oldBuildings.map((p) => p.model))].map((n) => models.get(n)!);
+  const buildings = new LodBatch(bModels, Math.max(1, oldBuildings.length), batchMat);
+  for (const p of oldBuildings) buildings.add(p, top, p.color);
+  const nModels = [...new Set([...oldNature, ...layout.props].map((p) => p.model))].map((n) => models.get(n)!);
+  const nature = new LodBatch(nModels, oldNature.length + layout.props.length, batchMat);
+  for (const p of oldNature) nature.add(p, groundY(p));
   for (const p of layout.props) nature.add(p, top);
   group.add(track(buildings.mesh), track(nature.mesh));
 
@@ -301,10 +324,12 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
       lodTimer = 0;
       last.set(cam.x, cam.z);
       buildings.updateLod(cam.x, cam.y, cam.z, quality.buildingLod, 2000);
+      sfInst.update(cam.x, cam.y, cam.z);
       nature.updateLod(cam.x, cam.y, cam.z, quality.natureLod, quality.natureMax);
     },
     dispose() {
       disposables.forEach((d) => d.dispose());
+      sfInst.dispose();
       models.forEach((m) => { m.lod0.dispose(); m.lod1?.dispose(); });
       group.removeFromParent();
     },

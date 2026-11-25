@@ -63,6 +63,57 @@ uncolored models were given colors (`scripts/build-vehicles.mjs`). In the game t
 | dukati | [2021 Ducati Panigale V4 SP](https://sketchfab.com/3d-models/2021-ducati-panigale-v4-sp-8c0632e4c54249758114490390f0b73f) | [Carlito](https://sketchfab.com/brainlesszombie5) | CC Attribution | "2024 ducati panigale v4" #1 |
 <!-- sketchfab-vehicles:end -->
 
+<!-- sketchfab-city:start -->
+## Buildings and trees (Sketchfab)
+Houses, townhouses, shops, apartments, trees, pines and bushes come from Sketchfab (downloadable,
+first usable results per search term), modified for the game (`scripts/build-city-sf.mjs`).
+Office towers downtown, roads, street lights and small props stay built-in / CC0.
+
+| Category | Model | Author | License | Search (rank) |
+|---|---|---|---|---|
+| house | [Dutch House](https://sketchfab.com/3d-models/dutch-house-48186aa36d644ad296f135035d0d9aad) | [Bjarne Stokhof](https://sketchfab.com/stokhuis) | CC Attribution | "dutch house" #1 |
+| house | [Stylized Amsterdam House](https://sketchfab.com/3d-models/stylized-amsterdam-house-c523ef1f9e55415caff7e4349a04d53d) | [ChrisCLP](https://sketchfab.com/ChrisCLP) | CC Attribution | "dutch house" #4 |
+| townhouse | [Amsterdam Canal House by Jungle Jim](https://sketchfab.com/3d-models/amsterdam-canal-house-by-jungle-jim-153c5531d1e34f5f822b3447b661079d) | [Jungle Jim](https://sketchfab.com/jungle_jim) | CC Attribution | "amsterdam canal house" #1 |
+| townhouse | [Amsterdam Canal House](https://sketchfab.com/3d-models/amsterdam-canal-house-69310c8b49bf4758aeee368af543b0d0) | [Jungle Jim](https://sketchfab.com/jungle_jim) | CC Attribution | "amsterdam canal house" #2 |
+| shop | [Brick Shop Building | Lowpoly](https://sketchfab.com/3d-models/brick-shop-building-lowpoly-548d4a0e62b54efcab4483fb6d0c3611) | [Frid.blend](https://sketchfab.com/Fridqeir) | CC Attribution | "shop building" #1 |
+| shop | [Apartment building and shop](https://sketchfab.com/3d-models/apartment-building-and-shop-3765e750a77e4ddfa58bae42a2c6bb4c) | [swjeta](https://sketchfab.com/swjeta) | CC Attribution | "shop building" #3 |
+| shop | [Isometric low-poly shop building](https://sketchfab.com/3d-models/isometric-low-poly-shop-building-e6ba7a5e51724299a288eafcea112655) | [daviddickball](https://sketchfab.com/daviddickball) | CC Attribution | "shop building" #6 |
+| apartment | [Futuristic Building](https://sketchfab.com/3d-models/futuristic-building-e73f9bb9981d469c8a8ccdc1f168faad) | [3DHaupt](https://sketchfab.com/dennish2010) | CC Attribution-NonCommercial | "apartment building" #1 |
+| apartment | [Old Apartment Building](https://sketchfab.com/3d-models/old-apartment-building-a2a27bec2e364496b34ae399ee93cb67) | [jimbogies](https://sketchfab.com/jimbogies) | CC Attribution | "apartment building" #4 |
+| apartment | [Apartment Building - 3D Model](https://sketchfab.com/3d-models/apartment-building-3d-model-16ed96dee1e04f7a8e1c80c956669b94) | [rohit-manglik](https://sketchfab.com/rohit-manglik) | CC Attribution | "apartment building" #5 |
+| pine | [Pine tree](https://sketchfab.com/3d-models/pine-tree-e52769d653cd4e52a4acff3041961e65) | [Andriy Shekh](https://sketchfab.com/sheh5262) | CC Attribution | "pine tree" #1 |
+| pine | [Pine Tree](https://sketchfab.com/3d-models/pine-tree-d45218a3fab349e5b1de040f29e7b6f9) | [evolveduk](https://sketchfab.com/evolveduk) | CC Attribution | "pine tree" #2 |
+| bush | [Real Bush](https://sketchfab.com/3d-models/real-bush-62618c3260b142cfb7ef499d75a8d21a) | [Marbles studio](https://sketchfab.com/marblesstudio) | CC Attribution | "bush" #1 |
+| bush | [Stylized Bush](https://sketchfab.com/3d-models/stylized-bush-9d9ce79d3ae040619e96d5b22c7de1a6) | [Daniel](https://sketchfab.com/danielpetrov) | CC Attribution | "bush" #2 |
+| tree | [Giant Low Poly Tree](https://sketchfab.com/3d-models/giant-low-poly-tree-acfd2b7f80894848b56c2ac8e7e59572) | [Sahir Virmani](https://sketchfab.com/sahirvirmani) | CC Attribution | "low poly tree" #5 |
+| tree | [Low Poly Tree](https://sketchfab.com/3d-models/low-poly-tree-4598c065d5534c40b6050c16b69d1b77) | [Šimon Ustal](https://sketchfab.com/simonustal) | CC Attribution | "low poly tree" #7 |
+
+Skipped results (and why):
+- "Dutch Canals House Amsterdam #1" ("dutch house" #3): same model as sf_townhouse_3
+- "Old Petrol Station Shop" ("shop building" #2): graffiti wall, run-down look
+- "Abandoned | Building | Shop | Old | House" ("shop building" #4): abandoned shack
+- "Modular Apartment Building" ("apartment building" #3): loose modular row, 180 m long
+- "Skyscraper" ("skyscraper" #2): a whole scene with a tiny tower
+- "Trees of Paris" ("tree" #2): no 3D faces (point cloud / empty)
+- "Patch of Heaven - The White Tree" ("tree" #3): stylized fantasy scene, not a city tree
+- "Pokemon Sudowoodo - Tree" ("tree" #4): a cartoon character (Pokemon), not a tree
+- "Merry Christmas 2019" ("tree" #7): no 3D faces
+- "Dangerous Beauty - Diorama" ("tree" #8): a diorama scene
+- "Rembrandt's Birthplace - Leiden - FREE DOWNLOAD" ("dutch house" #2): walled compound with 17 separate parts (too many draw calls)
+- "Dutch Canals House Amsterdam #4" ("amsterdam canal house" #4): 24 separate parts (too many draw calls)
+- "Little Shop" ("shop building" #7): no textures (plain white)
+- "Fish shop building" ("shop building" #8): a white statue, not a shop
+- "Toon Tree 02" ("tree" #5): a 96 m row of tiny figures
+- "Drevo" ("tree" #6): a tree log, not a tree
+- "Trees" ("tree" #9): white dead trees
+- "[FREE] London Skyscraper" ("skyscraper" #1): 55k triangles after simplifying; procedural towers are used downtown
+- "Cyberpunk skyscraper" ("skyscraper" #3): dark cyberpunk spire; procedural towers are used downtown
+- "Dutch Canals House Amsterdam #1" ("amsterdam canal house" #3): hundreds of separate parts: 9k triangles even far away (too heavy for 126 copies)
+- "Maple tree" ("tree" #1): leaves are thin cards that vanish when simplified; too heavy for 3,500 street trees
+- "Tree" ("low poly tree" #3): bare winter tree
+- "Tree" ("low poly tree" #4): bare winter tree
+<!-- sketchfab-city:end -->
+
 ## Rebuilding the models
 ```bash
 ./scripts/fetch-models.sh      # downloads the CC0 sources into assets-src/

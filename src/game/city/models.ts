@@ -1,16 +1,31 @@
 import * as THREE from 'three';
 import { loadGltf } from '../../engine/assets';
+import { SKETCHFAB_CITY, type SfCategory } from './sketchfabCity';
+
+/** Sketchfab models of a category, or the built-in (CC0) fallback when there are none. */
+const sf = <T extends readonly string[]>(cat: SfCategory, fallback: T): readonly string[] => {
+  const ids = Object.keys(SKETCHFAB_CITY).filter((id) => SKETCHFAB_CITY[id].category === cat);
+  return ids.length ? ids : fallback;
+};
+export const isSketchfabCity = (name: string) => name in SKETCHFAB_CITY;
 
 /** City model groups. All buildings face +Z (front door) in their source files. */
-export const TOWNHOUSES = ['Building1_Large', 'Building1_Small', 'Building2_Large', 'Building2_Small', 'Building3_Big', 'Building3_Small', 'Building4'] as const;
-export const HOUSES = ['1Story_GableRoof', '2Story_GableRoof', '2Story_GableRoof', '1Story_RoundRoof', '2Story_RoundRoof', '2Story_Sidehouse'] as const;
-export const SHOPS = ['1Story', '1Story_Sign', '1Story_RoundRoof', '2Story_Sign', '2Story_Wide', '2Story_Double', '2Story_Columns', '2Story_Center'] as const;
-export const APARTMENTS = ['3Story_Balcony', '3Story_Small', '4Story_Center', '4Story', '4Story_Wide_2Doors', '6Story_Stack', '2Story_Balcony', '2Story_2', '2Story_Stairs', '2Story_Sidehouse', '2Story', '2Story_Wide_2Doors', '2Story_RoundRoof'] as const;
-export const TREES = ['CommonTree_1', 'CommonTree_2', 'CommonTree_3', 'CommonTree_4', 'CommonTree_5', 'BirchTree_1', 'BirchTree_2', 'BirchTree_3'] as const;
-export const PINES = ['PineTree_1', 'PineTree_2', 'PineTree_3'] as const;
+const CC0_TOWNHOUSES = ['Building1_Large', 'Building1_Small', 'Building2_Large', 'Building2_Small', 'Building3_Big', 'Building3_Small', 'Building4'] as const;
+const CC0_HOUSES = ['1Story_GableRoof', '2Story_GableRoof', '2Story_GableRoof', '1Story_RoundRoof', '2Story_RoundRoof', '2Story_Sidehouse'] as const;
+const CC0_SHOPS = ['1Story', '1Story_Sign', '1Story_RoundRoof', '2Story_Sign', '2Story_Wide', '2Story_Double', '2Story_Columns', '2Story_Center'] as const;
+const CC0_APARTMENTS = ['3Story_Balcony', '3Story_Small', '4Story_Center', '4Story', '4Story_Wide_2Doors', '6Story_Stack', '2Story_Balcony', '2Story_2', '2Story_Stairs', '2Story_Sidehouse', '2Story', '2Story_Wide_2Doors', '2Story_RoundRoof'] as const;
+const CC0_TREES = ['CommonTree_1', 'CommonTree_2', 'CommonTree_3', 'CommonTree_4', 'CommonTree_5', 'BirchTree_1', 'BirchTree_2', 'BirchTree_3'] as const;
+const CC0_PINES = ['PineTree_1', 'PineTree_2', 'PineTree_3'] as const;
+export const TOWNHOUSES = sf('townhouse', CC0_TOWNHOUSES);
+export const HOUSES = sf('house', CC0_HOUSES);
+export const SHOPS = sf('shop', CC0_SHOPS);
+export const APARTMENTS = sf('apartment', CC0_APARTMENTS);
+export const TREES = sf('tree', CC0_TREES);
+export const PINES = sf('pine', CC0_PINES);
+export const BUSHES = sf('bush', ['Bush_1', 'Bush_2', 'BushBerries_1'] as const);
 export const SMALL_NATURE = ['Bush_1', 'Bush_2', 'BushBerries_1', 'Flowers', 'Rock_Moss_1', 'Rock_Moss_2', 'Lilypad'] as const;
 export const PROPS = ['Streetlight_Single', 'TrafficLight_2'] as const;
-const WITH_LOD = new Set<string>([...TOWNHOUSES, ...HOUSES, ...SHOPS, ...APARTMENTS, ...TREES, ...PINES, 'Willow_1']);
+const WITH_LOD = new Set<string>([...CC0_TOWNHOUSES, ...CC0_HOUSES, ...CC0_SHOPS, ...CC0_APARTMENTS, ...CC0_TREES, ...CC0_PINES, 'Willow_1']);
 
 /** Scale from source units to meters. */
 export function modelScale(name: string): number {
@@ -70,6 +85,13 @@ export async function loadCityModels(names: string[], onProgress: (done: number,
   let done = 0;
   const total = names.length;
   await Promise.all(names.map(async (name) => {
+    if (isSketchfabCity(name)) {
+      // Drawn by SfInstances; the layout only needs the size (already in meters).
+      const i = SKETCHFAB_CITY[name];
+      models.set(name, { name, lod0: new THREE.BufferGeometry(), lod1: null, size: new THREE.Vector3(i.x, i.y, i.z) });
+      onProgress(++done, total);
+      return;
+    }
     const s = modelScale(name);
     const [lod0, lod1] = await Promise.all([
       loadGeometry(`/models/city/${name}.glb`, s),
@@ -82,4 +104,4 @@ export async function loadCityModels(names: string[], onProgress: (done: number,
   return models;
 }
 
-export const ALL_CITY_MODELS = [...TOWNHOUSES, ...HOUSES, ...SHOPS, ...APARTMENTS, ...TREES, ...PINES, 'Willow_1', ...SMALL_NATURE, ...PROPS];
+export const ALL_CITY_MODELS = [...TOWNHOUSES, ...HOUSES, ...SHOPS, ...APARTMENTS, ...TREES, ...PINES, ...BUSHES, ...SMALL_NATURE, ...PROPS];

@@ -1,4 +1,4 @@
-import { APARTMENTS, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
+import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
 
 /**
@@ -236,7 +236,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
             addBuilding({ model, x, z, rot, scale: 1, color: rng.pick(WALL_COLORS) });
             // Front garden: a bush or flowers; a tree beside the house.
             const gx = s.ox + s.ax * (c + lotW * 0.32) - s.outX * 2.5, gz = s.oz + s.az * (c + lotW * 0.32) - s.outZ * 2.5;
-            addSmall(gx, gz, rng.pick(['Bush_1', 'Bush_2', 'BushBerries_1', 'Flowers']), 1.2);
+            addSmall(gx, gz, rng.chance(0.75) ? rng.pick(BUSHES) : 'Flowers', 1.2);
             if (rng.chance(0.7)) addTree(s.ox + s.ax * (c - lotW * 0.38) - s.outX * (setback + 4), s.oz + s.az * (c - lotW * 0.38) - s.outZ * (setback + 4));
             if (!homeLot && b.bx === HOME_BLOCK[0] && b.bz === HOME_BLOCK[1] && ns && i === 1) {
               homeLot = { x, z, door: { x: x + s.outX * (sz.z / 2 + 1.5), z: z + s.outZ * (sz.z / 2 + 1.5) } };
@@ -261,8 +261,8 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
           const x = rng.range(r.x0 + 4, r.x1 - 4), z = rng.range(r.z0 + 4, r.z1 - 4);
           if (Math.hypot(x - pond.x, z - pond.z) < pond.r + 6) continue;
           if (Math.abs(z - fountain.z) < 6 || Math.abs(x - fountain.x) < 6) continue;
-          if (rng.chance(0.75)) addTree(x, z, rng.chance(0.15) ? 'Willow_1' : undefined);
-          else addSmall(x, z, rng.pick(['Bush_1', 'Bush_2', 'BushBerries_1', 'Flowers', 'Rock_Moss_1', 'Rock_Moss_2']), 1.4);
+          if (rng.chance(0.75)) addTree(x, z);
+          else addSmall(x, z, rng.chance(0.6) ? rng.pick(BUSHES) : rng.pick(['Flowers', 'Rock_Moss_1', 'Rock_Moss_2']), 1.4);
         }
         for (let i = 0; i < 12; i++) {
           const a = rng.range(0, Math.PI * 2), d = rng.range(4, pond.r - 3);
@@ -270,7 +270,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
         }
         for (let i = 0; i < 10; i++) {
           const a = (i / 10) * Math.PI * 2;
-          addTree(pond.x + Math.cos(a) * (pond.r + 4), pond.z + Math.sin(a) * (pond.r + 4), 'Willow_1', 1.1);
+          addTree(pond.x + Math.cos(a) * (pond.r + 4), pond.z + Math.sin(a) * (pond.r + 4), undefined, 1.1);
         }
         break;
       }
@@ -281,7 +281,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
           { x: canopy.x0 + 6 + i * 6, z: (canopy.z0 + canopy.z1) / 2 - 4 },
           { x: canopy.x0 + 6 + i * 6, z: (canopy.z0 + canopy.z1) / 2 + 4 },
         ]);
-        const shop: Placement = { model: '1Story_Sign', x: r.x0 + 48, z: r.z1 - 22, rot: -Math.PI / 2, scale: 1.4, color: '#f2f2f2' };
+        const shop: Placement = { model: SHOPS[0], x: r.x0 + 48, z: r.z1 - 22, rot: -Math.PI / 2, scale: 1, color: '#f2f2f2' };
         addBuilding(shop);
         for (const p of pumps) L.colliders.push({ x0: p.x - 0.6, z0: p.z - 1, x1: p.x + 0.6, z1: p.z + 1 });
         L.gas = { rect: { x0: r.x0, z0: r.z1 - 44, x1: r.x0 + 60, z1: r.z1 }, canopy, pumps, shop };
@@ -328,7 +328,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       if (Math.max(Math.abs(x), Math.abs(z)) < inner) continue;
       if (!rng.chance(0.55)) continue;
       const px = x + rng.range(-8, 8), pz = z + rng.range(-8, 8);
-      if (rng.chance(0.12)) addSmall(px, pz, rng.pick(['Bush_1', 'Bush_2', 'Rock_Moss_1', 'Rock_Moss_2']), 2);
+      if (rng.chance(0.12)) addSmall(px, pz, rng.chance(0.5) ? rng.pick(BUSHES) : rng.pick(['Rock_Moss_1', 'Rock_Moss_2']), 2);
       else {
         L.nature.push({ model: rng.chance(0.45) ? rng.pick(PINES) : rng.pick(TREES), x: px, z: pz, rot: rng.range(0, 6.28), scale: rng.range(1, 1.5) });
         L.colliders.push({ x0: px - 0.5, z0: pz - 0.5, x1: px + 0.5, z1: pz + 0.5 });
