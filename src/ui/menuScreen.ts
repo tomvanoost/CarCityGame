@@ -5,6 +5,8 @@ import { t } from '../i18n';
 import { getBackend, getProfile, onProfileChange, setProfile, updateProfile } from '../services/session';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
+import { openStickerBook } from './stickers';
+import { STICKERS } from '../game/stickers';
 
 /** Game menu: avatar (top-left), selected car in the showroom, shops and Play. */
 export const menuScreen: Screen = (root, nav) => {
@@ -21,10 +23,15 @@ export const menuScreen: Screen = (root, nav) => {
 
   // --- avatar card ---
   const money = h('div', { class: 'money-chip' }, svgIcon(icons.coin, 20), h('span', {}, `€ ${p.money.toLocaleString('nl-NL')}`));
+  const stickerCount = h('span', {});
+  const stickerBtn = h('button', { class: 'sticker-btn', onclick: () => openStickerBook() }, '⭐ ', h('span', {}, t('stickers')), ' ', stickerCount);
+  const renderStickers = () => { stickerCount.textContent = `${getProfile()?.stickers.length ?? 0}/${STICKERS.length}`; };
+  renderStickers();
   const card = h('div', { class: 'card avatar-card' },
     avatarCanvas,
     h('div', { class: 'avatar-name' }, p.username),
     money,
+    stickerBtn,
   );
 
   // --- car picker (only owned cars) ---
@@ -79,12 +86,14 @@ export const menuScreen: Screen = (root, nav) => {
 
   const offProfile = onProfileChange((np) => {
     money.lastElementChild!.textContent = `€ ${np.money.toLocaleString('nl-NL')}`;
+    renderStickers();
   });
 
   return () => {
     if (saveTimer) updateProfile({ selectedVehicle: getProfile()?.selectedVehicle });
     clearTimeout(saveTimer);
     offProfile();
+    document.querySelector('.sticker-book')?.remove();
     showroom.dispose();
     avatarView.dispose();
   };

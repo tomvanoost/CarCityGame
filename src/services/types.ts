@@ -26,6 +26,11 @@ export interface PlayerProfile {
   vehicleColors: Record<string, string>;
   /** The first-time tutorial was shown (or skipped). */
   tutorialDone: boolean;
+  /** Earned sticker ids (see game/stickers.ts). */
+  stickers: string[];
+  /** Finished jobs (for stickers). */
+  deliveries: number;
+  taxiRides: number;
 }
 
 /** Error codes the UI turns into friendly translated messages. */

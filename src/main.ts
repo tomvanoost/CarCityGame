@@ -2,6 +2,7 @@ import './ui/styles.css';
 import { onLangChange } from './i18n';
 import { getBackend, setProfile } from './services/session';
 import { startFpsMeter } from './ui/fps';
+import { watchStickers } from './ui/stickers';
 import { langToggle } from './ui/langToggle';
 import { loginScreen } from './ui/loginScreen';
 import { clothesShopScreen } from './ui/clothesShopScreen';
@@ -36,6 +37,7 @@ function navigate(to: ScreenName) {
 
 async function boot() {
   startFpsMeter();
+  watchStickers();
   app.innerHTML = '<div class="boot">🚗</div>';
   try {
     const profile = await (await getBackend()).restore();

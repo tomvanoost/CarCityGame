@@ -16,6 +16,7 @@ import { Jobs, type ActiveJob, type PlaceKey } from './jobs';
 import { createArrow, createIcon } from './markers';
 import { Navigator } from './navigation';
 import { Pedestrians } from './pedestrians';
+import { awardSticker } from '../../ui/stickers';
 import { RoadGraph, type P } from './roads';
 import { Traffic } from './traffic';
 import { Player } from './player';
@@ -182,7 +183,11 @@ export class Game {
     this.people.load();
     this.jobs = new Jobs(city.layout, {
       onStart: (job) => this.events.onJobStart(job),
-      onDone: (job) => this.addMoney(job.reward, 'job'),
+      onDone: (job) => {
+        this.addMoney(job.reward, 'job');
+        const p = this.profile;
+        void updateProfile(job.kind === 'delivery' ? { deliveries: p.deliveries + 1 } : { taxiRides: p.taxiRides + 1 });
+      },
     });
     this.scene.add(this.jobs.group);
     // Roads, navigation and friendly traffic.
@@ -494,6 +499,7 @@ export class Game {
     if (this.input.takeHorn() && this.mode === 'driving' && !this.paused) {
       sounds.horn();
       this.people?.honk(v.x, v.z);
+      awardSticker('honk');
     }
     sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0);
     if (driving) {
