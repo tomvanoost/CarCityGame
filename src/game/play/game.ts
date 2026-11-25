@@ -509,7 +509,8 @@ export class Game {
       if (moved > 0) {
         this.meters += moved;
         const fuel = Math.max(0, p.fuel - moved / TANK_METERS);
-        setProfile({ ...p, fuel, km: p.km + moved / 1000 });
+        // Fresh profile, not `p` from the start of the frame: the horn may have just added a sticker.
+        setProfile({ ...this.profile, fuel, km: p.km + moved / 1000 });
         this.dirty = true;
         while (this.meters >= 100) { this.meters -= 100; this.addMoney(KM_REWARD, 'km'); }
       }

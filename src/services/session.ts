@@ -22,6 +22,13 @@ export async function getBackend(): Promise<Backend> {
 export const getProfile = () => profile;
 
 export function setProfile(p: PlayerProfile | null) {
+  // Safety net: an update made from an older copy of the profile must never take away
+  // stickers that were earned in the meantime (that made the same sticker pop up again).
+  const prev = profile;
+  if (p && prev && p.username === prev.username) {
+    const have = p.stickers;
+    if (prev.stickers.some((s) => !have.includes(s))) p = { ...p, stickers: [...new Set([...prev.stickers, ...have])] };
+  }
   profile = p;
   if (p) listeners.forEach((fn) => fn(p));
 }
