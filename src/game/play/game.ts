@@ -20,6 +20,7 @@ import { RoadGraph, type P } from './roads';
 import { Traffic } from './traffic';
 import { Player } from './player';
 import { Vehicle } from './vehicle';
+import { sounds } from './sounds';
 
 export type Mode = 'driving' | 'walking';
 
@@ -134,7 +135,7 @@ export class Game {
   }
 
   /** Save right away when the tab is hidden or closed. */
-  private onHide = () => this.save(true);
+  private onHide = () => { this.save(true); sounds.setHidden(document.hidden); };
 
   private get profile() { return getProfile()!; }
 
@@ -286,7 +287,7 @@ export class Game {
     const p = this.profile;
     setProfile({ ...p, money: Math.max(0, p.money + amount) });
     this.dirty = true;
-    if (reason !== 'km' && amount > 0) this.events.onMoney(amount, reason);
+    if (reason !== 'km' && amount > 0) { this.events.onMoney(amount, reason); sounds.coin(); }
   }
 
   private dailyBonus() {
@@ -333,8 +334,10 @@ export class Game {
       p.place(door.x, door.z, v.heading + Math.PI / 2);
       a.play('StandUp', { once: true, fade: 0.15, then: 'Idle' });
       this.mode = 'walking';
+      sounds.door();
     } else if (this.canEnter()) {
       this.seatAvatar();
+      sounds.door();
     }
   }
 
@@ -483,9 +486,13 @@ export class Game {
     if (p.fuel <= 0 && !this.fuelWarned) { this.fuelWarned = true; this.events.onMessage('fuelEmpty'); }
     if (p.fuel > 0.05) this.fuelWarned = false;
 
-    if (this.mode === 'driving' && !this.paused) {
+    const driveInput = this.input.drive();
+    const driving = this.mode === 'driving' && !this.paused;
+    if (this.input.takeHorn() && this.mode === 'driving' && !this.paused) sounds.horn();
+    sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0);
+    if (driving) {
       const before = { x: v.x, z: v.z };
-      v.update(dt, this.input.drive(), this.world, this.people?.obstacles());
+      v.update(dt, driveInput, this.world, this.people?.obstacles());
       const moved = Math.hypot(v.x - before.x, v.z - before.z);
       if (moved > 0) {
         this.meters += moved;
@@ -578,6 +585,7 @@ export class Game {
 
   dispose() {
     this.disposed = true;
+    sounds.stopEngine();
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onHide);
     window.removeEventListener('pagehide', this.onHide);

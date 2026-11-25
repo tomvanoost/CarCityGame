@@ -83,7 +83,8 @@ const dict = {
     getIn: 'Instappen',
     getOut: 'Uitstappen',
     tabletMode: 'Tabletbediening aan/uit',
-    keysHint: 'W A S D of pijltjes: rijden en lopen · E: in- en uitstappen · Spatie: springen · Sleep: rondkijken',
+    soundOnOff: 'Geluid aan/uit',
+    keysHint: 'W A S D of pijltjes: rijden en lopen · E: in- en uitstappen · H: toeteren · Spatie: springen · Sleep: rondkijken',
     back: 'Terug',
   },
   en: {
@@ -168,7 +169,8 @@ const dict = {
     getIn: 'Get in',
     getOut: 'Get out',
     tabletMode: 'Tablet controls on/off',
-    keysHint: 'W A S D or arrows: drive and walk · E: get in and out · Space: jump · Drag: look around',
+    soundOnOff: 'Sound on/off',
+    keysHint: 'W A S D or arrows: drive and walk · E: get in and out · H: honk · Space: jump · Drag: look around',
     back: 'Back',
   },
 } as const;

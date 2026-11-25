@@ -5,8 +5,6 @@ polished beats big and half-done), checks it, and ticks it off here with a one-l
 Every item must respect the requirements in `CLAUDE.md` (no violence, simple UI, fast on tablets, NL/EN).
 
 ## Next up
-- [ ] **Sounds**: soft engine hum that follows speed, friendly horn, coin "ching" for money, door sound.
-      WebAudio synthesized (no files needed). A small speaker button in the HUD to mute (remembered).
 - [ ] **Horn button**: tap to honk; nearby pedestrians wave (Victory animation) instead of being scared.
 - [ ] **First-time tutorial**: 3–4 friendly speech bubbles on the very first play (drive, get out, jobs,
       gas station). Stored in the profile so it shows only once.
@@ -21,6 +19,8 @@ Every item must respect the requirements in `CLAUDE.md` (no violence, simple UI,
 - [ ] **Apartment view**: a cozy simple 3D room when you go inside your apartment.
 
 ## Done
+- [x] **Sounds**: WebAudio-synthesized engine hum (follows speed + gas), toot-toot horn (H key for now), coin
+      "ching", door clunk; speaker button in the HUD to mute, remembered on the device (`play/sounds.ts`).
 - [x] **Traffic with drivers**: AI cars on the right-hand lane, smooth turns, take turns at crossings,
       always stop for people, the player and each other (`src/game/play/traffic.ts`).
 - [x] **Minimap + big map + navigation**: rotating minimap, tap for the big map, tap to pick a destination,

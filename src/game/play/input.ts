@@ -8,6 +8,7 @@ export class Input {
   private keys = new Set<string>();
   private jumpQueued = false;
   private interactQueued = false;
+  private hornQueued = false;
   private lookDX = 0;
   private lookDY = 0;
 
@@ -23,6 +24,7 @@ export class Input {
     if (e.type === 'keydown') {
       if (!e.repeat && (k === 'KeyE' || k === 'KeyF' || k === 'Enter')) this.interactQueued = true;
       if (!e.repeat && k === 'Space') this.jumpQueued = true;
+      if (!e.repeat && k === 'KeyH') this.hornQueued = true;
       this.keys.add(k);
       if (k.startsWith('Arrow') || k === 'Space') e.preventDefault();
     } else this.keys.delete(k);
@@ -54,12 +56,14 @@ export class Input {
   }
 
   queueJump() { this.jumpQueued = true; }
+  queueHorn() { this.hornQueued = true; }
   queueInteract() { this.interactQueued = true; }
   addLook(dx: number, dy: number) { this.lookDX += dx; this.lookDY += dy; }
 
   /** One-shot actions: true once per press. */
   takeJump() { const j = this.jumpQueued; this.jumpQueued = false; return j; }
   takeInteract() { const i = this.interactQueued; this.interactQueued = false; return i; }
+  takeHorn() { const h = this.hornQueued; this.hornQueued = false; return h; }
   takeLook() { const l = { dx: this.lookDX, dy: this.lookDY }; this.lookDX = this.lookDY = 0; return l; }
 
   dispose() {

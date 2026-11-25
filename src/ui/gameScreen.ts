@@ -10,6 +10,7 @@ import type { Screen } from './screens';
 import { toast } from './toast';
 import { BigMap, Minimap, renderBaseMap, type MapPlaces } from './cityMap';
 import { TouchControls } from './touchControls';
+import { sounds } from '../game/play/sounds';
 
 const TABLET_KEY = 'carcity.tablet';
 const loadTablet = () => {
@@ -39,6 +40,19 @@ export const gameScreen: Screen = (root, nav) => {
   let tablet = loadTablet();
   const tabletBtn = h('button', { class: 'icon-btn tablet-btn', title: t('tabletMode'), 'aria-label': t('tabletMode') },
     svgIcon('<rect x="4" y="2" width="16" height="20" rx="2.5"/><circle cx="12" cy="18" r="1"/>', 22));
+
+  const speakerOn = '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/>';
+  const speakerOff = '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/>';
+  const soundBtn = h('button', { class: 'icon-btn sound-btn', title: t('soundOnOff'), 'aria-label': t('soundOnOff') });
+  const renderSound = () => {
+    soundBtn.replaceChildren(svgIcon(sounds.isMuted ? speakerOff : speakerOn, 22));
+    soundBtn.classList.toggle('muted', sounds.isMuted);
+  };
+  renderSound();
+  soundBtn.addEventListener('click', () => { sounds.unlock(); sounds.setMuted(!sounds.isMuted); renderSound(); });
+  // Browsers only allow sound after a tap or key press.
+  window.addEventListener('pointerdown', sounds.unlock);
+  window.addEventListener('keydown', sounds.unlock);
 
   const fuelFill = h('i', {});
   const fuel = h('div', { class: 'fuel' }, h('span', {}, '⛽'), h('div', { class: 'fuel-bar' }, fuelFill));
@@ -74,7 +88,7 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hint, popups, back, money, tabletBtn, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hint, popups, back, money, tabletBtn, soundBtn, mapWrap, panel, mapOverlay, loading);
 
   let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, context: null, job: null, dest: null };
   const render = () => {
@@ -243,6 +257,8 @@ export const gameScreen: Screen = (root, nav) => {
 
   return () => {
     cancelAnimationFrame(mapRaf);
+    window.removeEventListener('pointerdown', sounds.unlock);
+    window.removeEventListener('keydown', sounds.unlock);
     offProfile();
     game.dispose();
     touch.dispose();
