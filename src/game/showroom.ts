@@ -23,6 +23,8 @@ export class Showroom {
   private zoom = 1;
   /** Moves the vehicle up on screen (in meters of camera aim), e.g. above a bottom panel. */
   lift = 0;
+  /** Pixels on the right covered by a panel (wide screens): the car is centered in the space left of it. */
+  rightInset = 0;
 
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = createRenderer(canvas, { shadows: true });
@@ -104,6 +106,9 @@ export class Showroom {
     const dist = (portrait ? 9.5 / Math.max(this.camera.aspect, 0.42) : 9.5) * this.zoom;
     this.camera.position.set(dist * 0.62, dist * 0.24, dist * 0.78);
     this.camera.lookAt(0, ((portrait ? 1.1 : 0.45) - (portrait ? this.lift : 0)) * this.zoom, 0);
+    const w = this.renderer.domElement.clientWidth, h = this.renderer.domElement.clientHeight;
+    if (!portrait && this.rightInset > 0 && w > 0) this.camera.setViewOffset(w, h, this.rightInset / 2, 0, w, h);
+    else this.camera.clearViewOffset();
   }
 
   private loop = () => {

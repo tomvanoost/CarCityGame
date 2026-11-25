@@ -20,6 +20,9 @@ export const vehicleShopScreen: Screen = (root, nav) => {
   const showroom = new Showroom(canvas);
   // On narrow screens the info card covers the lower half: show the vehicle higher up.
   showroom.lift = 2.6;
+  // On wide screens the info card is on the right (290 px + margin): center the car left of it.
+  showroom.rightInset = 320;
+  showroom.frame();
   let kind: VehicleSpec['kind'] = 'car';
   let selected = p0.selectedVehicle;
   let previewColor: string | null = null;
