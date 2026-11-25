@@ -6,3 +6,4 @@ public/config.js
 *.log
 .DS_Store
 assets-src
+public/_lab

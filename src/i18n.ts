@@ -30,8 +30,10 @@ const dict = {
     play: 'Spelen',
     comingSoon: 'Komt binnenkort',
     shopSoon: 'De winkels komen in stap 8!',
-    playSoon: 'De stad komt in stap 4!',
     dragToTurn: 'Sleep om te draaien',
+    loadingCity: 'De stad wordt gebouwd…',
+    tourHint: 'Sleep om te bewegen, knijp om te zoomen. Rijden komt in stap 5!',
+    back: 'Terug',
   },
   en: {
     username: 'Username',
@@ -62,8 +64,10 @@ const dict = {
     play: 'Play',
     comingSoon: 'Coming soon',
     shopSoon: 'The shops are coming in step 8!',
-    playSoon: 'The city is coming in step 4!',
     dragToTurn: 'Drag to turn',
+    loadingCity: 'Building the city…',
+    tourHint: 'Drag to move, pinch to zoom. Driving is coming in step 5!',
+    back: 'Back',
   },
 } as const;
 

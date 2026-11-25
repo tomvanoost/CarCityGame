@@ -59,7 +59,7 @@ export const menuScreen: Screen = (root, nav) => {
   // --- actions ---
   const actions = h('div', { class: 'menu-actions' },
     h('button', { class: 'btn btn-tile', onclick: () => toast(t('shopSoon')) }, svgIcon(icons.car, 30), h('span', {}, t('vehicleShop'))),
-    h('button', { class: 'btn btn-primary btn-play', onclick: () => toast(t('playSoon')) }, svgIcon(icons.play, 30), h('span', {}, t('play'))),
+    h('button', { class: 'btn btn-primary btn-play', onclick: () => nav('game') }, svgIcon(icons.play, 30), h('span', {}, t('play'))),
     h('button', { class: 'btn btn-tile', onclick: () => toast(t('shopSoon')) }, svgIcon(icons.shirt, 30), h('span', {}, t('clothesShop'))),
   );
 

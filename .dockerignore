@@ -3,3 +3,4 @@ dist
 .git
 public/config.js
 assets-src
+public/_lab

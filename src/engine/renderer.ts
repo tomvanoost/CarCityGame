@@ -23,7 +23,7 @@ export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions 
   renderer.toneMappingExposure = 1.05;
   if (opts.shadows) {
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
   }
   return renderer;
 }
