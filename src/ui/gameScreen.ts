@@ -1,5 +1,5 @@
 import { isTouch } from '../engine/renderer';
-import { Game, type Mode } from '../game/play/game';
+import { Game, type GameState } from '../game/play/game';
 import { Input } from '../game/play/input';
 import { t } from '../i18n';
 import { getProfile } from '../services/session';
@@ -40,10 +40,11 @@ export const gameScreen: Screen = (root, nav) => {
   const actionKey = h('kbd', {}, 'E');
   action.append(svgIcon('<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M9 17l5-5-5-5"/><path d="M14 12H3"/>', 26), actionLabel, actionKey);
   const hint = h('div', { class: 'keys-hint' }, t('keysHint'));
+  const yieldBubble = h('div', { class: 'yield-bubble' }, '✋ ', t('yieldPeople'));
 
-  root.append(canvas, touch.drive, touch.walk, speed, action, hint, back, tabletBtn, loading);
+  root.append(canvas, touch.drive, touch.walk, speed, yieldBubble, action, hint, back, tabletBtn, loading);
 
-  let state: { mode: Mode; canEnter: boolean; kmh: number } = { mode: 'driving', canEnter: false, kmh: 0 };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false };
   const render = () => {
     const driving = state.mode === 'driving';
     root.classList.toggle('tablet', tablet);
@@ -57,6 +58,7 @@ export const gameScreen: Screen = (root, nav) => {
     actionLabel.textContent = driving ? t('getOut') : t('getIn');
     actionKey.hidden = tablet;
     tabletBtn.classList.toggle('active', tablet);
+    yieldBubble.classList.toggle('show', state.yielding);
   };
 
   const game = new Game(canvas, input, profile, {

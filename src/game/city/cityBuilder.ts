@@ -147,7 +147,9 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   // ---------- ground, roads, block slabs ----------
   const terrainMat = track(createTerrainMaterial());
   const groundGeo = new GeoBuilder();
-  groundGeo.quad(-1600, -1600, 1600, 1600, 0, GRASS);
+  // Slightly below the roads (y = 0.02) so the two never z-fight, even on
+  // devices with a low-precision depth buffer.
+  groundGeo.quad(-1600, -1600, 1600, 1600, -0.05, GRASS);
   const ground = new THREE.Mesh(track(groundGeo.build()), terrainMat);
   ground.receiveShadow = true;
 
@@ -155,6 +157,7 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   const road = new THREE.Mesh(track(new THREE.PlaneGeometry(roadSize, roadSize).rotateX(-Math.PI / 2)), track(createRoadMaterial()));
   road.position.y = 0.02;
   road.receiveShadow = true;
+  road.renderOrder = 1; // drawn after the ground
 
   const slabs = new GeoBuilder();
   const top = CURB_HEIGHT;

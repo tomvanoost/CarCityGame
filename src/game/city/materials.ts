@@ -64,7 +64,7 @@ export function createTerrainMaterial() {
 
 /** One big plane under the whole grid; lane lines and zebra crossings are drawn per pixel. */
 export function createRoadMaterial() {
-  const mat = new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.95, metalness: 0, envMapIntensity: 0.25 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.95, metalness: 0, envMapIntensity: 0.25, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
   mat.onBeforeCompile = (shader) => {
     withWorldPos(shader);
     shader.fragmentShader = shader.fragmentShader

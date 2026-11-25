@@ -9,16 +9,19 @@ import { pickQuality, ResolutionScaler } from '../world/quality';
 import { CollisionWorld } from './collision';
 import { FollowCamera } from './followCamera';
 import type { Input } from './input';
+import { Pedestrians } from './pedestrians';
 import { Player } from './player';
 import { Vehicle } from './vehicle';
 
 export type Mode = 'driving' | 'walking';
 
+export interface GameState { mode: Mode; canEnter: boolean; kmh: number; yielding: boolean }
+
 export interface GameEvents {
   onProgress(p: number): void;
   onReady(): void;
   /** Mode changed, or whether "get in" is possible changed. */
-  onState(state: { mode: Mode; canEnter: boolean; kmh: number }): void;
+  onState(state: GameState): void;
 }
 
 /** Distance from the car within which you can get in. */
@@ -28,13 +31,14 @@ const ENTER_DISTANCE = 4;
 export class Game {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(55, 1, 0.3, 6000);
+  readonly camera = new THREE.PerspectiveCamera(55, 1, 0.5, 6000);
   private follow = new FollowCamera(this.camera);
   private sun: Sun;
   private scaler: ResolutionScaler;
   private city?: City;
   private world?: CollisionWorld;
   vehicle?: Vehicle;
+  people?: Pedestrians;
   player?: Player;
   avatar?: Avatar;
   mode: Mode = 'driving';
@@ -44,9 +48,12 @@ export class Game {
   private lastState = '';
   private focus = new THREE.Vector3();
   private shake = 0;
+  private peopleCount = 24;
+  private yieldTimer = 0;
 
   constructor(canvas: HTMLCanvasElement, private input: Input, private profile: PlayerProfile, private events: GameEvents) {
     const q = pickQuality();
+    this.peopleCount = q.name === 'high' ? 36 : 22;
     this.renderer = createRenderer(canvas, { shadows: true });
     this.scaler = new ResolutionScaler(this.renderer, q.maxPixelRatio);
     this.scene.fog = new THREE.Fog(SKY.horizon, q.fogNear, q.fogFar);
@@ -84,6 +91,10 @@ export class Game {
     this.sun.follow(this.focus, true);
     this.events.onProgress(1);
     this.events.onReady();
+    // People load in the background after the city is visible.
+    this.people = new Pedestrians(city.layout, this.world, this.peopleCount);
+    this.scene.add(this.people.group);
+    this.people.load();
   }
 
   /** Put the avatar in the driver's seat, sitting. */
@@ -135,7 +146,7 @@ export class Game {
 
     const v = this.vehicle;
     if (this.mode === 'driving') {
-      v.update(dt, this.input.drive(), this.world);
+      v.update(dt, this.input.drive(), this.world, this.people?.obstacles());
       this.focus.set(v.x, v.root.position.y + 1.3, v.z);
       if (v.bumped > 0.25) this.shake = 0.25;
       this.follow.update(dt, this.focus, {
@@ -145,7 +156,7 @@ export class Game {
         blocked: this.blocked,
       });
     } else {
-      v.update(dt, null, this.world);
+      v.update(dt, null, this.world, this.people?.obstacles());
       this.player.update(dt, this.input.walk(), jump, this.follow.yaw, this.world);
       this.focus.set(this.player.x, this.player.y + 1.4, this.player.z);
       this.follow.update(dt, this.focus, { behindYaw: null, distance: 5.5, pitch: 0.32, blocked: this.blocked });
@@ -155,14 +166,16 @@ export class Game {
       this.camera.position.x += (Math.random() - 0.5) * this.shake * 0.4;
       this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.4;
     }
+    this.people?.update(dt, this.focus.x, this.focus.z, v, this.mode === 'walking' ? this.player : null);
+    this.yieldTimer = v.yielding ? 1.2 : Math.max(0, this.yieldTimer - dt);
     this.avatar.update(dt);
     this.sun.follow(this.focus);
     this.city.update(this.camera.position, dt);
     this.scaler.update(dt);
     this.renderer.render(this.scene, this.camera);
 
-    const state = { mode: this.mode, canEnter: this.canEnter(), kmh: Math.round(v.kmh) };
-    const key = `${state.mode}|${state.canEnter}|${state.kmh}`;
+    const state: GameState = { mode: this.mode, canEnter: this.canEnter(), kmh: Math.round(v.kmh), yielding: this.mode === 'driving' && this.yieldTimer > 0 };
+    const key = `${state.mode}|${state.canEnter}|${state.kmh}|${state.yielding}`;
     if (key !== this.lastState) {
       this.lastState = key;
       this.events.onState(state);
@@ -177,6 +190,7 @@ export class Game {
   dispose() {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
+    this.people?.dispose();
     this.avatar?.dispose();
     this.vehicle?.dispose();
     this.city?.dispose();

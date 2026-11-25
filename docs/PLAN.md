@@ -24,7 +24,8 @@ FPS always visible.
 5. ✅ **Driving & walking:** start in your selected car next to your house; get in/out (sit/stand animations);
    arcade car physics (no damage, gentle bumps); walk/run/jump; follow camera (drag to look, avoids buildings);
    keyboard + tablet mode (steering wheel, gas/brake pedals; joystick + jump when walking)
-6. ⬜ **People:** pedestrians walk around and step aside; the car always stops before touching anyone
+6. ✅ **People:** 22–36 pedestrians (adults & kids, 10 looks) walk around blocks, cross at zebra crossings,
+   wait for cars and step aside; the car brakes by itself so it can never touch anyone ("Stop! Daar loopt iemand.")
 7. ⬜ **Money & places:** deliveries, taxi, daily bonus, gas station (refuel), your house & apartment
 8. ⬜ **Shops:** vehicle shop (unique cars & motorbikes) and clothes shop, saved to Firebase
 
@@ -47,6 +48,7 @@ FPS always visible.
   simplified offline (`scripts/build-models.mjs`); all city models together are about 1 MB.
 - **Shadows** only re-render when the camera moves; **dynamic resolution** lowers the pixel ratio when
   FPS drops below 45. Tablets get a lighter preset (`src/game/world/quality.ts`).
+- **People** are recycled around the player and each is one merged skinned mesh (1 draw call); only nearby people animate and cast shadows.
 - Dev tools: `/?assetlab=<folder>&files=a.glb,b.glb` (needs models in `public/_lab/`), `/?carlab=<id>`.
 
 ## Rules we always follow
