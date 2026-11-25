@@ -16,6 +16,7 @@ import { Jobs, type ActiveJob, type PlaceKey } from './jobs';
 import { createArrow, createIcon } from './markers';
 import { Navigator } from './navigation';
 import { Pedestrians } from './pedestrians';
+import { Wildlife } from './wildlife';
 import { awardSticker } from '../../ui/stickers';
 import { RoadGraph, type P } from './roads';
 import { Traffic } from './traffic';
@@ -86,6 +87,7 @@ export class Game {
   private world?: CollisionWorld;
   vehicle?: Vehicle;
   people?: Pedestrians;
+  wildlife?: Wildlife;
   jobs?: Jobs;
   traffic?: Traffic;
   roads?: RoadGraph;
@@ -181,6 +183,8 @@ export class Game {
     this.people = new Pedestrians(city.layout, this.world, this.peopleCount);
     this.scene.add(this.people.group);
     this.people.load();
+    this.wildlife = new Wildlife(city.layout);
+    this.scene.add(this.wildlife.group);
     this.jobs = new Jobs(city.layout, {
       onStart: (job) => this.events.onJobStart(job),
       onDone: (job) => {
@@ -550,6 +554,7 @@ export class Game {
     this.avatar.update(dt);
     this.sun.follow(this.focus);
     this.city.update(this.camera.position, dt);
+    this.wildlife?.update(dt, this.camera.position, this.focus);
     this.scaler.update(dt);
     this.renderer.render(this.scene, this.camera);
     this.emitState(ctx);
@@ -608,6 +613,7 @@ export class Game {
     this.traffic?.dispose();
     this.nav?.dispose();
     this.people?.dispose();
+    this.wildlife?.dispose();
     this.avatar?.dispose();
     this.vehicle?.dispose();
     this.city?.dispose();
