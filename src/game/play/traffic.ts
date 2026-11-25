@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { PAINT_COLORS, VEHICLES } from '../vehicles/catalog';
 import { SEATED_SCALE, seatedRootPosition, type BuiltCar } from '../vehicles/carBuilder';
-import { buildVehicle, vehicleDims } from '../vehicles/factory';
+import { loadVehicle, vehicleDims } from '../vehicles/factory';
 import type { VehicleSpec } from '../vehicles/types';
 import { groundHeight } from './collision';
 import type { Pedestrians } from './pedestrians';
@@ -54,6 +54,8 @@ export class Traffic {
   readonly cars: Car[] = [];
   private owners = new Map<number, Car>();
   private pending: number;
+  private building = false;
+  private disposed = false;
 
   constructor(private graph: RoadGraph, count: number) {
     this.pending = count;
@@ -127,10 +129,11 @@ export class Traffic {
     return false;
   }
 
-  private build(focus: P) {
+  private async build(focus: P) {
     const cars = VEHICLES.filter((v) => v.kind === 'car' && v.price < 100000);
     const spec = cars[Math.floor(Math.random() * cars.length)];
-    const built = buildVehicle(spec, PAINT_COLORS[Math.floor(Math.random() * PAINT_COLORS.length)]);
+    const built = await loadVehicle(spec, PAINT_COLORS[Math.floor(Math.random() * PAINT_COLORS.length)], { lod: true });
+    if (this.disposed) { built.dispose(); return; }
     const root = new THREE.Group();
     root.add(built.root);
     const dims = vehicleDims(spec);
@@ -157,7 +160,11 @@ export class Traffic {
 
   update(dt: number, focus: P, player: Vehicle, walker: P | null, people: Pedestrians | undefined) {
     // Build the pool gradually (one car per frame) so loading never stutters.
-    if (this.pending > 0) { this.pending--; this.build(focus); }
+    if (this.pending > 0 && !this.building) {
+      this.pending--;
+      this.building = true;
+      this.build(focus).finally(() => { this.building = false; });
+    }
 
     const peds = people?.obstacles() ?? [];
     const pc = { x: player.x, z: player.z, h: player.heading, half: player.length / 2, r: player.width / 2 };
@@ -249,6 +256,7 @@ export class Traffic {
   }
 
   dispose() {
+    this.disposed = true;
     for (const c of this.cars) c.built.dispose();
     this.group.removeFromParent();
   }

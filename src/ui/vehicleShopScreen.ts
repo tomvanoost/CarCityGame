@@ -1,4 +1,6 @@
 import { Showroom } from '../game/showroom';
+import { SKETCHFAB_VEHICLES } from '../game/vehicles/sketchfabManifest';
+import { hasSketchfabModel, isPaintable } from '../game/vehicles/sketchfabVehicle';
 import { PAINT_COLORS, VEHICLES, getVehicle, vehicleName } from '../game/vehicles/catalog';
 import type { VehicleSpec } from '../game/vehicles/types';
 import { t } from '../i18n';
@@ -30,7 +32,8 @@ export const vehicleShopScreen: Screen = (root, nav) => {
   const strip = h('div', { class: 'shop-strip' });
   root.append(canvas, back, money, tabs, info, strip);
 
-  const colorOf = (id: string) => getProfile()!.vehicleColors[id] ?? getVehicle(id).color;
+  /** Chosen color, or the model's own paint (Sketchfab) / default color (built-in). */
+  const colorOf = (id: string): string | undefined => getProfile()!.vehicleColors[id] ?? (hasSketchfabModel(id) ? undefined : getVehicle(id).color);
 
   const renderTabs = () => {
     tabs.replaceChildren(...(['car', 'motor'] as const).map((k) =>
@@ -43,7 +46,7 @@ export const vehicleShopScreen: Screen = (root, nav) => {
     strip.replaceChildren(...VEHICLES.filter((v) => v.kind === kind).map((v) => {
       const owned = p.ownedVehicles.includes(v.id);
       const card = h('button', { class: `shop-card ${v.id === selected ? 'active' : ''} ${owned ? 'owned' : ''}` },
-        h('span', { class: 'shop-dot', style: `background:${colorOf(v.id)}` }),
+        h('span', { class: 'shop-dot', style: `background:${colorOf(v.id) ?? v.color}` }),
         h('b', {}, `${v.brand} ${v.model}`),
         h('span', { class: 'shop-price' }, owned ? `✓ ${t('owned')}` : euro(v.price)),
       );
@@ -87,7 +90,7 @@ export const vehicleShopScreen: Screen = (root, nav) => {
             money: cur.money - v.price,
             ownedVehicles: [...cur.ownedVehicles, v.id],
             selectedVehicle: v.id,
-            vehicleColors: { ...cur.vehicleColors, [v.id]: color },
+            ...(color ? { vehicleColors: { ...cur.vehicleColors, [v.id]: color } } : {}),
           });
           confirm = false;
           toast(`🎉 ${vehicleName(v)}!`);
@@ -105,9 +108,17 @@ export const vehicleShopScreen: Screen = (root, nav) => {
       bar(t('statSpeed'), v.stats.speed),
       bar(t('statAccel'), v.stats.accel),
       bar(t('statHandling'), v.stats.handling),
-      swatches,
+      ...(isPaintable(v.id) ? [swatches] : []),
       action,
+      ...(SKETCHFAB_VEHICLES[v.id] ? [credit(v.id)] : []),
     );
+  };
+
+  /** Attribution for the 3D model (required by the CC licenses). */
+  const credit = (id: string) => {
+    const c = SKETCHFAB_VEHICLES[id].credit;
+    const a = h('a', { href: c.url, target: '_blank', rel: 'noopener' }, c.name);
+    return h('div', { class: 'model-credit' }, `${t('modelBy')} `, a, ` · ${c.author} · ${c.license.replace('CC Attribution', 'CC BY')}`);
   };
 
   const renderAll = () => { renderTabs(); renderStrip(); renderInfo(); };

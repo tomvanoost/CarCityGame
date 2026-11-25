@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createRenderer, disposeObject, fitToCanvas, studioEnvironment } from '../engine/renderer';
 import type { BuiltCar } from './vehicles/carBuilder';
-import { buildVehicle, vehicleDims } from './vehicles/factory';
+import { loadVehicle, vehicleDims } from './vehicles/factory';
 import { getVehicle } from './vehicles/catalog';
 
 /** Menu backdrop: the selected car on a slowly turning platform. Drag to spin it. */
@@ -17,6 +17,8 @@ export class Showroom {
   private spin = 0.25; // rad/s
   private dragX: number | null = null;
   private popIn = 1;
+  private loadToken = 0;
+  private disposed = false;
   /** Camera distance factor: smaller vehicles are shown closer. */
   private zoom = 1;
   /** Moves the vehicle up on screen (in meters of camera aim), e.g. above a bottom panel. */
@@ -67,15 +69,19 @@ export class Showroom {
     this.loop();
   }
 
-  showVehicle(id: string, color?: string) {
+  /** Shows a vehicle (loads its model first). `color` undefined = keep the model's own paint. */
+  async showVehicle(id: string, color?: string) {
     if (id === this.carId) {
       if (color) this.car?.setColor(color);
       return;
     }
     this.carId = id;
-    this.car?.dispose();
+    const token = ++this.loadToken;
     const spec = getVehicle(id);
-    this.car = buildVehicle(spec, color ?? spec.color);
+    const car = await loadVehicle(spec, color);
+    if (token !== this.loadToken || this.disposed) { car.dispose(); return; }
+    this.car?.dispose();
+    this.car = car;
     const d = vehicleDims(spec);
     this.zoom = d.isBike ? 0.55 : Math.max(0.8, d.length / 4.4);
     this.frame();
@@ -117,6 +123,7 @@ export class Showroom {
   };
 
   dispose() {
+    this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.canvas.removeEventListener('pointerdown', this.onDown);
     window.removeEventListener('pointermove', this.onMove);
