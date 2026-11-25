@@ -22,15 +22,17 @@ export function pickQuality(): Quality {
 }
 
 /**
- * Dynamic resolution: if the game runs slower than ~45 FPS, render fewer pixels;
- * when it's smooth again, go back up. Keeps the game fluid on every device.
+ * Dynamic resolution: if the game runs slower than ~40 FPS, render fewer pixels;
+ * when it's smooth again, go back up. It never goes below one render pixel per screen
+ * pixel (the old 0.6 minimum made everything blurry on tablets that stay under the
+ * "back up" threshold), so it only trades away extra sharpness on high-DPI screens.
  */
 export class ResolutionScaler {
   private ratio: number;
   private frames = 0;
   private time = 0;
 
-  constructor(private renderer: THREE.WebGLRenderer, private max: number, private min = 0.6) {
+  constructor(private renderer: THREE.WebGLRenderer, private max: number, private min = Math.min(1, window.devicePixelRatio)) {
     this.ratio = Math.min(window.devicePixelRatio, max);
     renderer.setPixelRatio(this.ratio);
   }
@@ -44,8 +46,8 @@ export class ResolutionScaler {
     this.time = 0;
     const target = Math.min(window.devicePixelRatio, this.max);
     let next = this.ratio;
-    if (fps < 45) next = Math.max(this.min, this.ratio - 0.15);
-    else if (fps > 58 && this.ratio < target) next = Math.min(target, this.ratio + 0.1);
+    if (fps < 40) next = Math.max(this.min, this.ratio - 0.15);
+    else if (fps > 50 && this.ratio < target) next = Math.min(target, this.ratio + 0.1);
     if (next !== this.ratio) {
       this.ratio = next;
       this.renderer.setPixelRatio(next);

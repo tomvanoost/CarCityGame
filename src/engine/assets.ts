@@ -9,7 +9,17 @@ const cache = new Map<string, Promise<GLTF>>();
 export function loadGltf(url: string): Promise<GLTF> {
   let p = cache.get(url);
   if (!p) {
-    p = loader.loadAsync(url);
+    p = loader.loadAsync(url).then((gltf) => {
+      // Sharper textures when seen at an angle (walls, car sides); cheap on every GPU.
+      gltf.scene.traverse((o) => {
+        const mats = (o as THREE.Mesh).material;
+        if (!mats) return;
+        for (const m of Array.isArray(mats) ? mats : [mats]) {
+          for (const t of [(m as THREE.MeshStandardMaterial).map, (m as THREE.MeshStandardMaterial).normalMap]) if (t) t.anisotropy = 4;
+        }
+      });
+      return gltf;
+    });
     p.catch(() => cache.delete(url));
     cache.set(url, p);
   }
