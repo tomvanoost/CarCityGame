@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "money": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "gender": { ".validate": "newData.val() === 'boy' || newData.val() === 'girl'" }
+      }
+    }
+  }
+}
