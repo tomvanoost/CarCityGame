@@ -18,6 +18,7 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     spawn: 'home',
     km: 0,
     vehicleColors: {},
+    tutorialDone: false,
   };
 }
 
@@ -37,6 +38,7 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   p.fuel = typeof p.fuel === 'number' ? Math.min(1, Math.max(0, p.fuel)) : 1;
   if (p.spawn === 'apartment' && !p.ownsApartment) p.spawn = 'home';
   if (!p.vehicleColors || typeof p.vehicleColors !== 'object') p.vehicleColors = {};
+  p.tutorialDone = p.tutorialDone === true;
   return p;
 }
 

@@ -4,7 +4,8 @@ import { Game, type GameState } from '../game/play/game';
 import { Input } from '../game/play/input';
 import { getVehicle, vehicleName } from '../game/vehicles/catalog';
 import { getLang, t } from '../i18n';
-import { getProfile, onProfileChange } from '../services/session';
+import { getProfile, onProfileChange, updateProfile } from '../services/session';
+import { createTutorial } from './tutorial';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
@@ -94,15 +95,17 @@ export const gameScreen: Screen = (root, nav) => {
 
   root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, hint, popups, back, money, tabletBtn, soundBtn, mapWrap, panel, mapOverlay, loading);
 
+  let tutorialOpen = false;
   let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, context: null, job: null, dest: null };
   const render = () => {
     const driving = state.mode === 'driving';
     root.classList.toggle('tablet', tablet);
-    root.classList.toggle('panel-open', !panel.hidden || !mapOverlay.hidden);
-    touch.drive.hidden = !(tablet && driving) || !panel.hidden;
-    touch.walk.hidden = !(tablet && !driving) || !panel.hidden;
+    const overlay = !panel.hidden || !mapOverlay.hidden || tutorialOpen;
+    root.classList.toggle('panel-open', overlay);
+    touch.drive.hidden = !(tablet && driving) || overlay;
+    touch.walk.hidden = !(tablet && !driving) || overlay;
     dash.hidden = !driving;
-    hornBtn.hidden = !driving || !panel.hidden || !mapOverlay.hidden;
+    hornBtn.hidden = !driving || overlay;
     speed.firstElementChild!.textContent = String(state.kmh);
     fuelFill.style.width = `${Math.max(3, state.fuel * 100)}%`;
     fuel.classList.toggle('low', state.fuel < 0.2);
@@ -151,6 +154,19 @@ export const gameScreen: Screen = (root, nav) => {
       loading.classList.add('done');
       if (!tablet) setTimeout(() => hint.classList.add('hide'), 7000);
       else hint.classList.add('hide');
+      // Very first play: a few friendly tips, shown only once.
+      if (!getProfile()?.tutorialDone) {
+        tutorialOpen = true;
+        game.pause();
+        touch.reset();
+        root.append(createTutorial(tablet, () => {
+          tutorialOpen = false;
+          game.resume();
+          void updateProfile({ tutorialDone: true });
+          render();
+        }));
+        render();
+      }
     },
     onState: (s) => {
       if (s.mode !== state.mode) touch.reset();

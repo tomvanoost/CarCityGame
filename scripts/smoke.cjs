@@ -54,6 +54,13 @@ const { chromium } = require('playwright');
       await page.waitForSelector('.loading.done', { timeout: 120000 });
       await page.waitForTimeout(3000);
     });
+    await step('tutorial', async () => {
+      // First play shows a few tips; tap through them (the screenshot shows the last one).
+      await page.waitForSelector('.tutorial', { timeout: 10000 });
+      for (let i = 0; i < 3; i++) { await page.click('.tut-next'); await page.waitForTimeout(400); }
+    });
+    await page.click('.tut-next');
+    await page.waitForSelector('.tutorial', { state: 'detached' });
     await step('drive', async () => {
       await page.keyboard.down('KeyW');
       await page.waitForTimeout(4000);

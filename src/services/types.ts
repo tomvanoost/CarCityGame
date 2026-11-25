@@ -24,6 +24,8 @@ export interface PlayerProfile {
   km: number;
   /** Chosen paint color per owned vehicle id. */
   vehicleColors: Record<string, string>;
+  /** The first-time tutorial was shown (or skipped). */
+  tutorialDone: boolean;
 }
 
 /** Error codes the UI turns into friendly translated messages. */

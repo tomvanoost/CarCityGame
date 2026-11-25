@@ -5,8 +5,6 @@ polished beats big and half-done), checks it, and ticks it off here with a one-l
 Every item must respect the requirements in `CLAUDE.md` (no violence, simple UI, fast on tablets, NL/EN).
 
 ## Next up
-- [ ] **First-time tutorial**: 3–4 friendly speech bubbles on the very first play (drive, get out, jobs,
-      gas station). Stored in the profile so it shows only once.
 - [ ] **Stickers / achievements**: first delivery, first taxi, 10 km driven, first car bought, ...
       Shown as a sticker book in the menu; a small celebration popup when earned.
 - [ ] **Quality setting**: a small gear in the menu with "Mooi" / "Snel" (graphics quality) that changes
@@ -18,6 +16,7 @@ Every item must respect the requirements in `CLAUDE.md` (no violence, simple UI,
 - [ ] **Apartment view**: a cozy simple 3D room when you go inside your apartment.
 
 ## Done
+- [x] **First-time tutorial**: 4 speech bubbles (drive, get out, jobs, gas) on the first play, game paused, keyboard or tablet texts, Skip button; `profile.tutorialDone` keeps it to once (`ui/tutorial.ts`).
 - [x] **Horn button**: 📯 button while driving (bottom-left, above the pedals in tablet mode) and H key; people on the sidewalk nearby stop and wave (Victory).
 - [x] **Sounds**: WebAudio-synthesized engine hum (follows speed + gas), toot-toot horn (H key for now), coin
       "ching", door clunk; speaker button in the HUD to mute, remembered on the device (`play/sounds.ts`).
