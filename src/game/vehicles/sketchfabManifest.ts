@@ -2,6 +2,8 @@
 export interface SketchfabVehicle {
   length: number; width: number; height: number; bike: boolean; paintable: boolean;
   seat: [number, number, number];
+  /** [x, y, z, radius, halfWidth] per wheel (cars fl, fr, rl, rr; bikes front, rear), or null. */
+  wheels: [number, number, number, number, number][] | null;
   credit: { name: string; author: string; authorUrl: string; license: string; url: string };
 }
 export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
@@ -22,7 +24,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2025-volkswagen-golf-r-d1a0e38cbb2b4cb3b0da13c2ccdcf730"
-    }
+    },
+    "wheels": [
+      [
+        0.763,
+        0.329,
+        1.262,
+        0.323,
+        0.113
+      ],
+      [
+        -0.763,
+        0.327,
+        1.26,
+        0.327,
+        0.113
+      ],
+      [
+        0.746,
+        0.324,
+        -1.36,
+        0.324,
+        0.113
+      ],
+      [
+        -0.746,
+        0.327,
+        -1.362,
+        0.327,
+        0.113
+      ]
+    ]
   },
   "polino": {
     "length": 4.070000171661377,
@@ -41,7 +73,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2024-volkswagen-polo-170-tsi-ec0f4dfd1ca84a859725e4002e9cf120"
-    }
+    },
+    "wheels": [
+      [
+        0.725,
+        0.297,
+        1.212,
+        0.297,
+        0.095
+      ],
+      [
+        -0.747,
+        0.297,
+        1.212,
+        0.294,
+        0.095
+      ],
+      [
+        0.725,
+        0.298,
+        -1.347,
+        0.296,
+        0.095
+      ],
+      [
+        -0.747,
+        0.297,
+        -1.345,
+        0.294,
+        0.095
+      ]
+    ]
   },
   "cinque": {
     "length": 3.630000114440918,
@@ -60,7 +122,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/tonielpro520",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2021-fiat-e500-94dd3a8ce4ad45c8819541a33cb400b2"
-    }
+    },
+    "wheels": [
+      [
+        0.725,
+        0.336,
+        1.076,
+        0.336,
+        0.125
+      ],
+      [
+        -0.728,
+        0.336,
+        1.092,
+        0.336,
+        0.122
+      ],
+      [
+        0.725,
+        0.336,
+        -1.237,
+        0.336,
+        0.125
+      ],
+      [
+        -0.725,
+        0.336,
+        -1.237,
+        0.336,
+        0.125
+      ]
+    ]
   },
   "kuper": {
     "length": 3.859999895095825,
@@ -79,7 +171,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/Car2022",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/mini-cooper-s-facelift-2baca439d2494e02b99596014b49ebd3"
-    }
+    },
+    "wheels": [
+      [
+        0.736,
+        0.304,
+        1.164,
+        0.304,
+        0.101
+      ],
+      [
+        -0.736,
+        0.304,
+        1.163,
+        0.304,
+        0.101
+      ],
+      [
+        0.736,
+        0.307,
+        -1.314,
+        0.301,
+        0.101
+      ],
+      [
+        -0.736,
+        0.304,
+        -1.314,
+        0.304,
+        0.101
+      ]
+    ]
   },
   "klio": {
     "length": 4.050000190734863,
@@ -98,7 +220,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/tonielpro520",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2024-renault-clio-5556b5741cf24e408dc03396d6d4caee"
-    }
+    },
+    "wheels": [
+      [
+        0.756,
+        0.308,
+        1.206,
+        0.304,
+        0.104
+      ],
+      [
+        -0.753,
+        0.307,
+        1.209,
+        0.304,
+        0.103
+      ],
+      [
+        0.761,
+        0.307,
+        -1.372,
+        0.304,
+        0.104
+      ],
+      [
+        -0.761,
+        0.306,
+        -1.372,
+        0.305,
+        0.103
+      ]
+    ]
   },
   "yarus": {
     "length": 4.179999828338623,
@@ -117,7 +269,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/tonielpro520",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2020-toyota-yaris-cross-1b6dd834e8184851887ddeab1e83bc28"
-    }
+    },
+    "wheels": [
+      [
+        0.755,
+        0.348,
+        1.237,
+        0.342,
+        0.105
+      ],
+      [
+        -0.755,
+        0.352,
+        1.234,
+        0.345,
+        0.105
+      ],
+      [
+        0.755,
+        0.352,
+        -1.32,
+        0.345,
+        0.105
+      ],
+      [
+        -0.755,
+        0.349,
+        -1.319,
+        0.345,
+        0.105
+      ]
+    ]
   },
   "teslo-modelo3": {
     "length": 4.71999979019165,
@@ -136,7 +318,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/tonielpro520",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2024-tesla-model-3-interior-61ddcbdbd3854c239e0c95bf60b00022"
-    }
+    },
+    "wheels": [
+      [
+        0.799,
+        0.332,
+        1.482,
+        0.332,
+        0.124
+      ],
+      [
+        -0.798,
+        0.332,
+        1.482,
+        0.332,
+        0.124
+      ],
+      [
+        0.798,
+        0.332,
+        -1.394,
+        0.332,
+        0.126
+      ],
+      [
+        -0.798,
+        0.332,
+        -1.394,
+        0.332,
+        0.126
+      ]
+    ]
   },
   "seel": {
     "length": 4.800000190734863,
@@ -155,7 +367,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2024-byd-seal-2e82d2aaaa3d47debf39b1160d3fe376"
-    }
+    },
+    "wheels": [
+      [
+        0.8,
+        0.353,
+        1.52,
+        0.353,
+        0.114
+      ],
+      [
+        -0.8,
+        0.353,
+        1.52,
+        0.353,
+        0.114
+      ],
+      [
+        0.799,
+        0.353,
+        -1.41,
+        0.353,
+        0.114
+      ],
+      [
+        -0.799,
+        0.353,
+        -1.41,
+        0.353,
+        0.114
+      ]
+    ]
   },
   "oudi-a4": {
     "length": 4.760000228881836,
@@ -174,7 +416,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/homicivan53",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2024-audi-a4-b9-car-ed10dde4fab24ac89f8799597c8fe931"
-    }
+    },
+    "wheels": [
+      [
+        0.801,
+        0.314,
+        1.475,
+        0.314,
+        0.17
+      ],
+      [
+        -0.806,
+        0.314,
+        1.48,
+        0.314,
+        0.17
+      ],
+      [
+        0.804,
+        0.314,
+        -1.294,
+        0.314,
+        0.17
+      ],
+      [
+        -0.798,
+        0.314,
+        -1.294,
+        0.314,
+        0.17
+      ]
+    ]
   },
   "beemer-3": {
     "length": 4.710000038146973,
@@ -193,7 +465,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/solid3ddd",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2023-bmw-3-series-82534fdddd7e46e4bdb202d6c1d3c0e7"
-    }
+    },
+    "wheels": [
+      [
+        0.775,
+        0.338,
+        1.542,
+        0.337,
+        0.124
+      ],
+      [
+        -0.775,
+        0.338,
+        1.542,
+        0.338,
+        0.124
+      ],
+      [
+        0.775,
+        0.338,
+        -1.296,
+        0.338,
+        0.124
+      ],
+      [
+        -0.775,
+        0.338,
+        -1.296,
+        0.337,
+        0.124
+      ]
+    ]
   },
   "mersedez-c": {
     "length": 4.75,
@@ -212,7 +514,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ceron_alex",
       "license": "CC Attribution-NonCommercial",
       "url": "https://sketchfab.com/3d-models/mercedes-benz-c-class-w206-amg-line-2022-21393b5f402543848db2f26f95a2e9fa"
-    }
+    },
+    "wheels": [
+      [
+        0.768,
+        0.318,
+        1.553,
+        0.318,
+        0.15
+      ],
+      [
+        -0.763,
+        0.318,
+        1.552,
+        0.318,
+        0.155
+      ],
+      [
+        0.763,
+        0.318,
+        -1.285,
+        0.318,
+        0.155
+      ],
+      [
+        -0.768,
+        0.318,
+        -1.285,
+        0.318,
+        0.15
+      ]
+    ]
   },
   "taykan": {
     "length": 4.960000038146973,
@@ -231,7 +563,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2025-porsche-taycan-turbo-gt-weissach-package-4e1abafe7cf5413587a421377624ba08"
-    }
+    },
+    "wheels": [
+      [
+        0.845,
+        0.359,
+        1.479,
+        0.357,
+        0.144
+      ],
+      [
+        -0.845,
+        0.36,
+        1.479,
+        0.357,
+        0.144
+      ],
+      [
+        0.821,
+        0.36,
+        -1.418,
+        0.358,
+        0.164
+      ],
+      [
+        -0.821,
+        0.36,
+        -1.418,
+        0.358,
+        0.164
+      ]
+    ]
   },
   "modelo-y": {
     "length": 4.75,
@@ -250,7 +612,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/BloxBloger",
       "license": "CC Attribution-NonCommercial",
       "url": "https://sketchfab.com/3d-models/2025-tesla-model-y-619601e7800d418da5922c4fa7833f74"
-    }
+    },
+    "wheels": [
+      [
+        0.799,
+        0.36,
+        1.473,
+        0.36,
+        0.17
+      ],
+      [
+        -0.799,
+        0.36,
+        1.475,
+        0.36,
+        0.17
+      ],
+      [
+        0.799,
+        0.36,
+        -1.403,
+        0.36,
+        0.17
+      ],
+      [
+        -0.799,
+        0.36,
+        -1.403,
+        0.36,
+        0.17
+      ]
+    ]
   },
   "id-vier": {
     "length": 4.579999923706055,
@@ -269,7 +661,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2021-volkswagen-id4-x-898fcce37f0948499d1b4c1effc051d1"
-    }
+    },
+    "wheels": [
+      [
+        0.763,
+        0.38,
+        1.421,
+        0.373,
+        0.128
+      ],
+      [
+        -0.763,
+        0.38,
+        1.421,
+        0.373,
+        0.128
+      ],
+      [
+        0.763,
+        0.38,
+        -1.335,
+        0.373,
+        0.128
+      ],
+      [
+        -0.763,
+        0.38,
+        -1.336,
+        0.373,
+        0.128
+      ]
+    ]
   },
   "atto-3": {
     "length": 4.460000038146973,
@@ -288,7 +710,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2024-byd-atto-3-f7ef899186d445d48e4781ddfc84fddc"
-    }
+    },
+    "wheels": [
+      [
+        0.779,
+        0.349,
+        1.345,
+        0.348,
+        0.113
+      ],
+      [
+        -0.779,
+        0.349,
+        1.344,
+        0.348,
+        0.113
+      ],
+      [
+        0.779,
+        0.349,
+        -1.382,
+        0.348,
+        0.113
+      ],
+      [
+        -0.779,
+        0.349,
+        -1.382,
+        0.348,
+        0.113
+      ]
+    ]
   },
   "kio-ev6": {
     "length": 4.690000057220459,
@@ -307,7 +759,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/tonielpro520",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2022-kia-ev6-44d11e83ef40492bb4bc3d9fbc41e5e0"
-    }
+    },
+    "wheels": [
+      [
+        0.788,
+        0.35,
+        1.488,
+        0.35,
+        0.155
+      ],
+      [
+        -0.788,
+        0.35,
+        1.488,
+        0.35,
+        0.155
+      ],
+      [
+        0.788,
+        0.35,
+        -1.387,
+        0.35,
+        0.155
+      ],
+      [
+        -0.788,
+        0.35,
+        -1.387,
+        0.35,
+        0.155
+      ]
+    ]
   },
   "volvu-xc90": {
     "length": 4.949999809265137,
@@ -326,7 +808,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/niev",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/volvo-xc90-8135a6c9c9344079bfaefc9d747e2ceb"
-    }
+    },
+    "wheels": [
+      [
+        0.85,
+        0.398,
+        1.599,
+        0.398,
+        0.155
+      ],
+      [
+        -0.85,
+        0.398,
+        1.587,
+        0.398,
+        0.155
+      ],
+      [
+        0.85,
+        0.398,
+        -1.354,
+        0.398,
+        0.155
+      ],
+      [
+        -0.851,
+        0.398,
+        -1.349,
+        0.398,
+        0.155
+      ]
+    ]
   },
   "rangy-rover": {
     "length": 4.949999809265137,
@@ -345,7 +857,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/kaleemullah550",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2023-land-rover-range-rover-sport-c1105996547b4c4c8a4cfc3523a4c726"
-    }
+    },
+    "wheels": [
+      [
+        0.861,
+        0.401,
+        1.611,
+        0.401,
+        0.137
+      ],
+      [
+        -0.861,
+        0.402,
+        1.612,
+        0.4,
+        0.137
+      ],
+      [
+        0.881,
+        0.401,
+        -1.409,
+        0.4,
+        0.136
+      ],
+      [
+        -0.881,
+        0.401,
+        -1.409,
+        0.4,
+        0.136
+      ]
+    ]
   },
   "id-bus": {
     "length": 4.710000038146973,
@@ -364,7 +906,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/BloxBloger",
       "license": "CC Attribution-NonCommercial",
       "url": "https://sketchfab.com/3d-models/2023-volkswagen-id-buzz-gtx-3cc84dbea5b2495ba1f9468e8b4668d9"
-    }
+    },
+    "wheels": [
+      [
+        0.8,
+        0.4,
+        1.579,
+        0.4,
+        0.148
+      ],
+      [
+        -0.799,
+        0.4,
+        1.579,
+        0.4,
+        0.148
+      ],
+      [
+        0.8,
+        0.4,
+        -1.476,
+        0.4,
+        0.148
+      ],
+      [
+        -0.799,
+        0.4,
+        -1.476,
+        0.4,
+        0.148
+      ]
+    ]
   },
   "jiep": {
     "length": 4.789999961853027,
@@ -383,7 +955,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2013-equipped-jeep-wrangler-unlimited-rubicon-e3ecbf7d1fda464cb84d4bf41925d383"
-    }
+    },
+    "wheels": [
+      [
+        0.819,
+        0.416,
+        1.511,
+        0.416,
+        0.178
+      ],
+      [
+        -0.819,
+        0.416,
+        1.511,
+        0.416,
+        0.178
+      ],
+      [
+        0.822,
+        0.416,
+        -1.255,
+        0.416,
+        0.178
+      ],
+      [
+        -0.822,
+        0.416,
+        -1.255,
+        0.416,
+        0.178
+      ]
+    ]
   },
   "porsha-911": {
     "length": 4.570000171661377,
@@ -402,7 +1004,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/Tyler_Dave",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2024-porsche-992-gt3-r-b76c9b2ae2d548c3869426eac4ab8a19"
-    }
+    },
+    "wheels": [
+      [
+        0.801,
+        0.326,
+        1.247,
+        0.326,
+        0.16
+      ],
+      [
+        -0.812,
+        0.326,
+        1.247,
+        0.326,
+        0.16
+      ],
+      [
+        0.794,
+        0.341,
+        -1.165,
+        0.337,
+        0.17
+      ],
+      [
+        -0.791,
+        0.34,
+        -1.165,
+        0.337,
+        0.17
+      ]
+    ]
   },
   "korvet": {
     "length": 4.630000114440918,
@@ -421,7 +1053,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/TinoD2",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/chevrolet-corvette-c7-2b509d1bce104224b147c81757f6f43a"
-    }
+    },
+    "wheels": [
+      [
+        0.818,
+        0.371,
+        1.379,
+        0.37,
+        0.147
+      ],
+      [
+        -0.817,
+        0.37,
+        1.379,
+        0.37,
+        0.147
+      ],
+      [
+        0.818,
+        0.371,
+        -1.415,
+        0.37,
+        0.147
+      ],
+      [
+        -0.817,
+        0.371,
+        -1.415,
+        0.37,
+        0.147
+      ]
+    ]
   },
   "ferrara": {
     "length": 4.610000133514404,
@@ -440,7 +1102,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2020-ferrari-f8-tributo-8a86c4d634f64f8b8ee836bc93fa6ac8"
-    }
+    },
+    "wheels": [
+      [
+        0.844,
+        0.343,
+        1.157,
+        0.341,
+        0.137
+      ],
+      [
+        -0.844,
+        0.343,
+        1.157,
+        0.341,
+        0.137
+      ],
+      [
+        0.813,
+        0.348,
+        -1.5,
+        0.348,
+        0.164
+      ],
+      [
+        -0.813,
+        0.348,
+        -1.5,
+        0.348,
+        0.164
+      ]
+    ]
   },
   "maxlaren": {
     "length": 4.539999961853027,
@@ -459,7 +1151,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2021-mclaren-720s-gt3x-fd16600b1e594ceea5cec2470ab560c4"
-    }
+    },
+    "wheels": [
+      [
+        0.802,
+        0.331,
+        1.165,
+        0.331,
+        0.171
+      ],
+      [
+        -0.802,
+        0.331,
+        1.165,
+        0.331,
+        0.171
+      ],
+      [
+        0.789,
+        0.341,
+        -1.407,
+        0.341,
+        0.175
+      ],
+      [
+        -0.789,
+        0.341,
+        -1.407,
+        0.341,
+        0.175
+      ]
+    ]
   },
   "hurricano": {
     "length": 4.519999980926514,
@@ -478,7 +1200,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2024-lamborghini-huracan-sterrato-7af3c1063acf4439a7e69e05eaf94b9b"
-    }
+    },
+    "wheels": [
+      [
+        0.84,
+        0.337,
+        1.187,
+        0.337,
+        0.131
+      ],
+      [
+        -0.84,
+        0.337,
+        1.187,
+        0.337,
+        0.131
+      ],
+      [
+        0.819,
+        0.358,
+        -1.444,
+        0.356,
+        0.153
+      ],
+      [
+        -0.819,
+        0.358,
+        -1.444,
+        0.356,
+        0.153
+      ]
+    ]
   },
   "jessko": {
     "length": 4.610000133514404,
@@ -497,7 +1249,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/HYPRIMPS3D",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2024-koenigsegg-jesko-attack-7378-e4e966bcfdf14a8dbc6c837764cb026b"
-    }
+    },
+    "wheels": [
+      [
+        0.837,
+        0.29,
+        1.28,
+        0.29,
+        0.162
+      ],
+      [
+        -0.846,
+        0.29,
+        1.279,
+        0.29,
+        0.162
+      ],
+      [
+        0.816,
+        0.29,
+        -1.424,
+        0.29,
+        0.17
+      ],
+      [
+        -0.82,
+        0.29,
+        -1.434,
+        0.29,
+        0.17
+      ]
+    ]
   },
   "chirone": {
     "length": 4.539999961853027,
@@ -516,7 +1298,37 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ddiaz-design",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2022-bugatti-chiron-profilee-b28d46d8d28649729b81472969e35397"
-    }
+    },
+    "wheels": [
+      [
+        0.855,
+        0.335,
+        1.305,
+        0.335,
+        0.154
+      ],
+      [
+        -0.855,
+        0.335,
+        1.305,
+        0.335,
+        0.154
+      ],
+      [
+        0.818,
+        0.35,
+        -1.35,
+        0.349,
+        0.186
+      ],
+      [
+        -0.818,
+        0.35,
+        -1.35,
+        0.349,
+        0.186
+      ]
+    ]
   },
   "vespo": {
     "length": 1.850000023841858,
@@ -535,7 +1347,8 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ribitis",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/old-scooter-5e9b5072b2224ba982366490ad5f31d9"
-    }
+    },
+    "wheels": null
   },
   "hondo-cbr": {
     "length": 2.130000114440918,
@@ -544,7 +1357,7 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": true,
     "paintable": true,
     "seat": [
-      -0.0,
+      0,
       0.5809468030929565,
       0.17040000915527345
     ],
@@ -554,7 +1367,23 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/VTX_car",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/honda-cbr650r-b9ec190f902d4180aa527659af3f5089"
-    }
+    },
+    "wheels": [
+      [
+        0,
+        0.302,
+        0.763,
+        0.292,
+        0.061
+      ],
+      [
+        0,
+        0.305,
+        -0.668,
+        0.299,
+        0.093
+      ]
+    ]
   },
   "kawa-z900": {
     "length": 2.069999933242798,
@@ -563,7 +1392,7 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": true,
     "paintable": false,
     "seat": [
-      -0.0,
+      0,
       0.550253689289093,
       0.16559999465942382
     ],
@@ -573,7 +1402,23 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/EmanuelRestrepoVelez",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/z1000-2014-70cecfa5568347428c5ad72e9a156be9"
-    }
+    },
+    "wheels": [
+      [
+        0,
+        0.31,
+        0.725,
+        0.31,
+        0.08
+      ],
+      [
+        0,
+        0.31,
+        -0.699,
+        0.31,
+        0.08
+      ]
+    ]
   },
   "yamaho-r1": {
     "length": 2.059999942779541,
@@ -582,7 +1427,7 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": true,
     "paintable": false,
     "seat": [
-      -0.0,
+      0,
       0.5970134735107422,
       0.1647999954223633
     ],
@@ -592,7 +1437,23 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/ejsnowy",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/yamaha-r1-7b3343ad0c0f4cbe94238c734e1b731a"
-    }
+    },
+    "wheels": [
+      [
+        0.003,
+        0.308,
+        0.723,
+        0.306,
+        0.072
+      ],
+      [
+        0.029,
+        0.331,
+        -0.7,
+        0.33,
+        0.123
+      ]
+    ]
   },
   "harly": {
     "length": 2.5999999046325684,
@@ -601,7 +1462,7 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": true,
     "paintable": false,
     "seat": [
-      -0.0,
+      0,
       0.7381402850151062,
       0.20799999237060549
     ],
@@ -611,7 +1472,23 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/TulioPortela",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/harley-davidson-custom-road-glide-style-bagger-bd1640cecf8e438abe7a5749fc76a4ba"
-    }
+    },
+    "wheels": [
+      [
+        0,
+        0.31,
+        0.917,
+        0.31,
+        0.08
+      ],
+      [
+        0,
+        0.31,
+        -0.83,
+        0.31,
+        0.08
+      ]
+    ]
   },
   "beemer-gs": {
     "length": 2.2699999809265137,
@@ -630,7 +1507,23 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/outpiston",
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2014-bmw-r1200gs-adventure-e1e09934424d428d8e59e75c03568716"
-    }
+    },
+    "wheels": [
+      [
+        0,
+        0.327,
+        0.808,
+        0.325,
+        0.075
+      ],
+      [
+        0,
+        0.323,
+        -0.721,
+        0.317,
+        0.085
+      ]
+    ]
   },
   "dukati": {
     "length": 2.0999999046325684,
@@ -649,6 +1542,22 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "authorUrl": "https://sketchfab.com/brainlesszombie5",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2021-ducati-panigale-v4-sp-8c0632e4c54249758114490390f0b73f"
-    }
+    },
+    "wheels": [
+      [
+        0,
+        0.31,
+        0.739,
+        0.309,
+        0.06
+      ],
+      [
+        0,
+        0.334,
+        -0.718,
+        0.31,
+        0.092
+      ]
+    ]
   }
 };

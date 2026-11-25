@@ -12,6 +12,84 @@ function seatFor(info: { length: number; width: number; height: number; bike: bo
   return new THREE.Vector3(info.width * 0.18, info.height * 0.32, info.length * 0.01);
 }
 
+type Wheel = [number, number, number, number, number];
+
+/**
+ * Cuts the wheels out of a loaded model (once per file; every copy shares the result):
+ * triangles that lie fully inside a wheel's cylinder move to their own mesh under a pivot
+ * at the wheel center (`CCG_WHEEL_<i>`) with a spin group inside (`CCG_SPIN`). The pivot
+ * steers, the spin group rolls. Wheel spots come from scripts/lib/wheels.mjs.
+ */
+function splitWheels(model: THREE.Object3D, wheels: Wheel[], byAxle: boolean) {
+  if (model.userData.wheelsSplit) return;
+  model.userData.wheelsSplit = true;
+  model.updateMatrixWorld(true);
+  const toModel = new THREE.Matrix4().copy(model.matrixWorld).invert();
+  // byAxle (traffic cars, they only roll): both wheels of an axle share one part, fewer draw calls.
+  const groupOf = (k: number) => (byAxle && wheels.length === 4 ? (k < 2 ? 0 : 1) : k);
+  const centers: [number, number, number][] = byAxle && wheels.length === 4
+    ? [[0, (wheels[0][1] + wheels[1][1]) / 2, (wheels[0][2] + wheels[1][2]) / 2], [0, (wheels[2][1] + wheels[3][1]) / 2, (wheels[2][2] + wheels[3][2]) / 2]]
+    : wheels.map(([x, y, z]) => [x, y, z]);
+  const pivots = centers.map(([x, y, z], i) => {
+    const pivot = new THREE.Group();
+    pivot.name = `CCG_WHEEL_${i}`;
+    pivot.position.set(x, y, z);
+    const spin = new THREE.Group();
+    spin.name = 'CCG_SPIN';
+    pivot.add(spin);
+    return pivot;
+  });
+  const meshes: THREE.Mesh[] = [];
+  model.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
+  const m = new THREE.Matrix4(), v = new THREE.Vector3();
+  for (const mesh of meshes) {
+    const g = mesh.geometry;
+    const pos = g.getAttribute('position');
+    if (!pos) continue;
+    m.multiplyMatrices(toModel, mesh.matrixWorld);
+    // Which wheel (if any) each vertex is inside of.
+    const inWheel = new Int8Array(pos.count).fill(-1);
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(m);
+      for (let k = 0; k < wheels.length; k++) {
+        const [x, y, z, r, hw] = wheels[k];
+        if (Math.abs(v.x - x) <= hw + 0.04 && (v.y - y) ** 2 + (v.z - z) ** 2 <= (r * 1.06) ** 2) { inWheel[i] = k; break; }
+      }
+    }
+    const index = g.getIndex();
+    const count = index ? index.count : pos.count;
+    const body: number[] = [];
+    const parts: number[][] = centers.map(() => []);
+    for (let t = 0; t < count; t += 3) {
+      const a = index ? index.getX(t) : t, b = index ? index.getX(t + 1) : t + 1, c = index ? index.getX(t + 2) : t + 2;
+      const k = inWheel[a];
+      if (k >= 0 && inWheel[b] === k && inWheel[c] === k) parts[groupOf(k)].push(a, b, c);
+      else body.push(a, b, c);
+    }
+    if (body.length === count) continue;
+    const withIndex = (idx: number[]) => {
+      const ng = new THREE.BufferGeometry();
+      for (const [name, attr] of Object.entries(g.attributes)) ng.setAttribute(name, attr);
+      ng.setIndex(idx);
+      ng.computeBoundingSphere();
+      return ng;
+    };
+    mesh.geometry = withIndex(body);
+    parts.forEach((idx, k) => {
+      if (!idx.length) return;
+      const part = new THREE.Mesh(withIndex(idx), mesh.material);
+      // Traffic wheels sit inside the car's own shadow: no extra shadow draw calls.
+      part.userData.wheelPart = true;
+      // Same place as before, but relative to the wheel center so it rolls around it.
+      part.matrix.copy(m).premultiply(new THREE.Matrix4().makeTranslation(-centers[k][0], -centers[k][1], -centers[k][2]));
+      part.matrix.decompose(part.position, part.quaternion, part.scale);
+      pivots[k].children[0].add(part);
+    });
+  }
+  // Pivots live in the model's own space.
+  for (const p of pivots) model.add(p);
+}
+
 export const hasSketchfabModel = (id: string) => id in SKETCHFAB_VEHICLES;
 export const isPaintable = (id: string) => !hasSketchfabModel(id) || SKETCHFAB_VEHICLES[id].paintable;
 
@@ -23,13 +101,14 @@ export const isPaintable = (id: string) => !hasSketchfabModel(id) || SKETCHFAB_V
 export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepresentation, lod = false): Promise<BuiltCar> {
   const info = SKETCHFAB_VEHICLES[id];
   const gltf = await loadGltf(`/models/vehicles/${id}${lod ? '_lod' : ''}.glb`);
+  if (info.wheels) splitWheels(gltf.scene, info.wheels, lod);
   const model = gltf.scene.clone(true);
   const own: THREE.Material[] = [];
   const paint: THREE.MeshStandardMaterial[] = [];
   model.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
-    mesh.castShadow = true;
+    mesh.castShadow = !(lod && mesh.userData.wheelPart);
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const next = mats.map((m) => {
       const sm = m as THREE.MeshStandardMaterial;
@@ -54,11 +133,20 @@ export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepres
   root.add(contactShadow(info.width * 1.25, info.length * 1.12));
   const setColor = (c: THREE.ColorRepresentation) => paint.forEach((m) => m.color.set(c));
   if (color && info.paintable) setColor(color);
-  // These models have no separate wheel parts: dummy pivots keep the game code simple.
+  // Wheel pivots (cut out by splitWheels); models without wheel data get dummies.
   const dummy = () => new THREE.Group();
+  const pivot = (i: number) => {
+    const p = model.getObjectByName(`CCG_WHEEL_${i}`);
+    if (!p) return dummy();
+    p.userData.spin = p.getObjectByName('CCG_SPIN');
+    return p as THREE.Group;
+  };
+  const wheels = info.bike || (lod && info.wheels)
+    ? (() => { const f = pivot(0), r = pivot(1); return { fl: f, fr: f, rl: r, rr: r }; })()
+    : { fl: pivot(0), fr: pivot(1), rl: pivot(2), rr: pivot(3) };
   return {
     root,
-    wheels: { fl: dummy(), fr: dummy(), rl: dummy(), rr: dummy() },
+    wheels,
     seat: seatFor(info),
     setColor,
     dispose() {

@@ -3,10 +3,12 @@ import { loadGltf } from '../engine/assets';
 import { createRenderer, studioEnvironment } from '../engine/renderer';
 import { SKETCHFAB_CITY } from '../game/city/sketchfabCity';
 import { SKETCHFAB_VEHICLES } from '../game/vehicles/sketchfabManifest';
+import { loadSketchfabVehicle } from '../game/vehicles/sketchfabVehicle';
 
 /**
  * Dev tool: /?sflab=1 (or 2) shows the processed Sketchfab vehicles in a grid, front-right view.
- * Add &lod=1 to see the light (traffic) versions, &view=front to look straight at the nose. A red line on the ground marks +Z (the front).
+ * Add &lod=1 to see the light (traffic) versions, &view=front to look straight at the nose,
+ * &view=wheels to see the cut-out wheels (red) from the side. A red line on the ground marks +Z (the front).
  */
 export async function startSketchfabLab(page: number, lod: boolean, view = '') {
   document.body.innerHTML = '';
@@ -31,6 +33,31 @@ export async function startSketchfabLab(page: number, lod: boolean, view = '') {
   const labels = document.createElement('div');
   labels.style.cssText = 'position:fixed;inset:0;font:12px sans-serif;pointer-events:none';
   document.body.append(labels);
+  // &view=wheels: the game's loader (wheels cut out), wheel parts tinted red, seen from the side.
+  if (view === 'wheels') {
+    const cars = await Promise.all(ids.map((id) => loadSketchfabVehicle(id, undefined, lod)));
+    const red = new THREE.MeshBasicMaterial({ color: '#ff2040' });
+    ids.forEach((id, i) => {
+      const m = SKETCHFAB_VEHICLES[id];
+      const car = cars[i];
+      for (const w of new Set(Object.values(car.wheels))) w.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).material = red; });
+      scene.add(car.root);
+      const x = (i % cols) * w, y = innerHeight - (Math.floor(i / cols) + 1) * h;
+      renderer.setViewport(x, y, w, h);
+      renderer.setScissor(x, y, w, h);
+      const d = m.bike ? 4.4 : 8.8;
+      cam.position.set(d, m.height * 0.5, 0.01);
+      cam.lookAt(0, m.height * 0.45, 0);
+      renderer.render(scene, cam);
+      scene.remove(car.root);
+      const l = document.createElement('div');
+      l.style.cssText = `position:absolute;left:${x + 4}px;top:${innerHeight - y - h + 4}px;background:#fff9;padding:1px 4px`;
+      l.textContent = id;
+      labels.append(l);
+    });
+    document.title = 'ready';
+    return;
+  }
   const loaded = await Promise.all(ids.map((id) => loadGltf(`/models/vehicles/${id}${lod ? '_lod' : ''}.glb`)));
   ids.forEach((id, i) => {
     const m = SKETCHFAB_VEHICLES[id];

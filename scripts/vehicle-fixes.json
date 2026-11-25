@@ -36,5 +36,8 @@
   },
   "harly": {
     "rotate": 180
+  },
+  "vespo": {
+    "wheels": false
   }
 }
