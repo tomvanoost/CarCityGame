@@ -6,6 +6,7 @@ import { getVehicle, vehicleName } from '../game/vehicles/catalog';
 import { getLang, t } from '../i18n';
 import { getProfile, onProfileChange, updateProfile } from '../services/session';
 import { createTutorial } from './tutorial';
+import { ApartmentRoom } from '../game/apartmentRoom';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
@@ -226,10 +227,19 @@ export const gameScreen: Screen = (root, nav) => {
   const offProfile = onProfileChange((p) => { money.lastElementChild!.textContent = euro(p.money); });
 
   // ---------- house / apartment panel ----------
+  // Inside the apartment: a cozy 3D room with your avatar (kept while the panel is open).
+  let room: ApartmentRoom | null = null;
+  let roomCanvas: HTMLCanvasElement | null = null;
+  const closeRoom = () => { room?.dispose(); room = null; roomCanvas = null; };
   function openPanel(place: 'home' | 'apartment') {
     const p = getProfile()!;
     touch.reset();
-    const close = () => { panel.hidden = true; game.resume(); render(); };
+    const close = () => { panel.hidden = true; closeRoom(); game.resume(); render(); };
+    if (place === 'apartment' && !room) {
+      roomCanvas = h('canvas', { class: 'room-canvas', title: '🙂' }) as HTMLCanvasElement;
+      room = new ApartmentRoom(roomCanvas);
+    }
+    if (place === 'apartment') void room!.show(p.gender, p.equipped.outfit);
     const tiles = (items: { id: string; label: string; emoji: string; active: boolean; onPick: () => void }[]) =>
       h('div', { class: 'tiles' }, ...items.map((it) => {
         const b = h('button', { class: `tile ${it.active ? 'active' : ''}` }, h('span', { class: 'tile-emoji' }, it.emoji), h('span', {}, it.label));
@@ -242,6 +252,7 @@ export const gameScreen: Screen = (root, nav) => {
         h('h2', {}, place === 'home' ? `🏠 ${t('yourHouse')}` : `🏢 ${t('yourApartment')}`),
         h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
       ),
+      place === 'apartment' ? roomCanvas : null,
       h('h3', {}, t('myVehicles')),
       tiles(p.ownedVehicles.map((id) => ({
         id, emoji: getVehicle(id).kind === 'motor' ? '🏍️' : '🚗', label: vehicleName(getVehicle(id)), active: id === p.selectedVehicle,
@@ -284,6 +295,7 @@ export const gameScreen: Screen = (root, nav) => {
   if (import.meta.env.DEV) Object.assign(window, { carcityDebug: { game, input } });
 
   return () => {
+    closeRoom();
     cancelAnimationFrame(mapRaf);
     window.removeEventListener('pointerdown', sounds.unlock);
     window.removeEventListener('keydown', sounds.unlock);
