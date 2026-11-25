@@ -147,7 +147,7 @@ export const gameScreen: Screen = (root, nav) => {
       ),
       h('h3', {}, t('myVehicles')),
       tiles(p.ownedVehicles.map((id) => ({
-        id, emoji: '🚗', label: vehicleName(getVehicle(id)), active: id === p.selectedVehicle,
+        id, emoji: getVehicle(id).kind === 'motor' ? '🏍️' : '🚗', label: vehicleName(getVehicle(id)), active: id === p.selectedVehicle,
         onPick: () => game.swapVehicle(id, place),
       }))),
       h('h3', {}, t('myClothes')),

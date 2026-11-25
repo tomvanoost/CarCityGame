@@ -185,7 +185,7 @@ export class Game {
     const wasSeated = this.mode === 'driving' && this.avatar?.root.parent === this.vehicle?.car.root;
     if (wasSeated) this.scene.add(this.avatar!.root);
     this.vehicle?.dispose();
-    const v = new Vehicle(getVehicle(id));
+    const v = new Vehicle(getVehicle(id), this.profile.vehicleColors[id]);
     v.place(at.x, at.z, at.rot);
     this.scene.add(v.root);
     this.vehicle = v;

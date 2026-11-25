@@ -4,9 +4,11 @@ import { getBackend, setProfile } from './services/session';
 import { startFpsMeter } from './ui/fps';
 import { langToggle } from './ui/langToggle';
 import { loginScreen } from './ui/loginScreen';
+import { clothesShopScreen } from './ui/clothesShopScreen';
 import { gameScreen } from './ui/gameScreen';
 import { menuScreen } from './ui/menuScreen';
 import { registerScreen } from './ui/registerScreen';
+import { vehicleShopScreen } from './ui/vehicleShopScreen';
 import type { Screen, ScreenName } from './ui/screens';
 
 const screens: Record<ScreenName, Screen> = {
@@ -14,6 +16,8 @@ const screens: Record<ScreenName, Screen> = {
   register: registerScreen,
   menu: menuScreen,
   game: gameScreen,
+  vehicleShop: vehicleShopScreen,
+  clothesShop: clothesShopScreen,
 };
 
 const app = document.getElementById('app')!;

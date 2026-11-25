@@ -5,7 +5,6 @@ import { t } from '../i18n';
 import { getBackend, getProfile, onProfileChange, setProfile, updateProfile } from '../services/session';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
-import { toast } from './toast';
 
 /** Game menu: avatar (top-left), selected car in the showroom, shops and Play. */
 export const menuScreen: Screen = (root, nav) => {
@@ -17,7 +16,7 @@ export const menuScreen: Screen = (root, nav) => {
   const avatarCanvas = h('canvas', { class: 'avatar-canvas', title: '🙂' });
   const showroom = new Showroom(showroomCanvas);
   const avatarView = new AvatarView(avatarCanvas);
-  showroom.showVehicle(p.selectedVehicle);
+  showroom.showVehicle(p.selectedVehicle, p.vehicleColors[p.selectedVehicle]);
   avatarView.show(p.gender, p.equipped.outfit);
 
   // --- avatar card ---
@@ -41,7 +40,7 @@ export const menuScreen: Screen = (root, nav) => {
     carName.replaceChildren(h('small', {}, t('myVehicles')), h('span', {}, vehicleName(spec)));
     const many = prof.ownedVehicles.length > 1;
     prev.hidden = next.hidden = !many;
-    showroom.showVehicle(prof.selectedVehicle);
+    showroom.showVehicle(prof.selectedVehicle, prof.vehicleColors[prof.selectedVehicle]);
   };
   const step = (dir: number) => {
     const prof = getProfile()!;
@@ -58,9 +57,9 @@ export const menuScreen: Screen = (root, nav) => {
 
   // --- actions ---
   const actions = h('div', { class: 'menu-actions' },
-    h('button', { class: 'btn btn-tile', onclick: () => toast(t('shopSoon')) }, svgIcon(icons.car, 30), h('span', {}, t('vehicleShop'))),
+    h('button', { class: 'btn btn-tile', onclick: () => nav('vehicleShop') }, svgIcon(icons.car, 30), h('span', {}, t('vehicleShop'))),
     h('button', { class: 'btn btn-primary btn-play', onclick: () => nav('game') }, svgIcon(icons.play, 30), h('span', {}, t('play'))),
-    h('button', { class: 'btn btn-tile', onclick: () => toast(t('shopSoon')) }, svgIcon(icons.shirt, 30), h('span', {}, t('clothesShop'))),
+    h('button', { class: 'btn btn-tile', onclick: () => nav('clothesShop') }, svgIcon(icons.shirt, 30), h('span', {}, t('clothesShop'))),
   );
 
   const logout = async () => {

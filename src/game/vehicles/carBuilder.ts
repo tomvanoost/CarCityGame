@@ -23,6 +23,8 @@ export interface BuiltCar {
 
 // ---------- shared materials (one copy for all cars) ----------
 let shared: ReturnType<typeof makeSharedMaterials> | null = null;
+/** Materials shared by all vehicles (glass, tires, rims, lights...). */
+export function sharedVehicleMaterials() { return (shared ??= makeSharedMaterials()); }
 function makeSharedMaterials() {
   return {
     glass: new THREE.MeshPhysicalMaterial({ color: 0x0b1118, metalness: 0.2, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.82 }),
@@ -103,7 +105,7 @@ function loft(rings: THREE.Vector3[][], classify: (i: number, j: number) => numb
 }
 
 // ---------- wheels ----------
-function buildWheel(r: number, w: number, style: RimStyle, mats: ReturnType<typeof makeSharedMaterials>): THREE.Group {
+export function buildWheel(r: number, w: number, style: RimStyle, mats: ReturnType<typeof makeSharedMaterials>): THREE.Group {
   const g = new THREE.Group();
   // Tire: lathe of a rounded profile, axis turned to X.
   const pts: THREE.Vector2[] = [];
@@ -299,6 +301,12 @@ export function buildCar(shape: CarShape, color: THREE.ColorRepresentation): Bui
   };
   plate(0, -0.6, 1);
   plate(1, -0.05, -1);
+
+  if (shape.spoiler) {
+    const sy = top(0.94) + 0.22, sz = zOf(0.95);
+    for (const sx of [-0.45, 0.45]) add(new THREE.BoxGeometry(0.06, 0.24, 0.12), mats.black, sx * W * 0.8, sy - 0.12, sz);
+    add(new THREE.BoxGeometry(W * 0.92, 0.05, 0.34), mats.black, 0, sy, sz - 0.04).castShadow = true;
+  }
 
   const mt = r0 + (r1 - r0) * 0.12;
   for (const sx of [-1, 1]) {

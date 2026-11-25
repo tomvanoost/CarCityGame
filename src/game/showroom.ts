@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createRenderer, disposeObject, fitToCanvas, studioEnvironment } from '../engine/renderer';
-import { buildCar, type BuiltCar } from './vehicles/carBuilder';
+import type { BuiltCar } from './vehicles/carBuilder';
+import { buildVehicle, vehicleDims } from './vehicles/factory';
 import { getVehicle } from './vehicles/catalog';
 
 /** Menu backdrop: the selected car on a slowly turning platform. Drag to spin it. */
@@ -16,6 +17,10 @@ export class Showroom {
   private spin = 0.25; // rad/s
   private dragX: number | null = null;
   private popIn = 1;
+  /** Camera distance factor: smaller vehicles are shown closer. */
+  private zoom = 1;
+  /** Moves the vehicle up on screen (in meters of camera aim), e.g. above a bottom panel. */
+  lift = 0;
 
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = createRenderer(canvas, { shadows: true });
@@ -63,11 +68,17 @@ export class Showroom {
   }
 
   showVehicle(id: string, color?: string) {
-    if (id === this.carId) return;
+    if (id === this.carId) {
+      if (color) this.car?.setColor(color);
+      return;
+    }
     this.carId = id;
     this.car?.dispose();
     const spec = getVehicle(id);
-    this.car = buildCar(spec.shape, color ?? spec.color);
+    this.car = buildVehicle(spec, color ?? spec.color);
+    const d = vehicleDims(spec);
+    this.zoom = d.isBike ? 0.55 : Math.max(0.8, d.length / 4.4);
+    this.frame();
     this.turntable.add(this.car.root);
     this.popIn = 0;
   }
@@ -80,12 +91,13 @@ export class Showroom {
   };
   private onUp = () => { this.dragX = null; };
 
-  private frame() {
+  /** Re-aims the camera (call after changing `lift`). */
+  frame() {
     const portrait = this.camera.aspect < 1;
     // Frame the car: further away on narrow (portrait) screens.
-    const dist = portrait ? 9.5 / Math.max(this.camera.aspect, 0.42) : 9.5;
+    const dist = (portrait ? 9.5 / Math.max(this.camera.aspect, 0.42) : 9.5) * this.zoom;
     this.camera.position.set(dist * 0.62, dist * 0.24, dist * 0.78);
-    this.camera.lookAt(0, portrait ? 1.1 : 0.45, 0);
+    this.camera.lookAt(0, ((portrait ? 1.1 : 0.45) - (portrait ? this.lift : 0)) * this.zoom, 0);
   }
 
   private loop = () => {

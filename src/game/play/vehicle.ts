@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { buildCar, type BuiltCar } from '../vehicles/carBuilder';
+import type { BuiltCar } from '../vehicles/carBuilder';
+import { buildVehicle, vehicleDims } from '../vehicles/factory';
 import type { VehicleSpec } from '../vehicles/types';
 import { groundHeight, type CollisionWorld } from './collision';
 
@@ -40,21 +41,24 @@ export class Vehicle {
   limit = Infinity;
 
   constructor(readonly spec: VehicleSpec, color?: string) {
-    this.car = buildCar(spec.shape, color ?? spec.color);
+    this.car = buildVehicle(spec, color);
     this.root.add(this.car.root);
-    const s = spec.shape;
+    const d = vehicleDims(spec);
+    this.dims = d;
     this.maxSpeed = 8 + spec.stats.speed * 2; // Golfo: 18 m/s = 65 km/h
     this.accel = 3 + spec.stats.accel * 0.6;
-    this.wheelbase = (s.rearAxle - s.frontAxle) * s.length;
-    this.radius = s.width / 2;
+    this.wheelbase = d.wheelbase;
+    this.radius = d.width / 2;
     // Three circles along the length approximate the car's footprint.
-    const half = s.length / 2 - this.radius;
+    const half = d.length / 2 - this.radius;
     this.circles = [half, 0, -half];
     for (const p of Object.values(this.car.wheels)) p.rotation.order = 'YXZ';
   }
 
-  get length() { return this.spec.shape.length; }
-  get width() { return this.spec.shape.width; }
+  private dims: ReturnType<typeof vehicleDims>;
+  get length() { return this.dims.length; }
+  get width() { return this.dims.width; }
+  get isBike() { return this.dims.isBike; }
   get kmh() { return Math.abs(this.speed) * 3.6; }
 
   place(x: number, z: number, heading: number) {
@@ -85,7 +89,7 @@ export class Vehicle {
       this.speed = Math.abs(this.speed) <= drag ? 0 : this.speed - Math.sign(this.speed) * drag;
     }
     // --- steering (less steering angle at high speed = stable) ---
-    const maxAngle = 0.62 / (1 + Math.abs(this.speed) / 14);
+    const maxAngle = (0.52 + this.spec.stats.handling * 0.02) / (1 + Math.abs(this.speed) / 14);
     const target = -inp.steer * maxAngle;
     this.steerAngle += THREE.MathUtils.clamp(target - this.steerAngle, -3 * dt, 3 * dt);
     this.heading += (this.speed / this.wheelbase) * Math.tan(this.steerAngle) * dt;
@@ -156,11 +160,14 @@ export class Vehicle {
     this.root.position.set(this.x, this.y, this.z);
     this.root.rotation.y = this.heading;
     // A bit of body lean in corners and nose dive when braking: feels alive.
-    const targetRoll = THREE.MathUtils.clamp(steer * Math.abs(this.speed) * 0.006, -0.05, 0.05);
+    // Cars lean out of a corner a little; motorbikes lean into it a lot.
+    const targetRoll = this.dims.isBike
+      ? THREE.MathUtils.clamp(-steer * Math.abs(this.speed) * 0.03, -0.45, 0.45)
+      : THREE.MathUtils.clamp(steer * Math.abs(this.speed) * 0.006, -0.05, 0.05);
     this.roll += (targetRoll - this.roll) * Math.min(1, dt * 5);
     this.car.root.rotation.z = this.roll;
     this.car.root.rotation.x = this.pitch;
-    this.wheelSpin += (this.speed * dt) / this.spec.shape.wheelRadius;
+    this.wheelSpin += (this.speed * dt) / this.dims.wheelRadius;
     const w = this.car.wheels;
     for (const p of [w.fl, w.fr, w.rl, w.rr]) p.rotation.x = this.wheelSpin;
     w.fl.rotation.y = w.fr.rotation.y = this.steerAngle;

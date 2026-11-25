@@ -22,6 +22,8 @@ export interface PlayerProfile {
   spawn: 'home' | 'apartment';
   /** Total km driven (fun statistic). */
   km: number;
+  /** Chosen paint color per owned vehicle id. */
+  vehicleColors: Record<string, string>;
 }
 
 /** Error codes the UI turns into friendly translated messages. */

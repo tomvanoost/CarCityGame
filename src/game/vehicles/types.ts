@@ -35,6 +35,19 @@ export interface CarShape {
   grille?: 'wide' | 'small' | 'none';
   /** Body-colored window pillars as t ranges, e.g. B and C pillars. */
   pillars?: [number, number][];
+  /** Rear wing (sports cars). */
+  spoiler?: boolean;
+}
+
+export type BikeStyle = 'sport' | 'naked' | 'cruiser' | 'scooter' | 'adventure';
+
+/** Motorbikes are built from a few simple parts (see bikeBuilder.ts). */
+export interface BikeShape {
+  style: BikeStyle;
+  wheelbase: number;
+  wheelRadius: number;
+  seatHeight: number;
+  rims: RimStyle;
 }
 
 export interface VehicleSpec {
@@ -48,5 +61,7 @@ export interface VehicleSpec {
   color: string;
   /** Gameplay stats (1..10) shown in the shop. */
   stats: { speed: number; accel: number; handling: number };
-  shape: CarShape;
+  /** Cars have a body shape, motorbikes a bike shape. */
+  shape?: CarShape;
+  bike?: BikeShape;
 }

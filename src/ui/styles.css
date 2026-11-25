@@ -252,3 +252,50 @@ button, input { font: inherit; color: inherit; }
 }
 
 .panel-open .action-btn, .panel-open .context-btn, .panel-open .job-card, .panel-open .dash, .panel-open .keys-hint { display: none !important; }
+
+/* --- Shops --- */
+.shop-money { left: 76px; }
+.shop-tabs { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; gap: 6px; background: var(--card); padding: 5px; border-radius: 16px; box-shadow: var(--shadow); }
+.shop-tab { border: 0; background: transparent; padding: 10px 18px; border-radius: 12px; font-size: 17px; font-weight: 900; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.shop-tab.active { background: var(--blue); color: #fff; }
+.shop-info { position: absolute; right: 16px; top: 50%; transform: translateY(-58%); width: 290px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.shop-title { display: flex; flex-direction: column; }
+.shop-title small { font-size: 14px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+.shop-title b { font-size: 26px; font-weight: 900; line-height: 1.1; }
+.stat { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.stat-bar { height: 10px; background: #e6edf6; border-radius: 6px; overflow: hidden; }
+.stat-bar i { display: block; height: 100%; background: linear-gradient(90deg, #3ddc84, #2f8bff); border-radius: 6px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0; }
+.swatch { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px #d5dfeb; cursor: pointer; }
+.swatch.active { box-shadow: 0 0 0 3px var(--blue); transform: scale(1.1); }
+.shop-buy { width: 100%; font-size: 18px; }
+.shop-buy:disabled { background: #e6edf6; color: var(--muted); box-shadow: none; opacity: 1; }
+.shop-buy.chosen:disabled { background: #e3f8ec; color: #15924f; }
+.shop-buy.confirm { background: #20b76b; box-shadow: 0 6px 0 #15924f; animation: pulse 1s infinite; }
+.shop-strip { position: absolute; left: 0; right: 0; bottom: max(14px, env(safe-area-inset-bottom)); display: flex; gap: 10px; overflow-x: auto; padding: 6px 16px 10px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.shop-strip::-webkit-scrollbar { display: none; }
+.shop-card { flex: 0 0 auto; scroll-snap-align: center; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 150px; padding: 10px 14px; border-radius: 16px; border: 3px solid transparent; background: var(--card); box-shadow: var(--shadow); cursor: pointer; text-align: left; font-size: 15px; }
+.shop-card.active { border-color: var(--blue); }
+.shop-card b { font-weight: 900; white-space: nowrap; }
+.shop-price { color: #b07900; font-weight: 900; }
+.shop-card.owned .shop-price { color: #15924f; }
+.shop-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ccd6e2; }
+.shop-dot.big { width: 26px; height: 26px; }
+.clothes-bg { position: absolute; inset: 0; background: radial-gradient(circle at 30% 45%, #ffffff, #cfe6ff 45%, #8fc4f5); }
+.shop-avatar-canvas { position: absolute; left: 0; top: 0; bottom: 0; width: 45%; height: 100%; display: block; cursor: pointer; }
+.clothes-panel { position: absolute; right: 16px; top: max(76px, calc(env(safe-area-inset-top) + 70px)); bottom: max(16px, env(safe-area-inset-bottom)); width: min(52%, 560px); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.clothes-panel h2 { margin: 0; font-size: 24px; font-weight: 900; }
+.clothes-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; align-content: start; padding: 2px; }
+.clothes-tile small { color: #b07900; font-weight: 900; }
+.clothes-action { display: flex; flex-direction: column; gap: 8px; }
+.try-hint { text-align: center; color: var(--muted); font-size: 14px; }
+@media (max-width: 700px), (orientation: portrait) {
+  .shop-info { left: 12px; right: 12px; top: auto; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 92px); transform: none; width: auto; padding: 12px 14px; gap: 6px; }
+  .shop-title b { font-size: 20px; }
+  .shop-tabs { top: calc(max(12px, env(safe-area-inset-top)) + 58px); }
+  .shop-tab { padding: 8px 12px; font-size: 15px; }
+  .shop-card { min-width: 128px; font-size: 13px; }
+  .swatch { width: 28px; height: 28px; }
+  .shop-avatar-canvas { width: 100%; height: 42%; }
+  .clothes-panel { left: 12px; right: 12px; width: auto; top: 42%; }
+}

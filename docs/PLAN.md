@@ -29,7 +29,8 @@ FPS always visible.
 7. ✅ **Money & places:** delivery & taxi jobs (markers in the city, yellow arrow, green goal, no timers), daily bonus
    (€500), €2 per 100 m, fuel tank + refueling (free top-up if you can't pay), house & apartment (€5.000) with a
    simple panel: switch car, change clothes, choose where to start; map pins for house/apartment/gas station
-8. ⬜ **Shops:** vehicle shop (unique cars & motorbikes) and clothes shop, saved to Firebase
+8. ✅ **Shops:** vehicle shop with 27 unique look-alike cars + 7 motorbikes (stats, 10 paint colors, buy with a
+   confirm tap), clothes shop with 16 styles tried on live on your avatar; ride motorbikes in the city
 
 ## How the 3D content works
 - **Avatar:** CC0 Quaternius characters, 12 outfits × boy/girl. Each outfit is a small .glb
@@ -51,6 +52,8 @@ FPS always visible.
 - **Shadows** only re-render when the camera moves; **dynamic resolution** lowers the pixel ratio when
   FPS drops below 45. Tablets get a lighter preset (`src/game/world/quality.ts`).
 - **People** are recycled around the player and each is one merged skinned mesh (1 draw call); only nearby people animate and cast shadows.
+- **Vehicles:** cars come from `makeShape()` presets (hatch, sedan, SUV, sports, van, jeep) in
+  `src/game/vehicles/shapeGen.ts`; motorbikes from `bikeBuilder.ts`. Preview all: `/?carlab=all` and `/?carlab=all2`.
 - Dev tools: `/?assetlab=<folder>&files=a.glb,b.glb` (needs models in `public/_lab/`), `/?carlab=<id>`.
 
 ## Rules we always follow
