@@ -37,6 +37,14 @@ export interface CarShape {
   pillars?: [number, number][];
   /** Rear wing (sports cars). */
   spoiler?: boolean;
+  /** 2 or 4 doors (for the door seams and handles). */
+  doors?: 2 | 4;
+  /** Number of exhaust tips (0 = electric). */
+  exhaust?: 0 | 1 | 2;
+  /** Thickness of the black wheel-arch trim in meters. */
+  archTrim?: number;
+  /** Window trim color. */
+  trim?: 'chrome' | 'black';
 }
 
 export type BikeStyle = 'sport' | 'naked' | 'cruiser' | 'scooter' | 'adventure';

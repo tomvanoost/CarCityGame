@@ -21,9 +21,11 @@ Every item must respect the requirements in `CLAUDE.md` (no violence, simple UI,
 - [ ] **Ducks in the park pond** and birds in trees (CC0 animals), very cheap animation.
 - [ ] **Car wash** at the gas station: drive through, bubbles, the car gets a shine (for fun, small price).
 - [ ] **Garage at home**: owned cars parked in the driveway / street next to your house.
-- [ ] **More distinct sports cars**: tune the shapes of the supercars so each one is recognizable.
 - [ ] **Day / evening light**: optional soft evening light with street lights and car headlights on.
 - [ ] **Apartment view**: a cozy simple 3D room when you go inside your apartment.
 
 ## Done
+- [x] **Better-looking vehicles**: panel seams, door handles, arch trim, window trim, interiors, new wheels
+      with calipers, rounded mirrors, exhaust tips, contact shadows; distinct supercars; sleek motorbike panels.
+- [x] **Grounded city**: soft shading near the ground for buildings and trees.
 - [x] Steps 1–8 of the original plan (see `docs/PLAN.md`).

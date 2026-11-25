@@ -37,6 +37,10 @@ function withWorldPos(shader: THREE.WebGLProgramParametersWithUniforms) {
 export function createBatchMaterial() {
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.85, metalness: 0, envMapIntensity: 0.6 });
   mat.onBeforeCompile = (shader) => {
+    withWorldPos(shader);
+    // Soft "ambient occlusion" near the ground: buildings and trees look grounded.
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(0.15, 2.6, vWorld.y));`);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float aMain;')
       .replace('#include <color_vertex>', `#include <color_vertex>

@@ -34,6 +34,10 @@ export interface ShapeParams {
   roofColor?: 'body' | 'black';
   pillars?: [number, number][];
   spoiler?: boolean;
+  doors?: 2 | 4;
+  exhaust?: 0 | 1 | 2;
+  archTrim?: number;
+  trim?: 'chrome' | 'black';
 }
 
 export function makeShape(p: ShapeParams): CarShape {
@@ -78,6 +82,10 @@ export function makeShape(p: ShapeParams): CarShape {
     roofColor: p.roofColor,
     pillars: p.pillars,
     spoiler: p.spoiler,
+    doors: p.doors,
+    exhaust: p.exhaust,
+    archTrim: p.archTrim,
+    trim: p.trim,
   };
 }
 
@@ -96,12 +104,12 @@ export const presets = {
   suv: (o: Partial<ShapeParams> = {}): ShapeParams => ({
     length: 4.65, width: 1.9, height: 1.68, wheelRadius: 0.37, wheelWidth: 0.25, frontOverhang: 0.9, rearOverhang: 0.95,
     belt: 1.12, nose: 0.98, tail: 1.08, clearance: 0.24, ws: 0.3, roofFront: 0.43, roofRear: 0.86, rearEnd: 0.965,
-    boxiness: 5.5, pillars: [[0.57, 0.59], [0.84, 0.92]], ...o,
+    boxiness: 5.5, archTrim: 0.07, pillars: [[0.57, 0.59], [0.84, 0.92]], ...o,
   }),
   sports: (o: Partial<ShapeParams> = {}): ShapeParams => ({
     length: 4.55, width: 1.95, height: 1.2, wheelRadius: 0.34, wheelWidth: 0.27, frontOverhang: 1.0, rearOverhang: 0.95,
     belt: 0.84, nose: 0.62, tail: 0.88, clearance: 0.12, ws: 0.36, roofFront: 0.52, roofRear: 0.64, rearEnd: 0.86,
-    boxiness: 3.6, tumblehome: 0.1, endRound: 0.32, rims: 'sport', grille: 'wide', roofColor: 'black', ...o,
+    boxiness: 3.6, tumblehome: 0.1, endRound: 0.32, rims: 'sport', grille: 'wide', roofColor: 'black', doors: 2, exhaust: 2, ...o,
   }),
   van: (o: Partial<ShapeParams> = {}): ShapeParams => ({
     length: 4.7, width: 1.98, height: 1.95, wheelRadius: 0.36, wheelWidth: 0.25, frontOverhang: 0.75, rearOverhang: 0.75,
@@ -111,6 +119,6 @@ export const presets = {
   jeep: (o: Partial<ShapeParams> = {}): ShapeParams => ({
     length: 4.35, width: 1.9, height: 1.85, wheelRadius: 0.42, wheelWidth: 0.3, frontOverhang: 0.7, rearOverhang: 0.75,
     belt: 1.22, nose: 1.12, tail: 1.2, clearance: 0.3, ws: 0.32, roofFront: 0.36, roofRear: 0.95, rearEnd: 0.975,
-    boxiness: 9, tumblehome: 0.02, endRound: 0.12, headlights: 'round', grille: 'wide', rims: 'multi', pillars: [[0.6, 0.62], [0.8, 0.82]], ...o,
+    boxiness: 9, tumblehome: 0.02, endRound: 0.12, headlights: 'round', grille: 'wide', rims: 'multi', archTrim: 0.1, exhaust: 1, pillars: [[0.6, 0.62], [0.8, 0.82]], ...o,
   }),
 };

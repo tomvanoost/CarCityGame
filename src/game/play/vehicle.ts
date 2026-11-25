@@ -169,7 +169,8 @@ export class Vehicle {
     this.car.root.rotation.x = this.pitch;
     this.wheelSpin += (this.speed * dt) / this.dims.wheelRadius;
     const w = this.car.wheels;
-    for (const p of [w.fl, w.fr, w.rl, w.rr]) p.rotation.x = this.wheelSpin;
+    // Spin the inner wheel group (the pivot only steers, so brake calipers stay put).
+    for (const p of new Set([w.fl, w.fr, w.rl, w.rr])) ((p.userData.spin as THREE.Object3D) ?? p).rotation.x = this.wheelSpin;
     w.fl.rotation.y = w.fr.rotation.y = this.steerAngle;
   }
 

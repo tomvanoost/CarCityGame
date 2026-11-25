@@ -27,7 +27,12 @@ let shared: ReturnType<typeof makeSharedMaterials> | null = null;
 export function sharedVehicleMaterials() { return (shared ??= makeSharedMaterials()); }
 function makeSharedMaterials() {
   return {
-    glass: new THREE.MeshPhysicalMaterial({ color: 0x0b1118, metalness: 0.2, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.82 }),
+    glass: new THREE.MeshPhysicalMaterial({ color: 0x0e1822, metalness: 0.25, roughness: 0.04, clearcoat: 1, transparent: true, opacity: 0.68 }),
+    chrome: new THREE.MeshStandardMaterial({ color: 0xe8ebef, roughness: 0.12, metalness: 1 }),
+    caliperRed: new THREE.MeshStandardMaterial({ color: 0xc8161d, roughness: 0.35, metalness: 0.3 }),
+    caliperGrey: new THREE.MeshStandardMaterial({ color: 0x5f646b, roughness: 0.45, metalness: 0.6 }),
+    seat: new THREE.MeshStandardMaterial({ color: 0x2a2c31, roughness: 0.85 }),
+    shadow: new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity: 0.55 }),
     trim: new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.6, metalness: 0.1 }),
     black: new THREE.MeshPhysicalMaterial({ color: 0x0a0a0c, roughness: 0.25, metalness: 0.3, clearcoat: 0.8 }),
     tire: new THREE.MeshStandardMaterial({ color: 0x1b1b1d, roughness: 0.92, metalness: 0 }),
@@ -39,6 +44,60 @@ function makeSharedMaterials() {
     plate: new THREE.MeshStandardMaterial({ color: 0xf2c500, roughness: 0.4 }),
     interior: new THREE.MeshStandardMaterial({ color: 0x222428, roughness: 0.9 }),
   };
+}
+
+/** Soft round shadow texture placed under vehicles so they sit on the ground. */
+function blobTexture(): THREE.Texture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const grd = g.createRadialGradient(32, 32, 4, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(0,0,0,0.85)');
+  grd.addColorStop(0.55, 'rgba(0,0,0,0.45)');
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+
+/** Flat soft shadow under a vehicle (sized in meters). */
+export function contactShadow(width: number, length: number): THREE.Mesh {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(width, length).rotateX(-Math.PI / 2), sharedVehicleMaterials().shadow);
+  m.position.y = 0.025;
+  m.renderOrder = 2;
+  return m;
+}
+
+/**
+ * Merges the static small parts of a vehicle (direct mesh children of `root`, not the
+ * wheels) that share a material into one mesh each: fewer draw calls per car.
+ */
+export function mergeStaticParts(root: THREE.Group, keep: Set<THREE.Object3D>) {
+  const buckets = new Map<THREE.Material, THREE.Mesh[]>();
+  for (const c of root.children) {
+    const m = c as THREE.Mesh;
+    if (!m.isMesh || keep.has(m) || Array.isArray(m.material)) continue;
+    const list = buckets.get(m.material) ?? [];
+    list.push(m);
+    buckets.set(m.material, list);
+  }
+  for (const [mat, list] of buckets) {
+    if (list.length < 2) continue;
+    const geos = list.map((m) => {
+      m.updateMatrix();
+      let g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+      for (const n of Object.keys(g.attributes)) if (n !== 'position' && n !== 'normal') g.deleteAttribute(n);
+      if (!g.getAttribute('normal')) g.computeVertexNormals();
+      g = g.applyMatrix4(m.matrix);
+      return g;
+    });
+    const merged = new THREE.Mesh(mergeGeometries(geos), mat);
+    merged.castShadow = list.some((m) => m.castShadow);
+    merged.receiveShadow = list.some((m) => m.receiveShadow);
+    geos.forEach((g) => g.dispose());
+    for (const m of list) { m.removeFromParent(); m.geometry.dispose(); }
+    root.add(merged);
+  }
 }
 
 // ---------- curve helper: smooth monotone interpolation ----------
@@ -162,13 +221,27 @@ export function buildWheel(r: number, w: number, style: RimStyle, mats: ReturnTy
   const brake = new THREE.Mesh(new THREE.CylinderGeometry(rimR * 0.7, rimR * 0.7, 0.03, 20), mats.brake);
   brake.geometry.rotateZ(Math.PI / 2);
   g.add(brake);
+  // Polished rim lip, center cap and wheel nuts: merged into one chrome mesh.
+  const chromeParts: THREE.BufferGeometry[] = [];
+  const lip = new THREE.TorusGeometry(rimR * 0.98, rimR * 0.045, 6, 28).rotateY(Math.PI / 2).translate(w * 0.4, 0, 0);
+  chromeParts.push(lip);
+  const cap = new THREE.CylinderGeometry(rimR * 0.13, rimR * 0.13, 0.02, 14).rotateZ(Math.PI / 2).translate(w * 0.43, 0, 0);
+  if (style === 'sport' || style === 'aero') chromeParts.push(cap);
+  else { const c = new THREE.Mesh(cap, mats.black); g.add(c); }
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    chromeParts.push(new THREE.CylinderGeometry(rimR * 0.03, rimR * 0.03, 0.025, 6).rotateZ(Math.PI / 2).translate(w * 0.42, Math.cos(a) * rimR * 0.2, Math.sin(a) * rimR * 0.2));
+  }
+  const flat = chromeParts.map((p) => { const n = p.toNonIndexed(); n.deleteAttribute('uv'); return n; });
+  g.add(new THREE.Mesh(mergeGeometries(flat), mats.chrome));
+  chromeParts.forEach((p) => p.dispose());
+  flat.forEach((p) => p.dispose());
   return g;
 }
 
 // ---------- the car ----------
 export function buildCar(shape: CarShape, color: THREE.ColorRepresentation): BuiltCar {
   const mats = (shared ??= makeSharedMaterials());
-  const bodyMat = createBodyMaterial(shape, color);
   const paint = new THREE.MeshPhysicalMaterial({ color, metalness: 0.6, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.03 });
   const roofMat = shape.roofColor === 'black' ? mats.black : paint;
 
@@ -180,6 +253,29 @@ export function buildCar(shape: CarShape, color: THREE.ColorRepresentation): Bui
   const archR = shape.wheelRadius * 1.1;
 
   const root = new THREE.Group();
+  const r0 = shape.roof[0][0], r1 = shape.roof[shape.roof.length - 1][0];
+  const tMid = (r0 + r1) / 2;
+
+  // Measurements for seams, handles and arch trim (drawn by the body shader).
+  const doors = shape.doors ?? 4;
+  const doorFront = axles[0] - archR - 0.12;
+  const bPillar = shape.pillars?.find(([p0, p1]) => (p0 + p1) / 2 > 0.45 && (p0 + p1) / 2 < 0.7);
+  const doorRear4 = axles[1] + archR + 0.1;
+  const details = {
+    doorFront,
+    doorMid: doors === 4 ? (bPillar ? zOf((bPillar[0] + bPillar[1]) / 2) : (doorFront + doorRear4) / 2) : zOf(r0 + (r1 - r0) * 0.62),
+    doorRear: doors === 4 ? doorRear4 : -99,
+    cowl: zOf(r0) + 0.06,
+    trunk: zOf(r1) - 0.05,
+    belt: top(tMid),
+    halfWidth: W / 2,
+    frontAxle: axles[0],
+    rearAxle: axles[1],
+    wheelRadius: shape.wheelRadius,
+    archRadius: archR,
+    archTrim: shape.archTrim ?? 0.035,
+  };
+  const bodyMat = createBodyMaterial(shape, color, details);
 
   // --- body ---
   const ts: number[] = [];
@@ -231,14 +327,15 @@ export function buildCar(shape: CarShape, color: THREE.ColorRepresentation): Bui
   root.add(body);
 
   // --- cabin (glass + roof) ---
-  const r0 = shape.roof[0][0], r1 = shape.roof[shape.roof.length - 1][0];
   const CN = 60, CR = 32;
+  const belts: number[] = [];
   const cabRings: THREE.Vector3[][] = [];
   const slope: number[] = [];
   for (let i = 0; i < CN; i++) {
     const t = r0 + (i / (CN - 1)) * (r1 - r0);
     const z = zOf(t);
     const belt = top(t) - 0.02;
+    belts.push(belt);
     const yr = Math.max(roof(t), belt + 0.002);
     const yb = belt - 0.14;
     const hw = (W / 2) * plan(t);
@@ -253,28 +350,52 @@ export function buildCar(shape: CarShape, color: THREE.ColorRepresentation): Bui
     const dt = 0.01;
     slope.push(Math.abs(roof(t + dt) - roof(t - dt)) / (2 * dt * L));
   }
-  // group 0 = glass, 1 = roof panel / pillars
+  // group 0 = glass, 1 = roof panel / pillars, 2 = window trim along the bottom of the side windows
   const cabT = (i: number) => r0 + ((i + 0.5) / (CN - 1)) * (r1 - r0);
   const cabGeo = loft(cabRings, (i, j) => {
     const a = ((j + 0.5) / CR) * Math.PI * 2;
     const cy = Math.sin(a), ax = Math.abs(Math.cos(a));
+    const y = (cabRings[i][j].y + cabRings[i][(j + 1) % CR].y) / 2;
+    if (ax > 0.55 && y > belts[i] - 0.005 && y < belts[i] + 0.045 && i > 1 && i < CN - 3) return 2;
     const flat = slope[i] < 0.3 && slope[i + 1] < 0.3;
     if (cy > 0.86 && flat) return 1; // roof
     if (cy > 0.5 && ax > 0.62 && !flat) return 1; // A-pillar / rear pillar edges
     const t = cabT(i);
     if (cy > -0.2 && cy < 0.9 && ax > 0.5 && shape.pillars?.some(([p0, p1]) => t >= p0 && t <= p1)) return 1;
     return 0;
-  }, 2);
-  const cabin = new THREE.Mesh(cabGeo, [mats.glass, roofMat]);
+  }, 3);
+  const cabin = new THREE.Mesh(cabGeo, [mats.glass, roofMat, shape.trim === 'chrome' ? mats.chrome : mats.black]);
   cabin.castShadow = true;
   root.add(cabin);
 
-  // Dark interior block so the inside isn't see-through, plus seats.
-  const tMid = (r0 + r1) / 2;
+  // Interior: floor/tub, dashboard, seats and a steering wheel (seen through the glass).
   const innerW = W * plan(tMid) * 0.78;
-  const interior = new THREE.Mesh(new THREE.BoxGeometry(innerW, 0.35, (r1 - r0) * L * 0.62), mats.interior);
-  interior.position.set(0, top(tMid) - 0.1, zOf(tMid));
+  const floorY = top(tMid) - 0.5;
+  const interior = new THREE.Mesh(new THREE.BoxGeometry(innerW, 0.3, (r1 - r0) * L * 0.7), mats.interior);
+  interior.position.set(0, floorY, zOf(tMid));
   root.add(interior);
+  const dashZ = zOf(r0) - 0.32;
+  const dash = new THREE.Mesh(new THREE.BoxGeometry(innerW, 0.18, 0.32), mats.interior);
+  dash.position.set(0, top(r0 + 0.02) - 0.02, dashZ);
+  root.add(dash);
+  const seatZ = zOf(tMid) + 0.1;
+  const seatGeo = new THREE.BoxGeometry(0.46, 0.5, 0.12).translate(0, 0.25, 0);
+  for (const sx of doors === 2 ? [-1, 1] : [-1, 1]) {
+    const back = new THREE.Mesh(seatGeo, mats.seat);
+    back.position.set(sx * W * 0.2, floorY + 0.15, seatZ - 0.32);
+    back.rotation.x = -0.18;
+    root.add(back);
+  }
+  if (doors === 4) {
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(innerW * 0.9, 0.45, 0.12).translate(0, 0.22, 0), mats.seat);
+    bench.position.set(0, floorY + 0.15, zOf(tMid) - 0.75);
+    bench.rotation.x = -0.15;
+    root.add(bench);
+  }
+  const wheelRing = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.022, 6, 20), mats.black);
+  wheelRing.position.set(W * 0.2, top(r0 + 0.02) + 0.05, dashZ - 0.22);
+  wheelRing.rotation.x = -0.45;
+  root.add(wheelRing);
 
   // Chassis filler (hides see-through between wheel arches).
   const chassis = new THREE.Mesh(
@@ -310,8 +431,20 @@ export function buildCar(shape: CarShape, color: THREE.ColorRepresentation): Bui
 
   const mt = r0 + (r1 - r0) * 0.12;
   for (const sx of [-1, 1]) {
-    const mirror = add(new THREE.BoxGeometry(0.2, 0.1, 0.07), paint, sx * ((W / 2) * plan(mt) * 0.84 + 0.05), top(mt) + 0.05, zOf(mt));
-    mirror.castShadow = true;
+    const mx = sx * ((W / 2) * plan(mt) * 0.84 + 0.07);
+    const head = add(new THREE.SphereGeometry(0.5, 14, 10), paint, mx, top(mt) + 0.07, zOf(mt));
+    head.scale.set(0.2, 0.11, 0.1);
+    head.castShadow = true;
+    const glassM = add(new THREE.CircleGeometry(0.5, 14), mats.chrome, mx, top(mt) + 0.07, zOf(mt) - 0.051, Math.PI);
+    glassM.scale.set(0.17, 0.085, 1);
+    add(new THREE.BoxGeometry(0.1, 0.03, 0.05), mats.black, mx - sx * 0.08, top(mt) + 0.03, zOf(mt));
+  }
+  // Exhaust tips under the rear bumper.
+  const ex = shape.exhaust ?? 0;
+  for (let i = 0; i < ex; i++) {
+    const sx = ex === 1 ? -0.3 : i === 0 ? -0.32 : 0.32;
+    const tip = add(new THREE.CylinderGeometry(0.045, 0.05, 0.12, 14).rotateX(Math.PI / 2), mats.chrome, sx * W, bottom(0.97) + 0.07, -L / 2 + endR * 0.45);
+    tip.castShadow = false;
   }
 
   // --- wheels ---
@@ -320,8 +453,17 @@ export function buildCar(shape: CarShape, color: THREE.ColorRepresentation): Bui
     const pivot = new THREE.Group();
     pivot.position.set(x, shape.wheelRadius, z);
     const wheel = buildWheel(shape.wheelRadius, shape.wheelWidth, shape.rims, mats);
+    const spin = new THREE.Group();
+    spin.add(wheel);
     if (x < 0) wheel.rotation.y = Math.PI; // rim faces outward
-    pivot.add(wheel);
+    pivot.add(spin);
+    pivot.userData.spin = spin;
+    // Brake caliper: does not turn with the wheel.
+    const cal = new THREE.Mesh(new THREE.BoxGeometry(0.06, shape.wheelRadius * 0.42, shape.wheelRadius * 0.28),
+      shape.rims === 'sport' ? mats.caliperRed : mats.caliperGrey);
+    cal.position.set(Math.sign(x) * shape.wheelWidth * 0.12, shape.wheelRadius * 0.28, -shape.wheelRadius * 0.28);
+    cal.rotation.x = 0.8;
+    pivot.add(cal);
     root.add(pivot);
     return pivot;
   };
@@ -333,6 +475,11 @@ export function buildCar(shape: CarShape, color: THREE.ColorRepresentation): Bui
   };
 
   const seat = new THREE.Vector3(W * 0.2, top(tMid) - 0.35, zOf(tMid) + 0.1);
+
+  // Soft contact shadow so the car sits on the road.
+  const shadowMesh = contactShadow(W * 1.35, L * 1.15);
+  root.add(shadowMesh);
+  mergeStaticParts(root, new Set([body, cabin, shadowMesh]));
 
   return {
     root,
