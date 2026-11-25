@@ -180,7 +180,8 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       const x = (x0 + x1) / 2 + rng.range(-1.5, 1.5), z = (z0 + z1) / 2 + rng.range(-1.5, 1.5);
       const h = Math.round(rng.range(minH, maxH) / 3.6) * 3.6 + 1.2;
       L.towers.push({ x, z, w, d, h, color: rng.pick(TOWER_COLORS) });
-      L.colliders.push({ x0: x - w / 2, z0: z - d / 2, x1: x + w / 2, z1: z + d / 2 });
+      // +1 m for the podium around the tower base.
+      L.colliders.push({ x0: x - w / 2 - 1, z0: z - d / 2 - 1, x1: x + w / 2 + 1, z1: z + d / 2 + 1 });
     }
   };
 

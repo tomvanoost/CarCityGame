@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadClips, loadGltf } from '../../engine/assets';
 import { animsUrl, outfitUrl, type OutfitModel } from '../avatar/clothes';
+import { faceDetailGeometry } from '../avatar/faceDetails';
 import type { CityLayout } from '../city/layout';
 import { Rng } from '../city/rng';
 import { groundHeight, type CollisionWorld } from './collision';
@@ -117,6 +118,8 @@ export class Pedestrians {
       g.setIndex(m.geometry.getIndex()!.clone());
       return g;
     });
+    const face = faceDetailGeometry(meshes);
+    if (face) parts.push(face);
     const merged = mergeGeometries(parts)!;
     parts.forEach((p) => p.dispose());
     this.geometries.push(merged);

@@ -52,6 +52,8 @@ async function loadGeometry(url: string, scale: number): Promise<THREE.BufferGeo
   geo.setAttribute('color', toFloat(src.getAttribute('color'), 3));
   const main = src.getAttribute('_main');
   geo.setAttribute('aMain', main ? toFloat(main, 1) : new THREE.BufferAttribute(new Float32Array(src.getAttribute('position').count), 1));
+  const kind = src.getAttribute('_kind');
+  geo.setAttribute('aKind', kind ? toFloat(kind, 1) : new THREE.BufferAttribute(new Float32Array(src.getAttribute('position').count), 1));
   geo.setIndex(src.getIndex()!.clone());
   geo.applyMatrix4((mesh as THREE.Mesh).matrixWorld);
   geo.scale(scale, scale, scale);

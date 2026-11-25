@@ -193,22 +193,45 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   group.add(track(buildings.mesh), track(nature.mesh));
 
   // ---------- towers ----------
-  const towerGeo = track(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0));
-  const towers = new THREE.InstancedMesh(towerGeo, track(createTowerMaterial()), layout.towers.length);
+  // Each tower = podium (2 floors, slightly wider) + main shaft, and tall towers get a
+  // narrower setback section on top. All boxes share one InstancedMesh (1 draw call).
+  type Box = { x: number; z: number; w: number; d: number; y: number; h: number; color: string };
+  const boxes: Box[] = [];
   const roofParts: THREE.BufferGeometry[] = [];
+  const parapet = (x: number, z: number, w: number, d: number, y: number, color: string) => {
+    roofParts.push(coloredBox(w + 0.4, 0.9, 0.4, color, x, y, z - d / 2));
+    roofParts.push(coloredBox(w + 0.4, 0.9, 0.4, color, x, y, z + d / 2));
+    roofParts.push(coloredBox(0.4, 0.9, d, color, x - w / 2, y, z));
+    roofParts.push(coloredBox(0.4, 0.9, d, color, x + w / 2, y, z));
+  };
+  for (const t of layout.towers) {
+    const podiumH = 7.2;
+    boxes.push({ x: t.x, z: t.z, w: t.w + 2, d: t.d + 2, y: top, h: podiumH, color: '#8f969e' });
+    const tall = t.h > 45;
+    const shaftH = tall ? Math.round((t.h * 0.7) / 3.6) * 3.6 : t.h;
+    boxes.push({ x: t.x, z: t.z, w: t.w, d: t.d, y: top, h: shaftH, color: t.color });
+    let topY = top + shaftH, tw = t.w, td = t.d;
+    if (tall) {
+      parapet(t.x, t.z, t.w, t.d, topY, t.color);
+      tw = t.w * 0.72; td = t.d * 0.72;
+      const upH = t.h - shaftH;
+      boxes.push({ x: t.x, z: t.z, w: tw, d: td, y: topY, h: upH, color: t.color });
+      topY += upH;
+    }
+    // Crown: a slightly wider band at the very top, then rooftop machine rooms.
+    roofParts.push(coloredBox(tw + 0.8, 1.4, td + 0.8, '#5d6670', t.x, topY - 1.4, t.z));
+    parapet(t.x, t.z, tw, td, topY, t.color);
+    roofParts.push(coloredBox(tw * 0.35, 3.2, td * 0.3, '#9aa1a8', t.x + tw * 0.15, topY, t.z - td * 0.12));
+    roofParts.push(coloredBox(3, 1.6, 2, '#b8bec4', t.x - tw * 0.25, topY, t.z + td * 0.25));
+    if (tall) roofParts.push(coloredBox(0.3, 9, 0.3, '#c8ccd0', t.x + tw * 0.2, topY + 3.2, t.z - td * 0.12)); // antenna
+  }
+  const towerGeo = track(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0));
+  const towers = new THREE.InstancedMesh(towerGeo, track(createTowerMaterial()), boxes.length);
   const m4 = new THREE.Matrix4();
-  layout.towers.forEach((t, i) => {
-    m4.compose(new THREE.Vector3(t.x, top, t.z), new THREE.Quaternion(), new THREE.Vector3(t.w, t.h, t.d));
+  boxes.forEach((bx, i) => {
+    m4.compose(new THREE.Vector3(bx.x, bx.y, bx.z), new THREE.Quaternion(), new THREE.Vector3(bx.w, bx.h, bx.d));
     towers.setMatrixAt(i, m4);
-    towers.setColorAt(i, new THREE.Color(t.color));
-    // rooftop: parapet + machine rooms
-    const y = top + t.h;
-    roofParts.push(coloredBox(t.w * 0.35, 3.2, t.d * 0.3, '#9aa1a8', t.x + t.w * 0.15, y, t.z - t.d * 0.12));
-    roofParts.push(coloredBox(3, 1.6, 2, '#b8bec4', t.x - t.w * 0.25, y, t.z + t.d * 0.25));
-    roofParts.push(coloredBox(t.w + 0.4, 0.8, 0.4, t.color, t.x, y, t.z - t.d / 2));
-    roofParts.push(coloredBox(t.w + 0.4, 0.8, 0.4, t.color, t.x, y, t.z + t.d / 2));
-    roofParts.push(coloredBox(0.4, 0.8, t.d, t.color, t.x - t.w / 2, y, t.z));
-    roofParts.push(coloredBox(0.4, 0.8, t.d, t.color, t.x + t.w / 2, y, t.z));
+    towers.setColorAt(i, new THREE.Color(bx.color));
   });
   towers.castShadow = towers.receiveShadow = true;
   group.add(towers);

@@ -38,15 +38,34 @@ export function createBatchMaterial() {
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.85, metalness: 0, envMapIntensity: 0.6 });
   mat.onBeforeCompile = (shader) => {
     withWorldPos(shader);
-    // Soft "ambient occlusion" near the ground: buildings and trees look grounded.
-    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(0.15, 2.6, vWorld.y));`);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float aMain;')
+      .replace('#include <common>', '#include <common>\nattribute float aMain;\nattribute float aKind;\nvarying float vKind;')
       .replace('#include <color_vertex>', `#include <color_vertex>
+        vKind = aKind;
         #ifdef USE_BATCHING_COLOR
           vColor.rgb = mix(color.rgb, getBatchingColor(getIndirectIndex(gl_DrawID)).rgb, aMain);
         #endif`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vKind;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        // Surface kinds (from the model build): 2 = window glass, 3 = roof tiles.
+        float glassM = step(1.5, vKind) * (1.0 - step(2.5, vKind));
+        float roofM = step(2.5, vKind);
+        // Walls: subtle plaster / stone variation.
+        float wallN = fbm(vWorld.xz * 0.9 + vWorld.y * 0.7);
+        diffuseColor.rgb *= mix(0.9 + 0.18 * wallN, 1.0, glassM);
+        // Roofs: rows of tiles.
+        float rows = smoothstep(0.7, 0.95, fract(vWorld.y * 4.5));
+        diffuseColor.rgb *= 1.0 - roofM * rows * 0.3;
+        // Windows: dark reflective glass, a few with curtains.
+        float cell = hash21(floor(vWorld.xz * 0.6) + floor(vWorld.y * 0.32) * 7.0);
+        vec3 glassCol = mix(vec3(0.06, 0.1, 0.15), vec3(0.15, 0.2, 0.26), cell);
+        if (cell > 0.88) glassCol = vec3(0.5, 0.42, 0.3);
+        diffuseColor.rgb = mix(diffuseColor.rgb, glassCol, glassM);
+        // Soft "ambient occlusion" near the ground: buildings and trees look grounded.
+        diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(0.15, 2.6, vWorld.y));`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.07, glassM);\nroughnessFactor = mix(roughnessFactor, 0.6, roofM);')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.8, glassM * (1.0 - step(0.88, cell)));');
   };
   mat.customProgramCacheKey = () => 'cityBatch';
   return mat;
@@ -138,6 +157,11 @@ export function createTowerMaterial() {
             glass = step(0.12, fu) * step(fu, 0.88) * step(0.26, fv) * step(fv, 0.86);
           }
           if (v < 4.4) glass = step(0.08, fu) * step(fu, 0.92) * step(v, 3.6); // lobby
+          // vertical fins every other column and a thin floor line
+          float fin = step(0.9, fract(u / (colW * 2.0)));
+          float slab = 1.0 - step(0.07, fv);
+          diffuseColor.rgb *= 1.0 + fin * 0.18 * (1.0 - glass);
+          diffuseColor.rgb *= 1.0 - slab * 0.18;
           float tint = hash21(floor(vec2(u / colW, v / floorH) + 0.001) * 0.37 + towerId * 0.011);
           vec3 glassCol = mix(vec3(0.08, 0.13, 0.2), vec3(0.18, 0.24, 0.3), tint * 0.6);
           if (tint > 0.93) glassCol = vec3(0.55, 0.5, 0.42); // a few open curtains

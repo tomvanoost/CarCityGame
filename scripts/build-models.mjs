@@ -66,7 +66,7 @@ const CITY_OUT = 'public/models/city';
 // [source, max vertices LOD0, max vertices LOD1]
 const CITY = [
   ...['Building1_Large', 'Building1_Small', 'Building2_Large', 'Building2_Small', 'Building3_Big', 'Building3_Small', 'Building4']
-    .map((n) => [`buildings_pack_2/${n}`, 5000, 700]),
+    .map((n) => [`buildings_pack_2/${n}`, 12000, 700]),
   ...['1Story_GableRoof_Mat', '1Story_Mat', '1Story_RoundRoof_Mat', '1Story_Sign_Mat', '2Story_2_Mat', '2Story_Balcony_Mat',
     '2Story_Center_Mat', '2Story_Columns_Mat', '2Story_Double_Mat', '2Story_GableRoof_Mat', '2Story_Mat', '2Story_RoundRoof_Mat',
     '2Story_Sidehouse_Mat', '2Story_Sign_Mat', '2Story_Stairs_Mat', '2Story_Wide_2Doors_Mat', '2Story_Wide_Mat', '3Story_Balcony_Mat',
@@ -98,7 +98,7 @@ async function buildCityModel(src, maxVerts, far = false) {
   if (count > maxVerts) {
     const ratio = Math.max(0.02, maxVerts / count);
     // Simplify each material part separately, so colors never bleed.
-    await doc.transform(simplify({ simplifier: MeshoptSimplifier, ratio, error: far ? 0.15 : maxVerts < 1000 ? 0.04 : 0.01 }));
+    await doc.transform(simplify({ simplifier: MeshoptSimplifier, ratio, error: far ? 0.15 : maxVerts < 1000 ? 0.04 : maxVerts > 10000 ? 0.004 : 0.01, lockBorder: !far }));
   }
   // Bake material colors into vertex colors.
   const shared = doc.createMaterial('City').setBaseColorFactor([1, 1, 1, 1]).setRoughnessFactor(0.85).setMetallicFactor(0);
@@ -107,12 +107,16 @@ async function buildCityModel(src, maxVerts, far = false) {
     for (const prim of mesh.listPrimitives()) {
       const mat = prim.getMaterial();
       const [r, g, b] = mat ? mat.getBaseColorFactor() : [1, 1, 1];
-      const isMain = mat?.getName() === 'Main' ? 1 : 0;
+      const name = mat?.getName() ?? '';
+      const isMain = name === 'Main' ? 1 : 0;
+      // Surface kind for the city shader: 0 = normal, 2 = glass (reflective windows), 3 = roof tiles.
+      const kind = /^(Glass|Windows|DarkGrey)$/.test(name) ? 2 : /^(RoofBricks|DarkRed)$/.test(name) ? 3 : 0;
       const n = prim.getAttribute('POSITION').getCount();
       const col = new Float32Array(n * 3);
       for (let i = 0; i < n; i++) col.set([r, g, b], i * 3);
       prim.setAttribute('COLOR_0', doc.createAccessor().setType('VEC3').setArray(col).setBuffer(buffer));
       prim.setAttribute('_MAIN', doc.createAccessor().setType('SCALAR').setArray(new Float32Array(n).fill(isMain)).setBuffer(buffer));
+      prim.setAttribute('_KIND', doc.createAccessor().setType('SCALAR').setArray(new Float32Array(n).fill(kind)).setBuffer(buffer));
       prim.setMaterial(shared);
     }
   }

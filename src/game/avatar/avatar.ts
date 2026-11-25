@@ -3,6 +3,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { loadClips, loadGltf } from '../../engine/assets';
 import type { Gender } from '../../services/types';
 import { animsUrl, getClothes, outfitUrl } from './clothes';
+import { faceDetailGeometry, faceDetailMaterial } from './faceDetails';
 
 export type AnimName =
   | 'Idle' | 'Walk' | 'Run' | 'Jump' | 'SitDown' | 'StandUp'
@@ -49,10 +50,29 @@ export class Avatar {
         const c = (m as THREE.MeshStandardMaterial).clone();
         const color = c.name === 'Skin' ? DEFAULT_SKIN : c.name === 'Face' ? EYES : item.colors?.[c.name];
         if (color) c.color.set(color);
+        // Material feel: soft skin, glossy eyes, a little sheen on hair, matte fabric.
+        c.roughness = c.name === 'Skin' ? 0.6 : c.name === 'Face' ? 0.15 : /Hair/.test(c.name) ? 0.45 : 0.82;
+        c.metalness = 0;
         return c;
       });
       mesh.material = Array.isArray(mesh.material) ? mats : mats[0];
     });
+
+    // Eye highlights + smile, skinned to the head bone.
+    const skinned: THREE.SkinnedMesh[] = [];
+    model.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) skinned.push(o as THREE.SkinnedMesh); });
+    const faceGeo = faceDetailGeometry(skinned);
+    if (faceGeo) {
+      const ref = skinned[0];
+      const fm = new THREE.SkinnedMesh(faceGeo, faceDetailMaterial());
+      fm.bind(ref.skeleton, ref.bindMatrix);
+      fm.position.copy(ref.position);
+      fm.quaternion.copy(ref.quaternion);
+      fm.scale.copy(ref.scale);
+      fm.frustumCulled = false;
+      fm.userData.ownGeometry = true;
+      ref.parent!.add(fm);
+    }
 
     const avatar = new Avatar(model, clips);
     avatar.play('Idle');
@@ -88,7 +108,8 @@ export class Avatar {
     this.root.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
-      // Geometry is shared with the loader cache; only our material clones are freed.
+      // Geometry is shared with the loader cache; only our own geometry and material clones are freed.
+      if (mesh.userData.ownGeometry) { mesh.geometry.dispose(); return; }
       (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((m) => m.dispose());
     });
     this.root.removeFromParent();

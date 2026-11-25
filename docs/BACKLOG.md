@@ -25,6 +25,8 @@ Every item must respect the requirements in `CLAUDE.md` (no violence, simple UI,
 - [ ] **Apartment view**: a cozy simple 3D room when you go inside your apartment.
 
 ## Done
+- [x] **Better people and buildings**: eye glints + smiles (skinned to the head), material tuning; reflective
+      windows, wall texture, roof tiles, cleaner window detail; towers with podium, setback, crown and fins.
 - [x] **Better-looking vehicles**: panel seams, door handles, arch trim, window trim, interiors, new wheels
       with calipers, rounded mirrors, exhaust tips, contact shadows; distinct supercars; sleek motorbike panels.
 - [x] **Grounded city**: soft shading near the ground for buildings and trees.
