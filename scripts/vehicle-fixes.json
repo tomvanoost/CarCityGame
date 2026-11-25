@@ -13,9 +13,28 @@
     "rotate": 180
   },
   "volvu-xc90": {
-    "color": "#1c2a3a"
+    "color": "#1c2a3a",
+    "rotate": 180
   },
   "modelo-y": {
     "color": "#f2f2f2"
+  },
+  "kuper": {
+    "rotate": 180
+  },
+  "beemer-3": {
+    "rotate": 180
+  },
+  "hondo-cbr": {
+    "rotate": 180
+  },
+  "kawa-z900": {
+    "rotate": 180
+  },
+  "yamaho-r1": {
+    "rotate": 180
+  },
+  "harly": {
+    "rotate": 180
   }
 }

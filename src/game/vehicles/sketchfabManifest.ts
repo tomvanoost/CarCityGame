@@ -69,9 +69,9 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": false,
     "paintable": true,
     "seat": [
-      0.38500485420227054,
+      -0.38500485420227054,
       0.7116147351264953,
-      -0.2701999926567078
+      0.2701999926567078
     ],
     "credit": {
       "name": "Mini Cooper S Facelift",
@@ -183,9 +183,9 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": false,
     "paintable": true,
     "seat": [
-      0.4104189395904541,
+      -0.4104189395904541,
       0.6069882416725159,
-      -0.3297000026702881
+      0.3297000026702881
     ],
     "credit": {
       "name": "2023 bmw 3 series",
@@ -316,9 +316,9 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": false,
     "paintable": false,
     "seat": [
-      0.4343767642974854,
+      -0.4343767642974854,
       0.7600704002380371,
-      -0.3464999866485596
+      0.3464999866485596
     ],
     "credit": {
       "name": "Volvo XC90",
@@ -544,9 +544,9 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": true,
     "paintable": true,
     "seat": [
-      0,
+      -0.0,
       0.5809468030929565,
-      -0.17040000915527345
+      0.17040000915527345
     ],
     "credit": {
       "name": "Honda CBR650R",
@@ -563,9 +563,9 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": true,
     "paintable": false,
     "seat": [
-      0,
+      -0.0,
       0.550253689289093,
-      -0.16559999465942382
+      0.16559999465942382
     ],
     "credit": {
       "name": "Z1000 2014",
@@ -582,9 +582,9 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": true,
     "paintable": false,
     "seat": [
-      0,
+      -0.0,
       0.5970134735107422,
-      -0.1647999954223633
+      0.1647999954223633
     ],
     "credit": {
       "name": "Yamaha R1",
@@ -601,9 +601,9 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
     "bike": true,
     "paintable": false,
     "seat": [
-      0,
+      -0.0,
       0.7381402850151062,
-      -0.20799999237060549
+      0.20799999237060549
     ],
     "credit": {
       "name": "Harley-Davidson Custom Road Glide Style Bagger",

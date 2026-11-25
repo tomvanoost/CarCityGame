@@ -54,7 +54,7 @@ const assetLab = new URLSearchParams(location.search).get('assetlab');
 const sfLab = new URLSearchParams(location.search).get('sflab');
 const cfLab = new URLSearchParams(location.search).has('cflab');
 if (import.meta.env.DEV && cfLab) import('./dev/sketchfabLab').then((m) => m.startCityLab(new URLSearchParams(location.search).has('lod')));
-else if (import.meta.env.DEV && sfLab) import('./dev/sketchfabLab').then((m) => m.startSketchfabLab(Number(sfLab), new URLSearchParams(location.search).has('lod')));
+else if (import.meta.env.DEV && sfLab) import('./dev/sketchfabLab').then((m) => m.startSketchfabLab(Number(sfLab), new URLSearchParams(location.search).has('lod'), new URLSearchParams(location.search).get('view') ?? ''));
 else if (import.meta.env.DEV && carLab) import('./dev/carLab').then((m) => m.startCarLab(carLab));
 else if (import.meta.env.DEV && assetLab)
   import('./dev/assetLab').then((m) => m.startAssetLab(assetLab, new URLSearchParams(location.search).get('files')!.split(',')));

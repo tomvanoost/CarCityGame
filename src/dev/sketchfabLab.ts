@@ -6,9 +6,9 @@ import { SKETCHFAB_VEHICLES } from '../game/vehicles/sketchfabManifest';
 
 /**
  * Dev tool: /?sflab=1 (or 2) shows the processed Sketchfab vehicles in a grid, front-right view.
- * Add &lod=1 to see the light (traffic) versions. A red line on the ground marks +Z (the front).
+ * Add &lod=1 to see the light (traffic) versions, &view=front to look straight at the nose. A red line on the ground marks +Z (the front).
  */
-export async function startSketchfabLab(page: number, lod: boolean) {
+export async function startSketchfabLab(page: number, lod: boolean, view = '') {
   document.body.innerHTML = '';
   const canvas = document.createElement('canvas');
   canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%';
@@ -41,7 +41,9 @@ export async function startSketchfabLab(page: number, lod: boolean) {
     renderer.setViewport(x, y, w, h);
     renderer.setScissor(x, y, w, h);
     const d = m.bike ? 4.4 : 8.8;
-    cam.position.set(d * 0.62, d * 0.3, d * 0.75);
+    // &view=front: straight at the nose, to spot models that face backwards.
+    if (view === 'front') cam.position.set(0, d * 0.18, d * 0.95);
+    else cam.position.set(d * 0.62, d * 0.3, d * 0.75);
     cam.lookAt(0, m.height * 0.45, 0);
     renderer.render(scene, cam);
     scene.remove(obj);
@@ -90,9 +92,11 @@ export async function startCityLab(lod: boolean) {
     scene.add(obj);
     renderer.setViewport(x, y, w, h);
     renderer.setScissor(x, y, w, h);
-    const r = Math.max(m.x, m.y, m.z) * 1.15;
-    cam.position.set(r * 0.55, m.y * 0.55 + r * 0.25, r * 1.0);
-    cam.lookAt(0, m.y * 0.45, 0);
+    // Frame the real bounds of the loaded model (the manifest sizes are placement sizes).
+    const box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+    const r = Math.max(size.x, size.y, size.z) * 1.7;
+    cam.position.set(mid.x + r * 0.55, mid.y + r * 0.3, mid.z + r * 1.0);
+    cam.lookAt(mid);
     renderer.render(scene, cam);
     scene.remove(obj);
   });
