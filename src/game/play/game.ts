@@ -117,10 +117,10 @@ export class Game {
 
   constructor(canvas: HTMLCanvasElement, private input: Input, profile: PlayerProfile, private events: GameEvents) {
     const q = pickQuality();
-    this.peopleCount = q.name === 'high' ? 36 : 22;
-    this.trafficCount = q.name === 'high' ? 12 : 8;
+    this.peopleCount = q.people;
+    this.trafficCount = q.traffic;
     this.renderer = createRenderer(canvas, { shadows: true });
-    this.scaler = new ResolutionScaler(this.renderer, q.maxPixelRatio);
+    this.scaler = new ResolutionScaler(this.renderer, q.maxPixelRatio, q.minPixelRatio);
     this.scene.fog = new THREE.Fog(SKY.horizon, q.fogNear, q.fogFar);
     this.scene.environment = skyEnvironment(this.renderer);
     this.scene.environmentIntensity = 0.7;

@@ -2,8 +2,12 @@ import type * as THREE from 'three';
 import { isTouch } from '../../engine/renderer';
 
 export interface Quality {
-  name: 'high' | 'low';
+  name: 'high' | 'low' | 'fast';
   maxPixelRatio: number;
+  /** Lowest render scale the dynamic resolution may use. */
+  minPixelRatio: number;
+  people: number;
+  traffic: number;
   shadowMap: number;
   shadowSize: number;
   fogNear: number;
@@ -13,12 +17,31 @@ export interface Quality {
   natureMax: number;
 }
 
-/** Tablets/phones get a lighter preset; desktops the full one. */
+/** The player's choice in the menu (⚙️): "Mooi" (pretty) or "Snel" (fast). Saved on this device. */
+export type QualityChoice = 'pretty' | 'fast';
+const QUALITY_KEY = 'carcity.quality';
+
+export function loadQualityChoice(): QualityChoice | null {
+  try { const v = localStorage.getItem(QUALITY_KEY); return v === 'pretty' || v === 'fast' ? v : null; } catch { return null; }
+}
+
+export function saveQualityChoice(c: QualityChoice) {
+  try { localStorage.setItem(QUALITY_KEY, c); } catch { /* private mode: only for this visit */ }
+}
+
+const one = Math.min(1, window.devicePixelRatio);
+const PRESETS: Record<Quality['name'], Quality> = {
+  high: { name: 'high', maxPixelRatio: 2, minPixelRatio: one, people: 36, traffic: 12, shadowMap: 2048, shadowSize: 190, fogNear: 160, fogFar: 640, buildingLod: 150, natureLod: 80, natureMax: 330 },
+  low: { name: 'low', maxPixelRatio: 1.5, minPixelRatio: one, people: 22, traffic: 8, shadowMap: 1024, shadowSize: 130, fogNear: 110, fogFar: 430, buildingLod: 100, natureLod: 50, natureMax: 220 },
+  // "Snel": for slow tablets. Fewer pixels, small shadows, fewer people and cars, shorter view.
+  fast: { name: 'fast', maxPixelRatio: 1, minPixelRatio: 0.75, people: 12, traffic: 5, shadowMap: 512, shadowSize: 90, fogNear: 90, fogFar: 340, buildingLod: 70, natureLod: 35, natureMax: 160 },
+};
+
+/** The player's choice, or automatic: tablets/phones a lighter preset, desktops the full one. */
 export function pickQuality(): Quality {
-  const low = isTouch || navigator.hardwareConcurrency <= 4;
-  return low
-    ? { name: 'low', maxPixelRatio: 1.5, shadowMap: 1024, shadowSize: 130, fogNear: 110, fogFar: 430, buildingLod: 100, natureLod: 50, natureMax: 220 }
-    : { name: 'high', maxPixelRatio: 2, shadowMap: 2048, shadowSize: 190, fogNear: 160, fogFar: 640, buildingLod: 150, natureLod: 80, natureMax: 330 };
+  const choice = loadQualityChoice();
+  if (choice) return PRESETS[choice === 'pretty' ? 'high' : 'fast'];
+  return PRESETS[isTouch || navigator.hardwareConcurrency <= 4 ? 'low' : 'high'];
 }
 
 /**

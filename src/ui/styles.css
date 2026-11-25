@@ -237,6 +237,19 @@ button, input { font: inherit; color: inherit; }
 .job-reward { background: #fff6d6; color: #b07900; padding: 3px 9px; border-radius: 10px; font-weight: 900; white-space: nowrap; }
 .tablet .job-card { top: calc(max(6px, env(safe-area-inset-top)) + 100px); }
 .tablet.has-dash .job-card { top: calc(max(6px, env(safe-area-inset-top)) + 100px); }
+/* graphics quality (menu ⚙️) */
+.icon-btn.settings-btn { top: calc(max(12px, env(safe-area-inset-top)) + 100px); right: 12px; font-size: 22px; }
+.quality-picker { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(20, 30, 50, .4); }
+.quality-card { width: min(460px, 100%); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.quality-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.quality-option { border: 3px solid transparent; border-radius: 22px; background: #eef4ff; color: var(--ink); font: inherit; padding: 16px 10px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 4px 0 #cddcf5; }
+.quality-option:active { transform: translateY(3px); box-shadow: 0 1px 0 #cddcf5; }
+.quality-option.active { border-color: var(--blue); background: #e2eeff; }
+.quality-emoji { font-size: 44px; line-height: 1.1; }
+.quality-option b { font-size: 22px; font-weight: 900; }
+.quality-option small { font-size: 14px; font-weight: 700; color: var(--muted); }
+
 /* stickers */
 .sticker-btn { border: 0; background: #fff3c4; color: #7a5a00; font: inherit; font-weight: 900; font-size: 15px; padding: 8px 12px; border-radius: 14px; cursor: pointer; box-shadow: 0 3px 0 #e6c45a; }
 .sticker-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #e6c45a; }
