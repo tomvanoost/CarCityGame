@@ -6,13 +6,15 @@ What is finished, the current state and known problems. The newest finished step
 ## Current state
 - Playable: login/register (Firebase accounts, live database updates; demo mode without Firebase),
   menu with avatar, sticker book and graphics setting (Mooi/Snel), vehicle and clothes shops, the city
-  with driving, walking, traffic, pedestrians, jobs, fuel, car wash, house and apartment, ducks and birds in the park.
+  with driving, walking, traffic, pedestrians, jobs, fuel, car wash, house with your other cars parked in the yard, apartment, ducks and birds in the park.
 - Deployed by the user from branch `claude/stoic-shannon-4k32uu` on fly.io (`fly.toml` holds the Firebase
   web config). Runs push to `claude/hourly-upgrades` and fast-forward `claude/stoic-shannon-4k32uu`.
 - Vehicles: 27 Sketchfab models (wheels cut out and spinning), 7 cars use the built-in shape (see roadmap).
   City: CC0 buildings mixed with a few good Sketchfab buildings, CC0 street trees, Sketchfab pines/bushes.
 
 ## Known problems
+- Parked cars in the home yard show the factory color, not the paint you picked (their light models have
+  the colors baked in); the car you drive does show your paint.
 - Downtown office towers are plain up close; the vespo scooter looks old and rusty.
 - In the headless test browser the game runs at ~1–3 FPS (software rendering): CSS popups and animations
   barely play there; use `animations: 'disabled'` screenshots or check them in the menu.
@@ -25,6 +27,7 @@ What is finished, the current state and known problems. The newest finished step
   `scripts/flip-vehicles.mjs` and `scripts/vehicle-wheels.mjs`.
 
 ## Done
+- [x] **Garage at home**: your other cars (up to 4) stand nose-to-street in the front yard (spots skip bushes/trees/walls); walk up and "🔑 Neem deze" swaps cars, parked cars keep their spot and are solid (`play/garage.ts`, light traffic models).
 - [x] **Car wash**: drive-through tunnel at the gas station (walls/roof/sign in the city mesh); stop inside, "🫧 Wassen €10", 4.5 s of spinning rollers and bubbles, then the paint shines for 60 s; sticker "Blinkend schoon" (`play/carWash.ts`, +2 draw calls near the station).
 - [x] **Ducks and birds**: two duck families (mom + yellow ducklings in a row) paddle around the pond, little birds hop/peck on the park grass and flutter away when you come close, a flock circles over the park trees. Own low-poly shapes, 5 instanced draw calls, only near the park (`play/wildlife.ts`). Birds sit on the grass instead of tree tops (the game camera never looks up into the crowns).
 - [x] **Quality setting**: ⚙️ in the menu with two big buttons "Mooi" / "Snel" (saved per device; automatic until chosen); Snel = 1x pixels, 512 px shadows, 12 people, 5 cars, shorter view (`world/quality.ts`, `ui/qualityPicker.ts`).

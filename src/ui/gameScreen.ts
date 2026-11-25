@@ -122,6 +122,7 @@ export const gameScreen: Screen = (root, nav) => {
     if (c) {
       ctxBtn.textContent = c.kind === 'refuel' ? (state.refueling ? `⛽ ${t('refueling')}` : `⛽ ${t('refuel')}`)
         : c.kind === 'wash' ? (state.washing ? `🫧 ${t('washing')}` : `🫧 ${t('wash')} ${euro(c.price)}`)
+        : c.kind === 'takeCar' ? `🔑 ${t('takeCar')}: ${vehicleName(getVehicle(c.id))}`
         : c.kind === 'buyApartment' ? `🏢 ${t('buyApartment')} ${euro(c.price)}` : `🏠 ${t('goInside')}`;
       ctxBtn.classList.toggle('busy', state.refueling || state.washing);
     }

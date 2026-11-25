@@ -18,6 +18,7 @@ import { Navigator } from './navigation';
 import { Pedestrians } from './pedestrians';
 import { Wildlife } from './wildlife';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
+import { Garage, type GarageSpot } from './garage';
 import { awardSticker } from '../../ui/stickers';
 import { RoadGraph, type P } from './roads';
 import { Traffic } from './traffic';
@@ -28,7 +29,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
+export type ContextAction = { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
 
 export interface GameState {
   mode: Mode;
@@ -92,6 +93,7 @@ export class Game {
   people?: Pedestrians;
   wildlife?: Wildlife;
   carWash?: CarWash;
+  garage?: Garage;
   jobs?: Jobs;
   traffic?: Traffic;
   roads?: RoadGraph;
@@ -166,6 +168,10 @@ export class Game {
     const spawn = this.spawnPoint(profile.spawn);
     await this.setVehicle(profile.selectedVehicle, spawn);
     if (this.disposed) return;
+    // Your other cars wait in the front yard at home.
+    this.garage = new Garage(city.layout, this.world);
+    this.scene.add(this.garage.group);
+    void this.refreshGarage();
     this.seatAvatar();
     this.follow.yaw = spawn.rot + Math.PI;
     this.focus.set(spawn.x, 1.2, spawn.z);
@@ -383,6 +389,8 @@ export class Game {
     const p = this.player;
     const near = (d: { x: number; z: number }) => Math.hypot(p.x - d.x, p.z - d.z) < 3.2;
     if (near(L.pois.home.door)) return { kind: 'home' };
+    const parked = this.garage?.near(p.x, p.z);
+    if (parked) return { kind: 'takeCar', id: parked.id };
     if (near(L.pois.apartment.door)) return this.profile.ownsApartment ? { kind: 'apartment' } : { kind: 'buyApartment', price: APARTMENT_PRICE };
     return null;
   }
@@ -400,6 +408,11 @@ export class Game {
         void updateProfile({ money: p.money - c.price });
         this.events.onMoney(-c.price, 'wash');
         this.washTimer = WASH_TIME;
+        break;
+      }
+      case 'takeCar': {
+        const spot = this.garage?.near(this.player!.x, this.player!.z)?.spot;
+        if (spot) void this.takeCar(c.id, spot);
         break;
       }
       case 'home':
@@ -482,7 +495,27 @@ export class Game {
     if (!this.profile.ownedVehicles.includes(id)) return;
     setProfile({ ...this.profile, selectedVehicle: id });
     updateProfile({ selectedVehicle: id });
-    void this.setVehicle(id, this.spawnPoint(place));
+    void this.setVehicle(id, this.spawnPoint(place)).then(() => this.refreshGarage());
+  }
+
+  /** Walked up to a parked car at home: it becomes your car, the old one goes into the yard. */
+  private async takeCar(id: string, spot: GarageSpot) {
+    if (!this.profile.ownedVehicles.includes(id) || id === this.profile.selectedVehicle) return;
+    this.setShine(false);
+    this.shineTimer = 0;
+    setProfile({ ...this.profile, selectedVehicle: id });
+    void updateProfile({ selectedVehicle: id });
+    await this.setVehicle(id, spot);
+    await this.refreshGarage(spot);
+  }
+
+  /** Shows the right cars in the yard, and makes them solid (you can't walk or drive through). */
+  private async refreshGarage(taken?: GarageSpot) {
+    if (!this.garage || !this.city) return;
+    const p = this.profile;
+    await this.garage.refresh(p.ownedVehicles, p.selectedVehicle, p.vehicleColors, taken);
+    if (this.disposed || !this.city) return;
+    this.world = new CollisionWorld([...this.city.layout.colliders, ...this.garage.colliders()]);
   }
 
   /** From the home panel: change clothes (owned outfits only). */
@@ -679,6 +712,7 @@ export class Game {
     this.people?.dispose();
     this.wildlife?.dispose();
     this.carWash?.dispose();
+    this.garage?.dispose();
     this.avatar?.dispose();
     this.vehicle?.dispose();
     this.city?.dispose();
