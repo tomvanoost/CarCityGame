@@ -8,6 +8,7 @@ import { getProfile, onProfileChange } from '../services/session';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
+import { BigMap, Minimap, renderBaseMap, type MapPlaces } from './cityMap';
 import { TouchControls } from './touchControls';
 
 const TABLET_KEY = 'carcity.tablet';
@@ -53,14 +54,33 @@ export const gameScreen: Screen = (root, nav) => {
   const jobCard = h('div', { class: 'job-card' });
   const popups = h('div', { class: 'popups' });
   const panel = h('div', { class: 'place-panel', hidden: true });
+  const mapWrap = h('div', { class: 'minimap-wrap' });
+  const bigHolder = h('div', { class: 'bigmap-holder' });
+  const closeMap = () => { mapOverlay.hidden = true; game.resume(); render(); };
+  const navBtn = (label: string, onClick: () => void) => h('button', { class: 'btn nav-btn', onclick: onClick }, label);
+  let places: MapPlaces | null = null;
+  const goTo = (key: keyof MapPlaces) => { if (places) { game.setDestination(places[key]); toast(t('destSet')); closeMap(); } };
+  const mapOverlay = h('div', { class: 'bigmap', hidden: true },
+    h('div', { class: 'card bigmap-card' },
+      h('div', { class: 'place-head' }, h('h2', {}, `🗺️ ${t('map')}`), h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: () => closeMap() }, '✕')),
+      h('div', { class: 'try-hint' }, t('mapHint')),
+      bigHolder,
+      h('div', { class: 'nav-btns' },
+        navBtn(`🏠 ${t('goHome')}`, () => goTo('home')),
+        navBtn(`🏢 ${t('goApartment')}`, () => goTo('apartment')),
+        navBtn(`⛽ ${t('goGas')}`, () => goTo('gas')),
+        navBtn(`✕ ${t('stopNav')}`, () => { game.setDestination(null); closeMap(); }),
+      ),
+    ),
+  );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hint, popups, back, money, tabletBtn, panel, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hint, popups, back, money, tabletBtn, mapWrap, panel, mapOverlay, loading);
 
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, context: null, job: null };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, context: null, job: null, dest: null };
   const render = () => {
     const driving = state.mode === 'driving';
     root.classList.toggle('tablet', tablet);
-    root.classList.toggle('panel-open', !panel.hidden);
+    root.classList.toggle('panel-open', !panel.hidden || !mapOverlay.hidden);
     touch.drive.hidden = !(tablet && driving) || !panel.hidden;
     touch.walk.hidden = !(tablet && !driving) || !panel.hidden;
     dash.hidden = !driving;
@@ -83,7 +103,12 @@ export const gameScreen: Screen = (root, nav) => {
       ctxBtn.classList.toggle('busy', state.refueling);
     }
     // Job card: what to do and how far.
-    jobCard.hidden = !state.job;
+    jobCard.hidden = !state.job && !state.dest;
+    if (!state.job && state.dest) {
+      const cancel = h('button', { class: 'job-cancel', 'aria-label': t('stopNav') }, '✕');
+      cancel.addEventListener('click', () => game.setDestination(null));
+      jobCard.replaceChildren(h('span', { class: 'job-icon' }, '📍'), h('span', { class: 'job-text' }, t('toDest')), h('b', {}, `${state.dest.meters} m`), cancel);
+    }
     if (state.job) {
       const j = state.job;
       jobCard.replaceChildren(
@@ -126,6 +151,36 @@ export const gameScreen: Screen = (root, nav) => {
     touch.reset();
     render();
   });
+  // ---------- minimap + big map ----------
+  let minimap: Minimap | null = null, bigMap: BigMap | null = null, mapRaf = 0, lastMap = 0;
+  const openMap = () => {
+    touch.reset();
+    game.pause();
+    mapOverlay.hidden = false;
+    render();
+    const ms = game.mapState();
+    if (ms) requestAnimationFrame(() => bigMap?.draw(ms));
+  };
+  const mapLoop = (now: number) => {
+    mapRaf = requestAnimationFrame(mapLoop);
+    if (now - lastMap < 100) return; // 10 times per second is plenty
+    lastMap = now;
+    const ms = game.mapState();
+    if (!ms) return;
+    if (!minimap && game.roads && game.city) {
+      const L = game.city.layout;
+      const base = renderBaseMap(L, game.roads);
+      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation };
+      minimap = new Minimap(base, places, openMap);
+      mapWrap.append(minimap.el);
+      bigMap = new BigMap(base, places, (p) => { game.setDestination(p); toast(t('destSet')); closeMap(); });
+      bigHolder.append(bigMap.canvas);
+    }
+    minimap?.draw(ms);
+    if (!mapOverlay.hidden) bigMap?.draw(ms);
+  };
+  mapRaf = requestAnimationFrame(mapLoop);
+
   const offProfile = onProfileChange((p) => { money.lastElementChild!.textContent = euro(p.money); });
 
   // ---------- house / apartment panel ----------
@@ -187,6 +242,7 @@ export const gameScreen: Screen = (root, nav) => {
   if (import.meta.env.DEV) Object.assign(window, { carcityDebug: { game, input } });
 
   return () => {
+    cancelAnimationFrame(mapRaf);
     offProfile();
     game.dispose();
     touch.dispose();

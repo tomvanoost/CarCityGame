@@ -225,6 +225,29 @@ export class Pedestrians {
     p.tx = n.x; p.tz = n.z;
   }
 
+  get ready() { return this.templates.length > 0; }
+
+  /**
+   * A seated character for a car (traffic driver): posed once with the SitDown
+   * animation and then left static, so it costs nothing per frame.
+   */
+  makeDriver(): THREE.Object3D | null {
+    if (!this.templates.length) return null;
+    const tpl = this.rng.pick(this.templates);
+    const root = cloneSkinned(tpl.scene);
+    const mixer = new THREE.AnimationMixer(root);
+    const clip = tpl.clips.find((c) => c.name === 'SitDown');
+    if (clip) {
+      const a = mixer.clipAction(clip);
+      a.setLoop(THREE.LoopOnce, 1);
+      a.clampWhenFinished = true;
+      a.play();
+      mixer.update(clip.duration + 0.1);
+    }
+    root.traverse((o) => { o.castShadow = false; });
+    return root;
+  }
+
   /** Positions of people, as circles the car must not touch. */
   obstacles(): { x: number; z: number; r: number }[] {
     return this.people.filter((p) => p.active).map((p) => ({ x: p.x, z: p.z, r: 0.45 }));

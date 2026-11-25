@@ -13,7 +13,10 @@ import { FollowCamera } from './followCamera';
 import type { Input } from './input';
 import { Jobs, type ActiveJob, type PlaceKey } from './jobs';
 import { createArrow, createIcon } from './markers';
+import { Navigator } from './navigation';
 import { Pedestrians } from './pedestrians';
+import { RoadGraph, type P } from './roads';
+import { Traffic } from './traffic';
 import { Player } from './player';
 import { Vehicle } from './vehicle';
 
@@ -31,6 +34,18 @@ export interface GameState {
   refueling: boolean;
   context: ContextAction | null;
   job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number } | null;
+  /** Navigation to a destination you picked on the map. */
+  dest: { meters: number } | null;
+}
+
+/** Everything the minimap / big map needs to draw. */
+export interface MapState {
+  x: number;
+  z: number;
+  heading: number;
+  path: P[];
+  job: P | null;
+  dest: P | null;
 }
 
 export interface GameEvents {
@@ -43,7 +58,7 @@ export interface GameEvents {
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived', n?: number): void;
 }
 
 const ENTER_DISTANCE = 4;
@@ -69,6 +84,12 @@ export class Game {
   vehicle?: Vehicle;
   people?: Pedestrians;
   jobs?: Jobs;
+  traffic?: Traffic;
+  roads?: RoadGraph;
+  private nav?: Navigator;
+  /** Destination picked on the big map. */
+  private dest: P | null = null;
+  private trafficCount = 8;
   player?: Player;
   avatar?: Avatar;
   mode: Mode = 'driving';
@@ -94,6 +115,7 @@ export class Game {
   constructor(canvas: HTMLCanvasElement, private input: Input, profile: PlayerProfile, private events: GameEvents) {
     const q = pickQuality();
     this.peopleCount = q.name === 'high' ? 36 : 22;
+    this.trafficCount = q.name === 'high' ? 12 : 8;
     this.renderer = createRenderer(canvas, { shadows: true });
     this.scaler = new ResolutionScaler(this.renderer, q.maxPixelRatio);
     this.scene.fog = new THREE.Fog(SKY.horizon, q.fogNear, q.fogFar);
@@ -160,6 +182,72 @@ export class Game {
       onDone: (job) => this.addMoney(job.reward, 'job'),
     });
     this.scene.add(this.jobs.group);
+    // Roads, navigation and friendly traffic.
+    this.roads = new RoadGraph(city.layout);
+    this.nav = new Navigator(this.roads);
+    this.scene.add(this.nav.arrows);
+    this.traffic = new Traffic(this.roads, this.trafficCount);
+    this.scene.add(this.traffic.group);
+  }
+
+  /** Pick a destination (from the big map), or null to stop navigating. */
+  setDestination(p: P | null) { this.dest = p; }
+
+  mapState(): MapState | null {
+    if (!this.vehicle || !this.player) return null;
+    const driving = this.mode === 'driving';
+    const job = this.jobs?.active;
+    return {
+      x: driving ? this.vehicle.x : this.player.x,
+      z: driving ? this.vehicle.z : this.player.z,
+      heading: driving ? this.vehicle.heading : this.player.heading,
+      path: this.nav?.path ?? [],
+      job: job ? { x: job.x, z: job.z } : null,
+      dest: this.dest,
+    };
+  }
+
+  /** Bump softly into traffic cars (no damage, they always stop for you anyway). */
+  private bumpTraffic() {
+    if (!this.traffic) return;
+    const circles = this.traffic.circles();
+    if (!circles.length) return;
+    if (this.mode === 'driving') {
+      const v = this.vehicle!, fx = Math.sin(v.heading), fz = Math.cos(v.heading), o = v.length / 2 - v.width / 2;
+      for (const k of [o, 0, -o]) {
+        const cx = v.x + fx * k, cz = v.z + fz * k;
+        for (const c of circles) {
+          const dx = cx - c.x, dz = cz - c.z, d = Math.hypot(dx, dz), min = c.r + v.width / 2;
+          if (d < min && d > 1e-4) {
+            v.x += (dx / d) * (min - d);
+            v.z += (dz / d) * (min - d);
+            v.speed *= 0.5;
+            if (Math.abs(v.speed) > 2) v.bumped = 0.3;
+          }
+        }
+      }
+    } else {
+      const p = this.player!;
+      for (const c of circles) {
+        const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), min = c.r + 0.4;
+        if (d < min && d > 1e-4) { p.x += (dx / d) * (min - d); p.z += (dz / d) * (min - d); }
+      }
+    }
+  }
+
+  /** Decide where to navigate: a job first, then your map destination, then fuel. */
+  private updateNav(dt: number, pos: P) {
+    if (!this.nav) return;
+    if (this.dest && Math.hypot(pos.x - this.dest.x, pos.z - this.dest.z) < 14) {
+      this.dest = null;
+      this.events.onMessage('arrived');
+    }
+    const job = this.jobs?.active;
+    const target = job ? { x: job.x, z: job.z } : this.dest ?? (this.profile.fuel < 0.15 ? this.city!.layout.pois.gasStation : null);
+    const cur = this.nav.target;
+    const heading = this.mode === 'driving' ? this.vehicle!.heading : this.player!.heading;
+    if (!target !== !cur || (target && cur && Math.hypot(target.x - cur.x, target.z - cur.z) > 1)) this.nav.setTarget(target, pos, heading);
+    this.nav.update(dt, pos, heading);
   }
 
   /** A spot on the road lane next to a door, facing along the road. */
@@ -357,8 +445,9 @@ export class Game {
     updateProfile({ spawn: where });
   }
 
-  /** Close the house panel and continue playing. */
+  /** Close the house panel / map and continue playing. */
   resume() { this.paused = false; }
+  pause() { this.paused = true; }
 
   /** HUD buttons. (The E key does: context action first, otherwise get in/out.) */
   pressCar() { this.pendingCar = true; }
@@ -427,6 +516,9 @@ export class Game {
     const pos = this.mode === 'driving' ? v : this.player;
     this.people?.update(dt, this.focus.x, this.focus.z, v, this.mode === 'walking' ? this.player : null);
     this.jobs?.update(dt, pos, this.mode === 'driving', v.kmh);
+    this.traffic?.update(dt, this.focus, v, this.mode === 'walking' ? this.player : null, this.people);
+    this.bumpTraffic();
+    this.updateNav(dt, pos);
     this.updateArrow(dt, pos);
     // Carry the package in your arms while walking with a delivery.
     if (this.mode === 'walking' && this.jobs?.active?.kind === 'delivery') {
@@ -444,10 +536,12 @@ export class Game {
 
   /** Points the yellow arrow at the job destination, or at the gas station when fuel is low. */
   private updateArrow(dt: number, pos: { x: number; z: number }) {
-    const job = this.jobs?.active;
-    const target = job ? job : this.profile.fuel < 0.15 ? this.city!.layout.pois.gasStation : null;
-    const d = target ? Math.hypot(target.x - pos.x, target.z - pos.z) : 0;
-    this.arrow.visible = !!target && d > 12;
+    // Point at a spot on the route a little ahead, so the arrow shows where to turn.
+    const target = this.nav?.lookAhead(22) ?? null;
+    // While driving on the route, the arrows on the road guide you; the big floating
+    // arrow only helps when walking or when you are far from the route.
+    const onRoute = this.mode === 'driving' && (this.nav?.offRoute ?? 99) < 8;
+    this.arrow.visible = !!target && (this.nav?.remaining ?? 0) > 12 && !onRoute;
     if (!target || !this.arrow.visible) return;
     const y = this.mode === 'driving' ? 2.7 : 2.4;
     this.arrow.position.set(pos.x, y + Math.sin(performance.now() / 300) * 0.15, pos.z);
@@ -469,7 +563,8 @@ export class Game {
       fuel: Math.round(p.fuel * 100) / 100,
       refueling: this.refueling,
       context: ctx,
-      job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round(Math.hypot(job.x - pos.x, job.z - pos.z) / 10) * 10 } : null,
+      job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round((this.nav?.remaining || Math.hypot(job.x - pos.x, job.z - pos.z)) / 10) * 10 } : null,
+      dest: !job && this.dest ? { meters: Math.round((this.nav?.remaining ?? 0) / 10) * 10 } : null,
     };
     const key = JSON.stringify(state);
     if (key !== this.lastState) {
@@ -488,6 +583,8 @@ export class Game {
     this.payFuel(true);
     this.save(true);
     this.jobs?.dispose();
+    this.traffic?.dispose();
+    this.nav?.dispose();
     this.people?.dispose();
     this.avatar?.dispose();
     this.vehicle?.dispose();

@@ -1,5 +1,5 @@
 import { Showroom } from '../game/showroom';
-import { VEHICLES, getVehicle, vehicleName } from '../game/vehicles/catalog';
+import { PAINT_COLORS, VEHICLES, getVehicle, vehicleName } from '../game/vehicles/catalog';
 import type { VehicleSpec } from '../game/vehicles/types';
 import { t } from '../i18n';
 import { getProfile, onProfileChange, updateProfile } from '../services/session';
@@ -7,7 +7,6 @@ import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
 
-export const PAINT_COLORS = ['#f2f2f2', '#1c1d20', '#c9ccd1', '#d0101c', '#ff7a00', '#f5c400', '#2fa84f', '#1f6fe0', '#8e5bd9', '#ff7eb6'];
 const euro = (n: number) => `€ ${Math.round(n).toLocaleString('nl-NL')}`;
 
 /** Vehicle shop: pick a car or motorbike, see it on the turntable, choose a color, buy. */

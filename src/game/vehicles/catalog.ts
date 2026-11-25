@@ -129,5 +129,8 @@ export const VEHICLES: VehicleSpec[] = [
     { style: 'sport', wheelbase: 1.47, wheelRadius: 0.33, seatHeight: 0.84, rims: 'sport' }),
 ];
 
+/** Paint colors offered in the shop (also used for traffic). */
+export const PAINT_COLORS = ['#f2f2f2', '#1c1d20', '#c9ccd1', '#d0101c', '#ff7a00', '#f5c400', '#2fa84f', '#1f6fe0', '#8e5bd9', '#ff7eb6'];
+
 export const getVehicle = (id: string) => VEHICLES.find((v) => v.id === id) ?? VEHICLES[0];
 export const vehicleName = (v: VehicleSpec) => `${v.brand} ${v.model} ${v.year}`;
