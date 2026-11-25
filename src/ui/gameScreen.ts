@@ -96,7 +96,7 @@ export const gameScreen: Screen = (root, nav) => {
   root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, hint, popups, back, money, tabletBtn, soundBtn, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, context: null, job: null, dest: null };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null };
   const render = () => {
     const driving = state.mode === 'driving';
     root.classList.toggle('tablet', tablet);
@@ -121,8 +121,9 @@ export const gameScreen: Screen = (root, nav) => {
     ctxBtn.hidden = !c;
     if (c) {
       ctxBtn.textContent = c.kind === 'refuel' ? (state.refueling ? `⛽ ${t('refueling')}` : `⛽ ${t('refuel')}`)
+        : c.kind === 'wash' ? (state.washing ? `🫧 ${t('washing')}` : `🫧 ${t('wash')} ${euro(c.price)}`)
         : c.kind === 'buyApartment' ? `🏢 ${t('buyApartment')} ${euro(c.price)}` : `🏠 ${t('goInside')}`;
-      ctxBtn.classList.toggle('busy', state.refueling);
+      ctxBtn.classList.toggle('busy', state.refueling || state.washing);
     }
     // Job card: what to do and how far.
     jobCard.hidden = !state.job && !state.dest;
@@ -173,7 +174,7 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : t('pickedPassenger')),
     onPlace: (place) => openPanel(place),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),

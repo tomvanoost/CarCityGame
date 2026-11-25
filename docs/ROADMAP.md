@@ -10,7 +10,6 @@ earn money with simple jobs, buy cars and clothes, collect stickers. Looks good,
 tablets, Dutch first with English. Overview and history: `docs/PLAN.md`.
 
 ## Next steps
-- [ ] **Car wash** at the gas station: drive through, bubbles, the car gets a shine (for fun, small price).
 - [ ] **Garage at home**: owned cars parked in the driveway / street next to your house.
 - [ ] **Day / evening light**: optional soft evening light with street lights and car headlights on.
 - [ ] **Apartment view**: a cozy simple 3D room when you go inside your apartment.

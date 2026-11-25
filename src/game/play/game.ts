@@ -17,6 +17,7 @@ import { createArrow, createIcon } from './markers';
 import { Navigator } from './navigation';
 import { Pedestrians } from './pedestrians';
 import { Wildlife } from './wildlife';
+import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { awardSticker } from '../../ui/stickers';
 import { RoadGraph, type P } from './roads';
 import { Traffic } from './traffic';
@@ -27,7 +28,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'refuel' } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
+export type ContextAction = { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
 
 export interface GameState {
   mode: Mode;
@@ -36,6 +37,8 @@ export interface GameState {
   yielding: boolean;
   fuel: number;
   refueling: boolean;
+  /** The car is in the car wash right now. */
+  washing: boolean;
   context: ContextAction | null;
   job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number } | null;
   /** Navigation to a destination you picked on the map. */
@@ -57,12 +60,12 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash'): void;
   onJobStart(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed', n?: number): void;
 }
 
 const ENTER_DISTANCE = 4;
@@ -88,6 +91,7 @@ export class Game {
   vehicle?: Vehicle;
   people?: Pedestrians;
   wildlife?: Wildlife;
+  carWash?: CarWash;
   jobs?: Jobs;
   traffic?: Traffic;
   roads?: RoadGraph;
@@ -111,6 +115,10 @@ export class Game {
   private dirty = false;
   private lastSave = 0;
   private refueling = false;
+  /** Seconds left of the current car wash (0 = not washing). */
+  private washTimer = 0;
+  /** Seconds left of the extra shine after a wash. */
+  private shineTimer = 0;
   private paused = false;
   private fuelWarned = false;
   private fuelBill = 0;
@@ -185,6 +193,8 @@ export class Game {
     this.people.load();
     this.wildlife = new Wildlife(city.layout);
     this.scene.add(this.wildlife.group);
+    this.carWash = new CarWash(city.layout);
+    this.scene.add(this.carWash.group);
     this.jobs = new Jobs(city.layout, {
       onStart: (job) => this.events.onJobStart(job),
       onDone: (job) => {
@@ -364,6 +374,7 @@ export class Game {
     if (!this.city || !this.vehicle || !this.player) return null;
     const L = this.city.layout, v = this.vehicle;
     if (this.mode === 'driving') {
+      if (this.carWash?.inside(v.x, v.z) && (v.kmh < 4 || this.washTimer > 0)) return { kind: 'wash', price: WASH_PRICE };
       const c = L.gas.canopy;
       const under = v.x > c.x0 - 2 && v.x < c.x1 + 2 && v.z > c.z0 - 2 && v.z < c.z1 + 2;
       if (under && v.kmh < 4 && (this.profile.fuel < 0.98 || this.refueling)) return { kind: 'refuel' };
@@ -381,6 +392,16 @@ export class Game {
       case 'refuel':
         this.refueling = !this.refueling;
         break;
+      case 'wash': {
+        if (this.washTimer > 0) break;
+        const p = this.profile;
+        if (p.money < c.price) { this.events.onMessage('needMoney', c.price - p.money); break; }
+        setProfile({ ...p, money: p.money - c.price });
+        void updateProfile({ money: p.money - c.price });
+        this.events.onMoney(-c.price, 'wash');
+        this.washTimer = WASH_TIME;
+        break;
+      }
       case 'home':
       case 'apartment':
         this.paused = true;
@@ -431,7 +452,33 @@ export class Game {
   }
 
   /** From the home panel: switch to another owned car (it appears on the road outside). */
+  /**
+   * Freshly washed: glossier paint and brighter reflections (the original values are kept in
+   * userData and put back when the shine wears off or the car changes).
+   */
+  private setShine(on: boolean) {
+    this.vehicle?.car.root.traverse((o) => {
+      const mats = (o as THREE.Mesh).material;
+      if (!mats) return;
+      for (const m of (Array.isArray(mats) ? mats : [mats]) as THREE.MeshStandardMaterial[]) {
+        if (!m.isMeshStandardMaterial) continue;
+        const ud = m.userData as { shine?: { r: number; e: number } };
+        if (on && !ud.shine) {
+          ud.shine = { r: m.roughness, e: m.envMapIntensity };
+          m.roughness = Math.max(0.05, m.roughness * 0.35);
+          m.envMapIntensity = m.envMapIntensity * 1.8;
+        } else if (!on && ud.shine) {
+          m.roughness = ud.shine.r;
+          m.envMapIntensity = ud.shine.e;
+          delete ud.shine;
+        }
+      }
+    });
+  }
+
   swapVehicle(id: string, place: 'home' | 'apartment') {
+    this.setShine(false);
+    this.shineTimer = 0;
     if (!this.profile.ownedVehicles.includes(id)) return;
     setProfile({ ...this.profile, selectedVehicle: id });
     updateProfile({ selectedVehicle: id });
@@ -495,6 +542,21 @@ export class Game {
 
     // Fuel: an empty tank still lets you crawl (never stuck) to the gas station.
     v.limit = p.fuel <= 0 ? 4 : Infinity;
+    // In the car wash the car stands still until it is done, then it shines for a while.
+    if (this.washTimer > 0) {
+      v.limit = 0;
+      this.washTimer = Math.max(0, this.washTimer - dt);
+      if (this.washTimer === 0) {
+        this.setShine(true);
+        this.shineTimer = 60;
+        this.events.onMessage('washed');
+        awardSticker('carWash');
+      }
+    }
+    if (this.shineTimer > 0) {
+      this.shineTimer = Math.max(0, this.shineTimer - dt);
+      if (this.shineTimer === 0) this.setShine(false);
+    }
     if (p.fuel <= 0 && !this.fuelWarned) { this.fuelWarned = true; this.events.onMessage('fuelEmpty'); }
     if (p.fuel > 0.05) this.fuelWarned = false;
 
@@ -555,6 +617,7 @@ export class Game {
     this.sun.follow(this.focus);
     this.city.update(this.camera.position, dt);
     this.wildlife?.update(dt, this.camera.position, this.focus);
+    this.carWash?.update(dt, this.camera.position, this.washTimer, v);
     this.scaler.update(dt);
     this.renderer.render(this.scene, this.camera);
     this.emitState(ctx);
@@ -588,6 +651,7 @@ export class Game {
       yielding: this.mode === 'driving' && this.yieldTimer > 0,
       fuel: Math.round(p.fuel * 100) / 100,
       refueling: this.refueling,
+      washing: this.washTimer > 0,
       context: ctx,
       job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round((this.nav?.remaining || Math.hypot(job.x - pos.x, job.z - pos.z)) / 10) * 10 } : null,
       dest: !job && this.dest ? { meters: Math.round((this.nav?.remaining ?? 0) / 10) * 10 } : null,
@@ -614,6 +678,7 @@ export class Game {
     this.nav?.dispose();
     this.people?.dispose();
     this.wildlife?.dispose();
+    this.carWash?.dispose();
     this.avatar?.dispose();
     this.vehicle?.dispose();
     this.city?.dispose();

@@ -304,6 +304,19 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
       parts.push(coloredBox(1.02, 0.12, 0.07, dz < 0 ? '#20b76b' : '#e5484d', p.x, top + 1.05, p.z + dz)); // nozzles
     }
   }
+  // Car wash: two walls, a roof with a blue band, and a round bubble sign on top.
+  const w = g.wash, wcx = (w.x0 + w.x1) / 2, wcz = (w.z0 + w.z1) / 2, wl = w.x1 - w.x0, wh = 3.6;
+  for (const zz of [w.z0 - 0.25, w.z1 + 0.25]) {
+    parts.push(coloredBox(wl, wh, 0.5, '#f4f6f8', wcx, top, zz));
+    parts.push(coloredBox(wl + 0.02, 0.5, 0.52, '#2f8bff', wcx, top + 0.5, zz));
+  }
+  parts.push(coloredBox(wl + 0.6, 0.45, w.z1 - w.z0 + 1.6, '#e8ecef', wcx, top + wh, wcz));
+  parts.push(coloredBox(wl + 0.62, 0.3, w.z1 - w.z0 + 1.62, '#2f8bff', wcx, top + wh + 0.1, wcz));
+  parts.push(coloredBox(0.25, 1.2, 0.25, '#e8ecef', wcx, top + wh + 0.45, wcz));
+  // Standing round sign (facing the road, -X): a light-blue disc with white "bubbles".
+  const disc = (r: number, color: string, dy: number, dz: number, dx: number) =>
+    coloredCylinder(r, 0.25, color, 0, -0.125, 0, 24).rotateZ(Math.PI / 2).translate(wcx + dx, top + wh + 1.9 + dy, wcz + dz);
+  parts.push(disc(1.1, '#7cc4ff', 0, 0, 0), disc(0.42, '#ffffff', 0.2, -0.3, -0.06), disc(0.26, '#ffffff', -0.35, 0.35, -0.06), disc(0.18, '#ffffff', 0.45, 0.45, -0.06));
   parts.push(coloredBox(0.8, 9, 0.8, '#e8ecef', c.x0 - 3, top, c.z1 + 2));
   parts.push(coloredBox(3.2, 3, 0.9, '#2f8bff', c.x0 - 3, top + 8, c.z1 + 2));
   const misc = new THREE.Mesh(track(mergeGeometries(parts.map((p) => {

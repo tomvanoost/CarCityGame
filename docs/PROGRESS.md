@@ -6,7 +6,7 @@ What is finished, the current state and known problems. The newest finished step
 ## Current state
 - Playable: login/register (Firebase accounts, live database updates; demo mode without Firebase),
   menu with avatar, sticker book and graphics setting (Mooi/Snel), vehicle and clothes shops, the city
-  with driving, walking, traffic, pedestrians, jobs, fuel, house and apartment, ducks and birds in the park.
+  with driving, walking, traffic, pedestrians, jobs, fuel, car wash, house and apartment, ducks and birds in the park.
 - Deployed by the user from branch `claude/stoic-shannon-4k32uu` on fly.io (`fly.toml` holds the Firebase
   web config). Runs push to `claude/hourly-upgrades` and fast-forward `claude/stoic-shannon-4k32uu`.
 - Vehicles: 27 Sketchfab models (wheels cut out and spinning), 7 cars use the built-in shape (see roadmap).
@@ -25,6 +25,7 @@ What is finished, the current state and known problems. The newest finished step
   `scripts/flip-vehicles.mjs` and `scripts/vehicle-wheels.mjs`.
 
 ## Done
+- [x] **Car wash**: drive-through tunnel at the gas station (walls/roof/sign in the city mesh); stop inside, "🫧 Wassen €10", 4.5 s of spinning rollers and bubbles, then the paint shines for 60 s; sticker "Blinkend schoon" (`play/carWash.ts`, +2 draw calls near the station).
 - [x] **Ducks and birds**: two duck families (mom + yellow ducklings in a row) paddle around the pond, little birds hop/peck on the park grass and flutter away when you come close, a flock circles over the park trees. Own low-poly shapes, 5 instanced draw calls, only near the park (`play/wildlife.ts`). Birds sit on the grass instead of tree tops (the game camera never looks up into the crowns).
 - [x] **Quality setting**: ⚙️ in the menu with two big buttons "Mooi" / "Snel" (saved per device; automatic until chosen); Snel = 1x pixels, 512 px shadows, 12 people, 5 cars, shorter view (`world/quality.ts`, `ui/qualityPicker.ts`).
 - [x] **Stickers / achievements**: 11 stickers (first ride, honk, delivery, taxi, 10 jobs, 10/50 km, new car, clothes, apartment, €10.000) in `profile.stickers`; sticker book from the menu, spinning popup + ching when earned (`game/stickers.ts`, `ui/stickers.ts`).

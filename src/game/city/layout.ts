@@ -57,7 +57,7 @@ export interface CityLayout {
   props: Placement[];
   colliders: Collider[];
   park: { rect: Rect; pond: { x: number; z: number; r: number }; fountain: { x: number; z: number } };
-  gas: { rect: Rect; canopy: Rect; pumps: { x: number; z: number }[]; shop: Placement };
+  gas: { rect: Rect; canopy: Rect; pumps: { x: number; z: number }[]; shop: Placement; /** Drive-through car wash (inside, along X). */ wash: Rect };
   /** Important places for gameplay. */
   pois: {
     spawn: { x: number; z: number; rot: number };
@@ -284,7 +284,11 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
         const shop: Placement = { model: SHOPS[0], x: r.x0 + 48, z: r.z1 - 22, rot: -Math.PI / 2, scale: 1, color: '#f2f2f2' };
         addBuilding(shop);
         for (const p of pumps) L.colliders.push({ x0: p.x - 0.6, z0: p.z - 1, x1: p.x + 0.6, z1: p.z + 1 });
-        L.gas = { rect: { x0: r.x0, z0: r.z1 - 44, x1: r.x0 + 60, z1: r.z1 }, canopy, pumps, shop };
+        // Car wash: a 12 m tunnel between the canopy and the shops, open at both ends (drive through along X).
+        const wz = r.z1 - 39.5;
+        const wash = { x0: r.x0 + 12, z0: wz - 2.6, x1: r.x0 + 24, z1: wz + 2.6 };
+        L.colliders.push({ x0: wash.x0, z0: wash.z0 - 0.5, x1: wash.x1, z1: wash.z0 }, { x0: wash.x0, z0: wash.z1, x1: wash.x1, z1: wash.z1 + 0.5 });
+        L.gas = { rect: { x0: r.x0, z0: r.z1 - 44, x1: r.x0 + 60, z1: r.z1 }, canopy, pumps, shop, wash };
         fillRow({ x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1 - 46 }, SHOPS, { corner: 3, setback: 1, gap: 1, colored: true });
         courtyardTrees({ x0: r.x0 + 62, z0: r.z1 - 44, x1: r.x1, z1: r.z1 }, 4, 5);
         break;
