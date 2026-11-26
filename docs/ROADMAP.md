@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Car paint & wheels shop**: a garage where you repaint your own cars (any color you own) and pick
-  rims / a roof stripe; changes show right away on the car and for other players in multiplayer.
 - [ ] **Furniture shop for the apartment**: buy a few pieces (bed, sofa, lamp, plant, rug, TV, posters)
   and place them in your apartment room on fixed spots.
 - [ ] **Pizza delivery job**: pick up pizzas at a pizza shop and deliver them before they get cold

@@ -32,6 +32,9 @@ export interface PlayerState {
   v: number;
   siren: boolean;
   blink: 'left' | 'right' | null;
+  /** Paint shop extras on the car: roof stripe and rim color ('' = none). */
+  stripe?: string;
+  rims?: string;
 }
 
 export interface RemotePlayer extends PlayerState {

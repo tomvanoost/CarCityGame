@@ -488,3 +488,7 @@ button, input { font: inherit; color: inherit; }
 .snack-tile small { display: block; font-size: 12px; color: var(--muted); font-weight: 700; }
 .pet-dot { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; }
 .pet-tile small { display: block; font-size: 12px; color: var(--muted); font-weight: 700; }
+.paint-swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.swatch-none { display: inline-grid; place-items: center; background: #f1f3f6; font-size: 18px; }
+.paint-price { font-weight: 800; color: var(--muted); margin-left: 4px; }
+.paint-swatches .swatch { width: 44px; height: 44px; }

@@ -19,6 +19,8 @@ import { Pedestrians } from './pedestrians';
 import { Wildlife } from './wildlife';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Pet, PetShopBuilding, getPet } from './pets';
+import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
+import { applyRims, applyStripe } from '../vehicles/carStyle';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
 import { FLAVORS, ICE_CREAM_PRICE, ICE_CREAM_TIME, IceCreamStand, coneGeometry, type Flavor } from './iceCream';
 import { Garage, type GarageSpot } from './garage';
@@ -39,7 +41,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
+export type ContextAction = { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -109,10 +111,10 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop'): void;
   onJobStart(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
-  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop'): void;
+  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop'): void;
   /** Short message (i18n key + optional number). */
   onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
@@ -146,6 +148,7 @@ export class Game {
   private iceStand?: IceCreamStand;
   private supermarket?: SupermarketBuilding;
   private petShop?: PetShopBuilding;
+  private paintShop?: PaintShopBuilding;
   /** Your pet that comes along (follows you on foot, sits next to you in the car). */
   private pet?: Pet;
   /** Seconds left holding an ice cream (0 = none). */
@@ -297,6 +300,8 @@ export class Game {
     this.scene.add(this.supermarket.group);
     this.petShop = new PetShopBuilding(city.layout);
     this.scene.add(this.petShop.group);
+    this.paintShop = new PaintShopBuilding(city.layout);
+    this.scene.add(this.paintShop.group);
     this.setPet(this.profile.activePet);
     this.lamps = new StreetLamps(city.layout);
     this.scene.add(this.lamps.group);
@@ -434,6 +439,9 @@ export class Game {
     // Load the model first, so the old car stays until the new one is ready.
     const v = await Vehicle.create(getVehicle(id), this.profile.vehicleColors[id]);
     if (this.disposed) { v.dispose(); return; }
+    // Paint shop extras on this car.
+    applyStripe(v.car, this.profile.vehicleStripes[id] ?? '', v.isBike);
+    applyRims(v.car, this.profile.vehicleRims[id] ?? '');
     const wasSeated = this.mode === 'driving' && this.avatar?.root.parent === this.vehicle?.car.root;
     if (wasSeated) this.scene.add(this.avatar!.root);
     this.setSiren(false);
@@ -503,6 +511,41 @@ export class Game {
     sounds.coin();
     awardSticker('supermarket');
     return true;
+  }
+
+  /**
+   * Paint shop: new paint (EUR 50), a roof stripe or rim color (EUR 80 each) for the car you're in.
+   * Choosing what the car already has is free. The car shines afterwards.
+   */
+  paintCar(part: 'color' | 'stripe' | 'rims', value: string): boolean {
+    const v = this.vehicle, p = this.profile;
+    if (!v) return false;
+    const id = v.spec.id;
+    const current = part === 'color' ? p.vehicleColors[id] ?? v.spec.color : part === 'stripe' ? p.vehicleStripes[id] ?? '' : p.vehicleRims[id] ?? '';
+    if (current === value) return true;
+    const price = part === 'color' ? PAINT_PRICE : EXTRA_PRICE;
+    if (p.money < price) { this.events.onMessage('needMoney', price - p.money); return false; }
+    const changes: Partial<PlayerProfile> = { money: p.money - price };
+    if (part === 'color') { changes.vehicleColors = { ...p.vehicleColors, [id]: value }; v.car.setColor(value); }
+    if (part === 'stripe') { changes.vehicleStripes = { ...p.vehicleStripes, [id]: value }; applyStripe(v.car, value, v.isBike); }
+    if (part === 'rims') { changes.vehicleRims = { ...p.vehicleRims, [id]: value }; applyRims(v.car, value); }
+    setProfile({ ...p, ...changes });
+    void updateProfile(changes);
+    this.events.onMoney(-price, 'paintShop');
+    this.setShine(false);
+    this.setShine(true);
+    this.shineTimer = 20;
+    sounds.coin();
+    awardSticker('paintShop');
+    return true;
+  }
+
+  /** What the car you're in has now (for the paint shop panel). */
+  carLook() {
+    const v = this.vehicle, p = this.profile;
+    if (!v) return null;
+    const id = v.spec.id;
+    return { color: p.vehicleColors[id] ?? v.spec.color, stripe: p.vehicleStripes[id] ?? '', rims: p.vehicleRims[id] ?? '', paintable: SKETCHFAB_VEHICLES[id]?.paintable ?? true, bike: v.isBike };
   }
 
   /** Buy a pet in the pet shop (it comes along right away). False if there isn't enough money. */
@@ -741,6 +784,7 @@ export class Game {
     this.mp.publish({
       name: p.username, gender: p.gender, outfit: p.equipped.outfit, vehicle: v.spec.id,
       color: p.vehicleColors[v.spec.id] ?? v.spec.color, mode: this.mode,
+      stripe: p.vehicleStripes[v.spec.id] ?? '', rims: p.vehicleRims[v.spec.id] ?? '',
       x: driving ? v.x : pl.x, z: driving ? v.z : pl.z, h: driving ? v.heading : pl.heading,
       v: driving ? v.speed : pl.speed, siren: this.sirenOn, blink: driving ? this.signals?.side ?? null : null,
     });
@@ -775,6 +819,8 @@ export class Game {
       const c = L.gas.canopy;
       const under = v.x > c.x0 - 2 && v.x < c.x1 + 2 && v.z > c.z0 - 2 && v.z < c.z1 + 2;
       if (under && v.kmh < 4 && (this.profile.fuel < 0.98 || this.refueling)) return { kind: 'refuel' };
+      const ps = L.pois.paintShop.front;
+      if (Math.hypot(v.x - ps.x, v.z - ps.z) < 7 && v.kmh < 6) return { kind: 'paintShop' };
       return null;
     }
     const p = this.player;
@@ -814,6 +860,7 @@ export class Game {
       case 'iceCream':
       case 'supermarket':
       case 'petShop':
+      case 'paintShop':
         this.paused = true;
         this.events.onPlace(c.kind);
         break;
@@ -1232,6 +1279,7 @@ export class Game {
     this.iceStand?.dispose();
     this.supermarket?.dispose();
     this.petShop?.dispose();
+    this.paintShop?.dispose();
     this.pet?.dispose();
     this.garage?.dispose();
     this.lamps?.dispose();

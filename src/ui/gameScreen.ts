@@ -1,6 +1,9 @@
 import { FLAVORS, ICE_CREAM_PRICE } from '../game/play/iceCream';
 import { SNACKS } from '../game/play/supermarket';
 import { PETS, getPet } from '../game/play/pets';
+import { EXTRA_PRICE, PAINT_PRICE } from '../game/play/paintShop';
+import { PAINT_COLORS } from '../game/vehicles/catalog';
+import { EXTRA_PAINT, RIM_COLORS, STRIPE_COLORS } from '../game/vehicles/carStyle';
 import { isTouch } from '../engine/renderer';
 import { getClothes } from '../game/avatar/clothes';
 import { Game, type GameState } from '../game/play/game';
@@ -198,6 +201,7 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'iceCream' ? `🍦 ${t('buyIceCream')} ${euro(c.price)}`
         : c.kind === 'supermarket' ? `🛒 ${t('goShopping')}`
         : c.kind === 'petShop' ? `🐾 ${t('visitPetShop')}`
+        : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
         : c.kind === 'buyApartment' ? `🏢 ${t('buyApartment')} ${euro(c.price)}` : `🏠 ${t('goInside')}`;
       ctxBtn.classList.toggle('busy', state.refueling || state.washing);
     }
@@ -250,9 +254,9 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : t('pickedPassenger')),
-    onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : openPanel(place)),
+    onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : place === 'paintShop' ? openPaintShop() : openPanel(place)),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
     onPlayer: (kind, name) => toast(t(kind === 'joined' ? 'mpJoined' : kind === 'left' ? 'mpLeft' : 'mpFound').replace('{name}', name)),
   });
@@ -343,7 +347,7 @@ export const gameScreen: Screen = (root, nav) => {
     if (!minimap && game.roads && game.city) {
       const L = game.city.layout;
       const base = renderBaseMap(L, game.roads);
-      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front };
+      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front };
       minimap = new Minimap(base, places, openMap, (id) => {
         const name = game.navigateToPlayer(id);
         if (name) toast(t('mpNavTo').replace('{name}', name));
@@ -421,6 +425,35 @@ export const gameScreen: Screen = (root, nav) => {
     b.addEventListener('click', onPick);
     return b;
   };
+
+  /** The paint shop: new paint, a roof stripe, rim colors for the car you're in. */
+  function openPaintShop() {
+    touch.reset();
+    const close = () => { panel.hidden = true; game.resume(); render(); };
+    const look = game.carLook();
+    if (!look) return close();
+    const row = (part: 'color' | 'stripe' | 'rims', colors: string[], current: string, price: number) =>
+      h('div', { class: 'swatches paint-swatches' }, ...colors.map((c) => {
+        const b = h('button', { class: `swatch ${c === current ? 'active' : ''} ${c ? '' : 'swatch-none'}`, style: c ? `background:${c}` : '', 'aria-label': c || t('noPet') }, c ? '' : '🚫');
+        b.addEventListener('click', () => { if (game.paintCar(part, c)) { toast(`🎨 ${t('painted')}`); openPaintShop(); } });
+        return b;
+      }), h('span', { class: 'paint-price' }, euro(price)));
+    panel.replaceChildren(h('div', { class: 'card place-card' },
+      h('div', { class: 'place-head' },
+        h('h2', {}, `🎨 ${t('paintShop')}`),
+        h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
+      ),
+      look.paintable ? h('h3', {}, t('paintColor')) : null,
+      look.paintable ? row('color', [...PAINT_COLORS, ...EXTRA_PAINT], look.color, PAINT_PRICE) : null,
+      look.bike ? null : h('h3', {}, t('roofStripe')),
+      look.bike ? null : row('stripe', STRIPE_COLORS, look.stripe, EXTRA_PRICE),
+      h('h3', {}, t('rimColor')),
+      row('rims', RIM_COLORS, look.rims, EXTRA_PRICE),
+      h('button', { class: 'btn btn-primary btn-big', onclick: close }, t('continuePlaying')),
+    ));
+    panel.hidden = false;
+    render();
+  }
 
   /** The pet shop: every dog and cat; owned ones can be chosen, others bought. */
   function openPetShop() {

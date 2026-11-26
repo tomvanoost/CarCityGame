@@ -24,6 +24,9 @@ export interface PlayerProfile {
   km: number;
   /** Chosen paint color per owned vehicle id. */
   vehicleColors: Record<string, string>;
+  /** Paint shop extras per vehicle id: roof stripe color and rim color (missing = none). */
+  vehicleStripes: Record<string, string>;
+  vehicleRims: Record<string, string>;
   /** The first-time tutorial was shown (or skipped). */
   tutorialDone: boolean;
   /** Earned sticker ids (see game/stickers.ts). */

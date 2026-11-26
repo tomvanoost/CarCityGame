@@ -83,6 +83,8 @@ export interface CityLayout {
     supermarket: { x: number; z: number; w: number; d: number; front: { x: number; z: number }; parking: Rect };
     /** Pet shop next to the supermarket (front = +Z). */
     petShop: { x: number; z: number; front: { x: number; z: number } };
+    /** Paint shop garage on the other side of the supermarket (door = +Z); drive up to `front`. */
+    paintShop: { x: number; z: number; front: { x: number; z: number } };
   };
   /** Paths inside the park (thin paved rectangles). */
   paths: Rect[];
@@ -445,6 +447,10 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   const psX = lot.x0 + 10, psZ = smZ + smD / 2 - 6;
   L.colliders.push({ x0: psX - 6, z0: psZ - 5, x1: psX + 6, z1: psZ + 5 });
   const petShop = { x: psX, z: psZ, front: { x: psX, z: psZ + 7 } };
+  // Paint shop garage in the free corner right of the supermarket.
+  const pgX = lot.x1 - 10, pgZ = psZ;
+  L.colliders.push({ x0: pgX - 7, z0: pgZ - 5.5, x1: pgX + 7, z1: pgZ + 5.5 });
+  const paintShop = { x: pgX, z: pgZ, front: { x: pgX, z: pgZ + 10 } };
   const supermarket = { x: smX, z: smZ, w: smW, d: smD, front: { x: smX, z: smZ + smD / 2 + 2 }, parking: { x0: lot.x0 + 4, z0: smZ + smD / 2 + 4, x1: lot.x1 - 4, z1: lot.z1 - 2 } };
 
   // ---------- points of interest ----------
@@ -458,6 +464,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     iceCream: { x: ic.x, z: ic.z, front: { x: ic.x, z: ic.z + 2.4 } },
     supermarket,
     petShop,
+    paintShop,
   };
   return L;
 }

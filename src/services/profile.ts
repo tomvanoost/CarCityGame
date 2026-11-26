@@ -18,6 +18,8 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     spawn: 'home',
     km: 0,
     vehicleColors: {},
+    vehicleStripes: {},
+    vehicleRims: {},
     tutorialDone: false,
     stickers: [],
     deliveries: 0,
@@ -43,6 +45,8 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   p.fuel = typeof p.fuel === 'number' ? Math.min(1, Math.max(0, p.fuel)) : 1;
   if (p.spawn === 'apartment' && !p.ownsApartment) p.spawn = 'home';
   if (!p.vehicleColors || typeof p.vehicleColors !== 'object') p.vehicleColors = {};
+  if (!p.vehicleStripes || typeof p.vehicleStripes !== 'object') p.vehicleStripes = {};
+  if (!p.vehicleRims || typeof p.vehicleRims !== 'object') p.vehicleRims = {};
   p.tutorialDone = p.tutorialDone === true;
   p.stickers = toArray(raw.stickers, []);
   p.deliveries = typeof p.deliveries === 'number' ? p.deliveries : 0;
