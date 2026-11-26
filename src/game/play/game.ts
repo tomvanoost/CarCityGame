@@ -21,6 +21,8 @@ import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Garage, type GarageSpot } from './garage';
 import { DAY, EVENING, headlightRig, loadEvening, saveEvening, SirenLights, StreetLamps, TurnSignals } from '../world/evening';
 import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
+import type { MpSession } from '../../services/multiplayer';
+import { RemotePlayers } from './remotePlayers';
 import type { VehicleSpec } from '../vehicles/types';
 import { awardSticker } from '../../ui/stickers';
 import { RoadGraph, type P } from './roads';
@@ -72,6 +74,8 @@ export interface GameState {
   /** The car's real top speed and the player's own max speed (🏁), km/h; null = no limit. */
   topSpeed: number;
   maxSpeed: number | null;
+  /** Multiplayer: server name and how many other players are there (null when playing alone). */
+  mp: { room: string; others: number } | null;
   /** Turn signal that is blinking right now. */
   blinker: 'left' | 'right' | null;
   /** Driving an emergency vehicle (shows the 🚨 button), and whether its siren is on. */
@@ -169,6 +173,10 @@ export class Game {
   /** Turn signals (1 / 2, d-pad left / right); they switch off by themselves after the turn. */
   private signals?: TurnSignals;
   private blinkTurned = 0;
+  /** Multiplayer server we're on (if any), and the other players there. */
+  private mp: MpSession | null = null;
+  private remote?: RemotePlayers;
+  private offPlayers?: () => void;
   /** The player's max speed (km/h, 🏁 next to the home button), saved on this device; null = the car's top speed. */
   private maxKmh: number | null = loadMaxSpeed();
 
@@ -354,7 +362,6 @@ export class Game {
     if (wasSeated) this.scene.add(this.avatar!.root);
     this.setSiren(false);
     this.sirenLights?.dispose();
-    this.signals?.dispose();
     this.sirenLights = undefined;
     this.signals?.dispose();
     this.signals = new TurnSignals(v.length, v.width);
@@ -436,6 +443,26 @@ export class Game {
       this.seatAvatar();
       sounds.door();
     }
+  }
+
+  /** Play on a multiplayer server: share my state, show the others. */
+  setMultiplayer(session: MpSession) {
+    this.mp = session;
+    this.remote = new RemotePlayers();
+    this.scene.add(this.remote.group);
+    this.offPlayers = session.onPlayers((players) => this.remote?.sync(players));
+  }
+
+  private shareState() {
+    const v = this.vehicle, pl = this.player, p = this.profile;
+    if (!this.mp || !v || !pl) return;
+    const driving = this.mode === 'driving';
+    this.mp.publish({
+      name: p.username, gender: p.gender, outfit: p.equipped.outfit, vehicle: v.spec.id,
+      color: p.vehicleColors[v.spec.id] ?? v.spec.color, mode: this.mode,
+      x: driving ? v.x : pl.x, z: driving ? v.z : pl.z, h: driving ? v.heading : pl.heading,
+      v: driving ? v.speed : pl.speed, siren: this.sirenOn, blink: driving ? this.signals?.side ?? null : null,
+    });
   }
 
   /** 🏁 Max speed (km/h), or null for no limit (the car's own top speed). */
@@ -785,6 +812,8 @@ export class Game {
     this.yieldTimer = v.yielding ? 1.2 : Math.max(0, this.yieldTimer - dt);
     this.avatar.update(dt);
     this.sun.follow(this.focus);
+    this.shareState();
+    this.remote?.update(dt);
     this.city.update(this.camera.position, dt);
     this.wildlife?.update(dt, this.camera.position, this.focus);
     this.carWash?.update(dt, this.camera.position, this.washTimer, v);
@@ -828,6 +857,7 @@ export class Game {
       topSpeed: v.spec.topSpeed,
       maxSpeed: this.maxKmh,
       blinker: this.mode === 'driving' ? this.signals?.side ?? null : null,
+      mp: this.mp ? { room: this.mp.roomName, others: this.remote?.count ?? 0 } : null,
       police: this.mode === 'driving' && !!v.spec.siren,
       siren: this.sirenOn,
     };
@@ -846,6 +876,10 @@ export class Game {
     sounds.sirenOff();
     sounds.hornStop();
     this.sirenLights?.dispose();
+    this.signals?.dispose();
+    this.offPlayers?.();
+    this.remote?.dispose();
+    this.mp?.leave();
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onHide);
     window.removeEventListener('pagehide', this.onHide);

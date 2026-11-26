@@ -70,6 +70,7 @@ export const menuScreen: Screen = (root, nav) => {
     h('button', { class: 'btn btn-tile', onclick: () => nav('vehicleShop') }, svgIcon(icons.car, 30), h('span', {}, t('vehicleShop'))),
     h('button', { class: 'btn btn-primary btn-play', onclick: () => nav('game') }, svgIcon(icons.play, 30), h('span', {}, t('play'))),
     h('button', { class: 'btn btn-tile', onclick: () => nav('clothesShop') }, svgIcon(icons.shirt, 30), h('span', {}, t('clothesShop'))),
+    h('button', { class: 'btn btn-tile', onclick: () => nav('multiplayer') }, h('span', { class: 'tile-emoji' }, '🌐'), h('span', {}, t('multiplayer'))),
   );
 
   const logout = async () => {

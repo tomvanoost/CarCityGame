@@ -8,6 +8,7 @@ import { getProfile, onProfileChange, updateProfile } from '../services/session'
 import { createTutorial } from './tutorial';
 import { ApartmentRoom } from '../game/apartmentRoom';
 import { euro } from './money';
+import { getCurrentSession, setCurrentSession } from '../services/multiplayer';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
@@ -151,7 +152,7 @@ export const gameScreen: Screen = (root, nav) => {
   root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, speedPop, tabletBtn, soundBtn, eveningBtn, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, police: false, siren: false };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, mp: null, police: false, siren: false };
   const render = () => {
     const driving = state.mode === 'driving';
     if (!speedPop.hidden) showLimit(state.maxSpeed); else speedBtn.lastElementChild!.textContent = state.maxSpeed && state.maxSpeed < state.topSpeed ? String(state.maxSpeed) : 'MAX';
@@ -163,6 +164,7 @@ export const gameScreen: Screen = (root, nav) => {
     dash.hidden = !driving;
     hornBtn.hidden = !driving || overlay;
     sirenBtn.hidden = !(driving && state.police) || overlay;
+    if (state.mp) mpPill.textContent = `🌐 ${state.mp.room} · 👥 ${state.mp.others + 1}`;
     blinkL.classList.toggle('on', state.blinker === 'left');
     blinkR.classList.toggle('on', state.blinker === 'right');
     sirenBtn.classList.toggle('on', state.siren);
@@ -240,6 +242,13 @@ export const gameScreen: Screen = (root, nav) => {
     onPlace: (place) => openPanel(place),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
   });
+
+  // Multiplayer: join the server picked on the multiplayer screen.
+  const mpSession = getCurrentSession();
+  setCurrentSession(null);
+  if (mpSession) game.setMultiplayer(mpSession);
+  const mpPill = h('div', { class: 'mp-pill', hidden: !mpSession }, '');
+  root.append(mpPill);
   action.addEventListener('click', () => game.pressCar());
   renderEvening();
   ctxBtn.addEventListener('click', () => game.pressContext());

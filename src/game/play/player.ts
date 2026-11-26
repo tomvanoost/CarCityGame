@@ -6,6 +6,8 @@ const WALK = 3.2, RUN = 6.5, GRAVITY = 18, JUMP = 6.2, RADIUS = 0.35;
 
 /** On-foot movement: walk / run / jump with smooth turning and collisions. */
 export class Player {
+  /** Walking speed right now (m/s), e.g. for other players' walk/run animation in multiplayer. */
+  speed = 0;
   x = 0;
   z = 0;
   y = 0;
@@ -32,6 +34,7 @@ export class Player {
     const amount = Math.min(1, Math.hypot(move.x, move.y));
     const running = move.run || amount > 0.92;
     const speed = (running ? RUN : WALK) * amount;
+    this.speed = amount > 0.05 ? speed : 0;
     if (amount > 0.05) {
       const len = Math.hypot(dx, dz);
       dx /= len; dz /= len;

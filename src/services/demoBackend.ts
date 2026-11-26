@@ -1,4 +1,5 @@
 import { newProfile, normalizeProfile } from './profile';
+import { LocalMultiplayer } from './multiplayer';
 import { AuthError, type Backend, type Gender, type PlayerProfile } from './types';
 
 const USERS_KEY = 'carcity.demo.users';
@@ -8,6 +9,9 @@ interface DemoUser { hash: string; profile: PlayerProfile }
 
 /** Used when Firebase isn't configured yet: everything lives in localStorage. */
 export class DemoBackend implements Backend {
+  private mp = new LocalMultiplayer();
+  multiplayer() { return this.mp; }
+
   readonly mode = 'demo' as const;
   private current: string | null = null;
 

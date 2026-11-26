@@ -8,6 +8,7 @@ import { loginScreen } from './ui/loginScreen';
 import { clothesShopScreen } from './ui/clothesShopScreen';
 import { gameScreen } from './ui/gameScreen';
 import { menuScreen } from './ui/menuScreen';
+import { multiplayerScreen } from './ui/multiplayerScreen';
 import { registerScreen } from './ui/registerScreen';
 import { vehicleShopScreen } from './ui/vehicleShopScreen';
 import type { Screen, ScreenName } from './ui/screens';
@@ -19,6 +20,7 @@ const screens: Record<ScreenName, Screen> = {
   game: gameScreen,
   vehicleShop: vehicleShopScreen,
   clothesShop: clothesShopScreen,
+  multiplayer: multiplayerScreen,
 };
 
 const app = document.getElementById('app')!;

@@ -50,4 +50,6 @@ export interface Backend {
   register(username: string, password: string, gender: Gender): Promise<PlayerProfile>;
   logout(): Promise<void>;
   save(changes: Partial<PlayerProfile>): Promise<void>;
+  /** Multiplayer servers and players (Firebase, or browser tabs in demo mode). */
+  multiplayer(): import('./multiplayer').MpService;
 }

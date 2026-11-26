@@ -23,7 +23,9 @@ the game runs in **demo mode** and saves progress only in the browser.
 3. Choose **Start in locked mode** and click **Enable**.
 4. Open the **Rules** tab, replace everything with the contents of
    [`database.rules.json`](../database.rules.json) from this repo, and click **Publish**.
-   These rules let each player read and write **only their own** data.
+   These rules let each player read and write **only their own** data, plus the multiplayer
+   servers (`mp/...`): everyone logged in may see the servers and players, but only change their own.
+   **Publish them again whenever `database.rules.json` changes** (multiplayer needs the `mp` part).
 
 ## 4. Register the web app and copy the config
 1. Click the gear icon ⚙️ → **Project settings** → under *Your apps*, click the **`</>`** (Web) icon.

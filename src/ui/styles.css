@@ -430,3 +430,20 @@ button, input { font: inherit; color: inherit; }
 
 .model-credit { font-size: 11px; color: var(--muted); line-height: 1.3; }
 .model-credit a { color: var(--muted); }
+
+/* 🌐 Multiplayer screen */
+.screen-multiplayer { display: grid; place-items: center; padding: 16px; background: linear-gradient(var(--sky-top), var(--sky-bottom)); overflow-y: auto; }
+.mp-card { width: min(560px, 100%); padding: 20px; display: flex; flex-direction: column; gap: 12px; margin-top: 60px; }
+.mp-create { display: flex; flex-direction: column; gap: 8px; }
+.mp-create label { font-weight: 800; color: var(--muted); }
+.mp-name { height: 52px; border-radius: 14px; border: 2px solid #d6e2f3; padding: 0 14px; font: inherit; font-size: 18px; }
+.mp-list { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
+.mp-row { display: grid; grid-template-columns: 34px 1fr auto auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: #eef4ff; }
+.mp-icon { font-size: 24px; }
+.mp-info { display: flex; flex-direction: column; min-width: 0; }
+.mp-info b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-info small { color: var(--muted); }
+.mp-count { font-weight: 800; color: var(--ink); }
+.mp-join { height: 44px; padding: 0 16px; }
+.mp-pill { position: absolute; top: calc(max(12px, env(safe-area-inset-top)) + 64px); left: 12px; padding: 6px 12px; border-radius: 12px;
+  background: var(--card); color: var(--ink); font-weight: 800; font-size: 14px; box-shadow: var(--shadow); z-index: 5; }

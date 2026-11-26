@@ -8,6 +8,38 @@
         "gender": { ".validate": "newData.val() === 'boy' || newData.val() === 'girl'" },
         "fuel": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1" }
       }
+    },
+    "mp": {
+      "rooms": {
+        ".read": "auth != null",
+        "$room": {
+          ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid)",
+          ".validate": "!newData.exists() || (newData.hasChildren(['name', 'host', 'hostUid', 'created']) && newData.child('hostUid').val() === auth.uid)",
+          "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30" },
+          "host": { ".validate": "newData.isString() && newData.val().length <= 30" },
+          "hostUid": { ".validate": "newData.isString()" },
+          "created": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      },
+      "online": {
+        "$room": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('mp/rooms').child($room).exists()",
+            ".validate": "newData.isBoolean()"
+          }
+        }
+      },
+      "players": {
+        "$room": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('mp/rooms').child($room).exists()",
+            ".validate": "!newData.exists() || (newData.hasChildren(['name', 'x', 'z', 'h']) && newData.child('name').isString() && newData.child('name').val().length <= 30 && newData.child('x').isNumber() && newData.child('z').isNumber())"
+          }
+        }
+      }
     }
   }
 }
