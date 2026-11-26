@@ -35,23 +35,27 @@ export function openSettings() {
   };
 
   const pads = h('div', { class: 'pad-list' });
-  // Browsers only show a controller after one of its buttons is pressed: check again every second.
+  // Browsers only show a controller after one of its buttons is pressed: check often (also for the live test).
   let shown = '';
   const renderPads = () => {
     const list = Gamepads.list();
-    const key = list.map((p) => p.kind + p.name).join('|');
+    const key = list.map((p) => p.kind + p.name + p.active).join('|');
     if (key === shown && pads.childElementCount) return;
     shown = key;
     const kindName = (k: PadKind) => t(k === 'xbox' ? 'padXbox' : k === 'playstation' ? 'padPlaystation' : k === 'nintendo' ? 'padNintendo' : k === 'wheel' ? 'padWheel' : 'padOther');
     pads.replaceChildren(
       ...(list.length
-        ? list.map((p) => h('div', { class: 'pad-item' }, h('span', { class: 'pad-icon' }, PAD_ICON[p.kind]), h('b', {}, kindName(p.kind)), h('small', {}, `✓ ${t('padConnected')}`)))
+        ? list.map((p) => h('div', { class: `pad-item ${p.active ? 'pressing' : ''}` },
+          h('span', { class: 'pad-icon' }, PAD_ICON[p.kind]),
+          h('span', { class: 'pad-name' }, h('b', {}, kindName(p.kind)), h('small', {}, p.name)),
+          // Live test: shows what you press right now, so you can see the controller works.
+          h('small', { class: 'pad-state' }, p.active ? `${p.active} ${t('padWorks')}` : `✓ ${t('padConnected')}`)))
         : [h('div', { class: 'try-hint' }, t('padNone'))]),
       h('div', { class: 'pad-help' }, h('b', {}, `🎮 ${t('padHelpTitle')}`), h('span', {}, t('padHelp'))),
       h('div', { class: 'pad-help' }, h('b', {}, `🏎️ ${t('padWheelTitle')}`), h('span', {}, t('padWheelHelp'))),
     );
   };
-  const timer = setInterval(renderPads, 1000);
+  const timer = setInterval(renderPads, 150);
   window.addEventListener('gamepadconnected', renderPads);
   window.addEventListener('gamepaddisconnected', renderPads);
 

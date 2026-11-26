@@ -7,8 +7,8 @@
  *
  * Controller layout (standard):            Wheel:
  *   left stick / d-pad  steer, walk          wheel       steer
- *   right trigger       gas                  gas pedal   gas
- *   left trigger        brake / reverse      brake pedal brake / reverse
+ *   right trigger / stick forward  gas       gas pedal   gas
+ *   left trigger / stick back  brake/reverse brake pedal brake / reverse
  *   right stick         look around          button 1 (✕/A)   get in / out
  *   A / ✕ (bottom)      jump / handbrake     button 2 (□/X)   horn
  *   Y / △ (top)         get in / out         paddles          horn
@@ -66,10 +66,15 @@ export class Gamepads {
   /** Per wheel pedal axis: the value it rests at (+1 or -1, depending on browser), once seen. */
   private rest = new Map<string, number>();
 
-  /** Connected controllers (for the settings screen). */
-  static list(): { kind: PadKind; name: string }[] {
+  /** Connected controllers (for the settings screen), with what is pressed right now (for the test). */
+  static list(): { index: number; kind: PadKind; name: string; standard: boolean; active: string }[] {
     const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
-    return [...pads].filter((p): p is Gamepad => !!p && p.connected).map((p) => ({ kind: padKind(p), name: p.id.replace(/\(.*?\)/g, '').trim() }));
+    return [...pads].filter((p): p is Gamepad => !!p && p.connected).map((p) => {
+      const pressed = p.buttons.map((b, i) => (b.pressed ? i : -1)).filter((i) => i >= 0);
+      const moved = p.axes.some((a, i) => Math.abs(a) > 0.5 && !(p.mapping !== 'standard' && Math.abs(a) > 0.98 && i >= 2));
+      return { index: p.index, kind: padKind(p), name: p.id.replace(/\(.*?\)/g, '').trim(), standard: p.mapping === 'standard',
+        active: pressed.length ? `🔘 ${pressed.join(', ')}` : moved ? '🕹️' : '' };
+    });
   }
 
   poll(): PadState | null {
@@ -99,18 +104,29 @@ export class Gamepads {
         continue;
       }
 
-      // Standard controller (Xbox / PlayStation / Nintendo).
+      // Controller (Xbox / PlayStation / Nintendo / other). Browsers give most controllers the
+      // "standard" layout; some Bluetooth controllers (Firefox, Android, generic pads) come
+      // without it: then the triggers and d-pad are axes (left trigger 2, right trigger 5, d-pad 6/7).
+      const std = pad.mapping === 'standard';
       const lx = dead(pad.axes[0] ?? 0), ly = dead(pad.axes[1] ?? 0);
-      const dx = (b(15) ? 1 : 0) - (b(14) ? 1 : 0), dy = (b(13) ? 1 : 0) - (b(12) ? 1 : 0);
+      let dx = (b(15) ? 1 : 0) - (b(14) ? 1 : 0), dy = (b(13) ? 1 : 0) - (b(12) ? 1 : 0);
+      let lt = std ? bv(6) : 0, rt = std ? bv(7) : 0;
+      let rx = pad.axes[2] ?? 0, ry = pad.axes[3] ?? 0;
+      if (!std) {
+        dx = 0; dy = 0;
+        if (pad.axes.length >= 6) { lt = this.pedal(pad, 2); rt = this.pedal(pad, 5); rx = pad.axes[3] ?? 0; ry = pad.axes[4] ?? 0; }
+        if (pad.axes.length >= 8) { dx = Math.round(pad.axes[6] ?? 0); dy = Math.round(pad.axes[7] ?? 0); }
+      }
       s.steer += lx + dx;
-      s.throttle = Math.max(s.throttle, bv(7), dy < 0 ? 1 : 0);
-      s.brake = Math.max(s.brake, bv(6), dy > 0 ? 1 : 0);
+      // Gas: right trigger, or push the stick / d-pad forward. Brake (and reverse): left trigger or back.
+      s.throttle = Math.max(s.throttle, rt, ly < -0.2 ? -ly : 0, dy < 0 ? 1 : 0);
+      s.brake = Math.max(s.brake, lt, ly > 0.2 ? ly : 0, dy > 0 ? 1 : 0);
       s.handbrake ||= b(0);
       s.moveX += lx + dx;
       s.moveY += -(ly + dy);
       s.run ||= b(1) || b(10) || Math.hypot(lx, ly) > 0.95;
-      s.lookX += dead(pad.axes[2] ?? 0);
-      s.lookY += dead(pad.axes[3] ?? 0);
+      s.lookX += dead(rx);
+      s.lookY += dead(ry);
       s.interact ||= tap(3);
       s.jump ||= tap(0);
       s.horn ||= tap(2);
