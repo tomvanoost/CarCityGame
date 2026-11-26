@@ -81,6 +81,9 @@ export const gameScreen: Screen = (root, nav) => {
   const speakerOn = '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/>';
   const speakerOff = '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/>';
   const soundBtn = h('button', { class: 'icon-btn sound-btn', title: t('soundOnOff'), 'aria-label': t('soundOnOff') });
+  // 🎥 Dashboard view on/off (also F2, or View / Create / Capture on a controller).
+  const viewBtn = h('button', { class: 'icon-btn view-btn', title: `${t('dashView')} (F2)`, 'aria-label': t('dashView') }, '🎥');
+  viewBtn.addEventListener('click', () => input.queueView());
   const renderSound = () => {
     soundBtn.replaceChildren(svgIcon(sounds.isMuted ? speakerOff : speakerOn, 22));
     soundBtn.classList.toggle('muted', sounds.isMuted);
@@ -149,7 +152,7 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, speedPop, tabletBtn, soundBtn, eveningBtn, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
   let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, mp: null, police: false, siren: false };
@@ -164,6 +167,7 @@ export const gameScreen: Screen = (root, nav) => {
     dash.hidden = !driving;
     hornBtn.hidden = !driving || overlay;
     sirenBtn.hidden = !(driving && state.police) || overlay;
+    viewBtn.hidden = !driving;
     if (state.mp) mpPill.textContent = `🌐 ${state.mp.room} · 👥 ${state.mp.others + 1}`;
     blinkL.classList.toggle('on', state.blinker === 'left');
     blinkR.classList.toggle('on', state.blinker === 'right');

@@ -15,7 +15,9 @@
  *   Y / △ (top)         get in / out         paddles          horn
  *   X / □ (left)        horn
  *   B / ○ (right)       run (walking), close a panel   button 4 (△/Y)   close a panel
+ *   View / Create / Capture  dashboard view on/off
  *   RB / R1             siren (police car)             R2 / L2 buttons  siren (police car)
+ *                                                      LSB / RSB        turn signal left / right
  */
 
 export type PadKind = 'xbox' | 'playstation' | 'nintendo' | 'wheel' | 'other';
@@ -34,6 +36,8 @@ export interface PadState {
   interact: boolean;
   jump: boolean;
   horn: boolean;
+  /** Switch camera view (View / Create / Capture button; one-shot). */
+  view: boolean;
   /** Turn signal pressed (d-pad left / right; one-shot). */
   blinkLeft: boolean;
   blinkRight: boolean;
@@ -93,7 +97,7 @@ export class Gamepads {
     let s: PadState | null = null;
     for (const pad of pads) {
       if (!pad || !pad.connected) continue;
-      s ??= { throttle: 0, brake: 0, steer: 0, handbrake: false, moveX: 0, moveY: 0, run: false, lookX: 0, lookY: 0, interact: false, jump: false, horn: false, hornHeld: false, back: false, siren: false, blinkLeft: false, blinkRight: false };
+      s ??= { throttle: 0, brake: 0, steer: 0, handbrake: false, moveX: 0, moveY: 0, run: false, lookX: 0, lookY: 0, interact: false, jump: false, horn: false, hornHeld: false, back: false, siren: false, blinkLeft: false, blinkRight: false, view: false };
       const b = (i: number) => pad.buttons[i]?.pressed ?? false;
       const bv = (i: number) => pad.buttons[i]?.value ?? 0;
       const prev = this.held.get(pad.index) ?? [];
@@ -114,6 +118,11 @@ export class Gamepads {
         s.handbrake ||= b(1);
         s.back ||= tap(3);
         s.siren ||= tap(6) || tap(7);
+        // Turn signals on the stick buttons: LSB = left, RSB = right. PlayStation-style wheels (G29,
+        // G923 PS) number them L3 = 11 / R3 = 10, Xbox-style wheels (G920, G923 Xbox) LSB = 9 / RSB = 8.
+        const [lsb, rsb] = /g920|c262|c26d|c26e|xbox/.test(pad.id.toLowerCase()) ? [9, 8] : [11, 10];
+        s.blinkLeft ||= tap(lsb);
+        s.blinkRight ||= tap(rsb);
         continue;
       }
 
@@ -151,6 +160,8 @@ export class Gamepads {
       s.hornHeld ||= b(2);
       s.back ||= tap(1);
       s.siren ||= tap(5);
+      // View (Xbox) / Create (PlayStation) / Capture (Nintendo): dashboard view on/off.
+      s.view ||= (std ? tap(8) || tap(17) : false);
     }
     if (s) s.steer = Math.max(-1, Math.min(1, s.steer));
     return s;

@@ -173,6 +173,10 @@ export class Game {
   /** Turn signals (1 / 2, d-pad left / right); they switch off by themselves after the turn. */
   private signals?: TurnSignals;
   private blinkTurned = 0;
+  /** Dashboard view: the camera sits in the driver's seat (F2 / View button / 🎥). */
+  private cockpit = false;
+  private cockpitYaw = 0;
+  private cockpitPitch = 0;
   /** Multiplayer server we're on (if any), and the other players there. */
   private mp: MpSession | null = null;
   private remote?: RemotePlayers;
@@ -453,6 +457,18 @@ export class Game {
     this.offPlayers = session.onPlayers((players) => this.remote?.sync(players));
   }
 
+  /** Dashboard view: the camera at the driver's eyes, looking out of the windscreen. */
+  private placeCockpitCamera(v: Vehicle) {
+    const car = v.car, scale = car.seatScale ?? 0.74;
+    car.root.updateMatrixWorld(true);
+    // Eyes: above the hips by ~85% of the seated height, a little forward of them.
+    const eye = new THREE.Vector3(car.seat.x, car.seat.y + 0.98 * scale, car.seat.z + 0.12).applyMatrix4(car.root.matrixWorld);
+    const yaw = v.heading + this.cockpitYaw, pitch = -0.08 + this.cockpitPitch;
+    const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+    this.camera.position.copy(eye);
+    this.camera.lookAt(eye.clone().add(dir));
+  }
+
   /** Show a chat line / emote above the player who sent it. */
   showChatBubble(playerId: string, text: string, emote: boolean) {
     this.remote?.showBubble(playerId, text, emote);
@@ -714,7 +730,14 @@ export class Game {
     }
     this.pendingCar = this.pendingContext = false;
     const look = this.input.takeLook();
-    this.follow.look(look.dx, look.dy);
+    if (this.input.takeView() && this.mode === 'driving' && !this.paused) { this.cockpit = !this.cockpit; this.cockpitYaw = this.cockpitPitch = 0; }
+    const inCockpit = this.cockpit && this.mode === 'driving';
+    if (inCockpit) {
+      // Look around a little from the seat (drag / right stick); it drifts back to straight ahead.
+      this.cockpitYaw = THREE.MathUtils.clamp(this.cockpitYaw - look.dx * 0.005, -1.3, 1.3);
+      this.cockpitPitch = THREE.MathUtils.clamp(this.cockpitPitch - look.dy * 0.004, -0.5, 0.35);
+      if (!look.dx && !look.dy) { this.cockpitYaw *= 0.97; this.cockpitPitch *= 0.97; }
+    } else this.follow.look(look.dx, look.dy);
     const jump = this.input.takeJump();
     const v = this.vehicle;
     const p = this.profile;
@@ -784,7 +807,8 @@ export class Game {
       }
       this.focus.set(v.x, v.root.position.y + 1.3, v.z);
       if (v.bumped > 0.25) this.shake = 0.25;
-      this.follow.update(dt, this.focus, {
+      if (this.cockpit) this.placeCockpitCamera(v);
+      else this.follow.update(dt, this.focus, {
         behindYaw: Math.abs(v.speed) > 0.5 ? v.heading + Math.PI + (v.speed < -0.5 ? Math.PI : 0) : null,
         distance: 7.5 + Math.min(v.kmh, 160) * 0.03,
         pitch: 0.26,
@@ -815,6 +839,8 @@ export class Game {
       if (n === 'Walk' || n === 'Run') this.avatar.play(n === 'Walk' ? 'Walk_Carry' : 'Run_Carry', { fade: 0.2 });
     }
     this.yieldTimer = v.yielding ? 1.2 : Math.max(0, this.yieldTimer - dt);
+    // In the dashboard view your own driver is hidden, so you look over the real dashboard.
+    this.avatar.root.visible = !(this.cockpit && this.mode === 'driving');
     this.avatar.update(dt);
     this.sun.follow(this.focus);
     this.shareState();

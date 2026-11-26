@@ -19,25 +19,30 @@ interface Entry {
   label: THREE.Sprite;
   bubble?: THREE.Sprite;
   bubbleUntil: number;
-  loading: number;
+  /** Load counters (separate for car and avatar: they load at the same time). */
+  carLoad: number;
+  avatarLoad: number;
 }
 
 /** A name tag above a player's head: white bubble with the (filtered) name. */
 function nameTag(name: string): THREE.Sprite {
+  const text = cleanText(name, 20) || '?';
   const c = document.createElement('canvas');
-  c.width = 256; c.height = 64;
+  const g0 = c.getContext('2d')!;
+  g0.font = '800 30px Nunito, sans-serif';
+  // The canvas (and the sprite) grows with the name, so long names are never cut off.
+  const w = Math.ceil(g0.measureText(text).width) + 40;
+  c.width = Math.max(128, w); c.height = 64;
   const g = c.getContext('2d')!;
   g.font = '800 30px Nunito, sans-serif';
-  const text = cleanText(name, 16) || '?';
-  const w = Math.min(248, g.measureText(text).width + 32);
   g.fillStyle = 'rgba(255,255,255,0.92)';
-  g.beginPath(); g.roundRect((256 - w) / 2, 8, w, 48, 24); g.fill();
+  g.beginPath(); g.roundRect((c.width - w) / 2, 8, w, 48, 24); g.fill();
   g.fillStyle = '#1d2b44'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(text, 128, 33);
+  g.fillText(text, c.width / 2, 33);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, fog: false }));
-  s.scale.set(2.4, 0.6, 1);
+  s.scale.set(0.6 * (c.width / 64), 0.6, 1);
   s.renderOrder = 4;
   return s;
 }
@@ -45,7 +50,7 @@ function nameTag(name: string): THREE.Sprite {
 const angleLerp = (a: number, b: number, k: number) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * k;
 
 /**
- * The other players in a multiplayer server: their car (light model) or their avatar walking,
+ * The other players in a multiplayer server: their car or their avatar walking,
  * with a name tag, siren lights and turn signals. Positions arrive a few times per second and are
  * smoothed (and predicted a little from the speed) so everyone moves fluently.
  * They are "ghosts" like the people in the city: you drive right through them.
@@ -65,7 +70,7 @@ export class RemotePlayers {
       const label = nameTag(p.name);
       root.add(label);
       this.group.add(root);
-      this.entries.set(id, { target: p, x: p.x, z: p.z, h: p.h, root, carKey: '', avatarKey: '', seated: false, label, bubbleUntil: 0, loading: 0 });
+      this.entries.set(id, { target: p, x: p.x, z: p.z, h: p.h, root, carKey: '', avatarKey: '', seated: false, label, bubbleUntil: 0, carLoad: 0, avatarLoad: 0 });
     }
     for (const [id, e] of this.entries) if (!players.has(id)) { this.remove(e); this.entries.delete(id); }
   }
@@ -105,7 +110,7 @@ export class RemotePlayers {
 
   private remove(e: Entry) {
     this.clearBubble(e);
-    e.loading++;
+    e.carLoad++; e.avatarLoad++;
     e.car?.dispose();
     e.avatar?.dispose();
     e.siren?.dispose();
@@ -121,11 +126,12 @@ export class RemotePlayers {
     const carKey = `${p.vehicle}/${p.color}`, avatarKey = `${p.gender}/${p.outfit}`;
     if (carKey !== e.carKey) {
       e.carKey = carKey;
-      const id = ++e.loading;
+      const id = ++e.carLoad;
       const spec = getVehicle(p.vehicle);
-      // Emergency vehicles' light versions lose their livery: they use the detailed model.
-      const car = await loadVehicle(spec, p.color, { lod: !spec.siren }).catch(() => null);
-      if (!car || id !== e.loading || this.disposed) { car?.dispose(); return; }
+      // The detailed model: there are only a few players, and the light traffic version has a lower,
+      // simpler roof (the driver's hair would stick out) and loses the emergency vehicles' livery.
+      const car = await loadVehicle(spec, p.color).catch(() => null);
+      if (!car || id !== e.carLoad || this.disposed) { car?.dispose(); return; }
       e.car?.dispose(); e.siren?.dispose(); e.signals?.dispose();
       e.carRoot?.removeFromParent();
       e.car = car;
@@ -146,9 +152,9 @@ export class RemotePlayers {
     }
     if (avatarKey !== e.avatarKey) {
       e.avatarKey = avatarKey;
-      const id = ++e.loading;
+      const id = ++e.avatarLoad;
       const avatar = await Avatar.create(p.gender, p.outfit).catch(() => null);
-      if (!avatar || id !== e.loading || this.disposed) { avatar?.dispose(); return; }
+      if (!avatar || id !== e.avatarLoad || this.disposed) { avatar?.dispose(); return; }
       e.avatar?.dispose();
       e.avatar = avatar;
       avatar.root.traverse((o) => { o.castShadow = !o.userData.glass; });

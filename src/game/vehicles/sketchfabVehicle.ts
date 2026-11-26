@@ -195,6 +195,16 @@ export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepres
         sm.vertexColors = true;
         sm.needsUpdate = true;
       }
+      // Clear window glass that some models made solid (e.g. the fire truck): see-through, so the
+      // dashboard view looks out of the windscreen. Coloured lamp glass (red, orange...) stays as it is.
+      if (!lod && !sm.transparent && /^(glass|windows?|windshield|windscreen|window_?glass)$|glasswindows/i.test(sm.name)) {
+        const c = sm.clone();
+        c.transparent = true;
+        c.opacity = 0.28;
+        c.depthWrite = false;
+        own.push(c);
+        return c;
+      }
       if (sm.name === 'CCG_PAINT') {
         const c = sm.clone();
         own.push(c);
