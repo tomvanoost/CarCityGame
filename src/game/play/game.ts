@@ -277,7 +277,7 @@ export class Game {
     this.scene.add(this.wildlife.group);
     if (this.grassRadius > 0) {
       this.grass = new GrassField(city.layout, (x, z) => this.world!.pointBlocked(x, z), this.grassRadius);
-      this.scene.add(this.grass.mesh);
+      this.scene.add(this.grass.mesh, this.grass.flowers);
     }
     this.carWash = new CarWash(city.layout);
     this.scene.add(this.carWash.group);

@@ -165,6 +165,15 @@ export function createTerrainMaterial() {
         // Large patches: a bit lusher here, drier (yellower) there.
         float dry = smoothstep(0.55, 0.8, fbm(uv * 0.018 + 3.1));
         grass = mix(grass, grass * vec3(1.18, 1.05, 0.72), dry * 0.55);
+        // Clover patches: deeper blue-green with little round leaves.
+        float cloverM = smoothstep(0.62, 0.72, vnoise(uv * 0.35 + 7.3)) * (1.0 - smoothstep(60.0, 120.0, dist));
+        if (cloverM > 0.0) {
+          vec2 cl = mat2(0.8, -0.6, 0.6, 0.8) * uv * 13.0;
+          vec2 cf = fract(cl) - 0.5 + (vec2(hash21(floor(cl)), hash21(floor(cl) + 3.1)) - 0.5) * 0.7;
+          float leaf = (1.0 - smoothstep(0.12, 0.26, length(cf))) * step(0.35, hash21(floor(cl) + 9.7));
+          vec3 clover = grass * vec3(0.82, 1.0, 0.92) * mix(0.92, 1.08, leaf);
+          grass = mix(grass, clover, cloverM * 0.8);
+        }
         grass *= 0.9 + 0.2 * big;
         // A touch less cartoon-saturated, like real grass.
         grass = mix(grass, vec3(dot(grass, vec3(0.3, 0.59, 0.11))), 0.12);

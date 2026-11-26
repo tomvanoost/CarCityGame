@@ -18,8 +18,6 @@ Asset sources: dl.polyhaven.org, api.polyhaven.com and ambientcg.com are blocked
 api.sketchfab.com works (CC0 / CC-BY models and their textures, see `scripts/sketchfab-download.mjs`),
 or generate textures procedurally (canvas / shader noise) at load time.
 
-- [ ] **Flowers and clover in the grass**: a few colored flower / clover patches in the same instancing
-  system (parks, front gardens, roadsides), so lawns aren't one flat green.
 - [ ] **Better trees**: realistic CC0 / CC-BY trees from Sketchfab with leaf textures instead of
   the low-poly blobs, with a light far version (billboard or low-poly) and gentle leaf sway in the wind.
 - [ ] **Bushes and hedges**: realistic hedges along front gardens and bushes in the park (instanced, CC-BY / CC0
