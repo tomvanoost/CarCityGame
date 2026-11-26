@@ -1,6 +1,7 @@
 import { Gamepads, type PadKind } from '../game/play/gamepad';
 import { loadQualityChoice, saveQualityChoice, type QualityChoice } from '../game/world/quality';
 import { loadChatOn, saveChatOn } from '../services/multiplayer';
+import { sounds } from '../game/play/sounds';
 import { t } from '../i18n';
 import { h } from './dom';
 import { toast } from './toast';
@@ -73,6 +74,18 @@ export function openSettings() {
   };
   renderChat();
 
+  // Engine sound on or off (the horn, coins etc. keep playing).
+  const engineRow = h('div', { class: 'settings-chat' });
+  const renderEngine = () => {
+    const btn = (value: boolean, label: string) => {
+      const b = h('button', { class: `btn settings-choice ${sounds.engineOn === value ? 'active' : ''}` }, label);
+      b.addEventListener('click', () => { sounds.setEngineOn(value); renderEngine(); toast(t('qualitySaved')); });
+      return b;
+    };
+    engineRow.replaceChildren(btn(true, `🔊 ${t('engineOnBtn')}`), btn(false, `🔇 ${t('engineOffBtn')}`));
+  };
+  renderEngine();
+
   const overlay = h('div', { class: 'quality-picker' },
     h('div', { class: 'card quality-card settings-card' },
       h('div', { class: 'place-head' },
@@ -86,6 +99,8 @@ export function openSettings() {
       pads,
       h('h3', { class: 'settings-title' }, `💬 ${t('chatSetting')}`),
       chatRow,
+      h('h3', { class: 'settings-title' }, `🚗 ${t('engineSetting')}`),
+      engineRow,
     ),
   );
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });

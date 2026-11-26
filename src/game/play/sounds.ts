@@ -11,6 +11,7 @@ import { renderEngineLoop } from './engineSound';
  * created on the first user gesture. Muting is remembered on this device.
  */
 const MUTE_KEY = 'carcity.muted';
+const ENGINE_KEY = 'carcity.engineSound';
 const loadMuted = () => { try { return localStorage.getItem(MUTE_KEY) === '1'; } catch { return false; } };
 
 class Sounds {
@@ -25,6 +26,8 @@ class Sounds {
   private whineGain: GainNode | null = null;
   private whineOsc: OscillatorNode[] = [];
   private muted = loadMuted();
+  /** Engine sound on/off (⚙️ Settings, saved on this device); the other sounds stay. */
+  engineOn = (() => { try { return localStorage.getItem(ENGINE_KEY) !== 'off'; } catch { return true; } })();
   /** The toot that is playing now (its own volume node), so a new tap can cut it off. */
   private hornBus: { gain: GainNode; oscs: AudioScheduledSourceNode[] } | null = null;
   /** The recorded honk, loaded once audio is unlocked. */
@@ -32,6 +35,11 @@ class Sounds {
   private hornLoading = false;
 
   get isMuted() { return this.muted; }
+
+  setEngineOn(on: boolean) {
+    this.engineOn = on;
+    try { localStorage.setItem(ENGINE_KEY, on ? 'on' : 'off'); } catch { /* private mode */ }
+  }
 
   setMuted(m: boolean) {
     this.muted = m;
@@ -77,7 +85,7 @@ class Sounds {
     this.engineFilter = ctx.createBiquadFilter();
     this.engineFilter.type = 'lowpass';
     this.engineFilter.frequency.value = 1200;
-    this.engineFilter.Q.value = 0.8;
+    this.engineFilter.Q.value = 0.5;
     this.engineFilter.connect(this.rumbleGain);
     this.engineLoops = ([[1100, 0], [3600, 1]] as const).map(([rpm, bright]) => {
       const data = renderEngineLoop(ctx.sampleRate, rpm, bright);
@@ -125,7 +133,7 @@ class Sounds {
     let g = tops.findIndex((top) => share <= top);
     if (g < 0) g = tops.length - 1;
     const lo = g === 0 ? 0 : tops[g - 1], within = (share - lo) / (tops[g] - lo);
-    const IDLE = 850, LOW = 2600, HIGH = 6200;
+    const IDLE = 800, LOW = 2000, HIGH = 4600; // a calm engine: never screaming high revs
     let rpm = g === 0 ? IDLE + within * (HIGH - IDLE) : LOW + within * (HIGH - LOW);
     if (Math.abs(kmh) < 2) rpm = IDLE + throttle * 1800; // standing still: blip the throttle
     const shifted = g !== this.gear && on && !electric && Math.abs(kmh) > 2;
@@ -137,13 +145,13 @@ class Sounds {
       l.gain.gain.setTargetAtTime(i === 0 ? Math.cos(high * Math.PI / 2) : Math.sin(high * Math.PI / 2), t, 0.05);
     });
     // Off the gas the engine sounds muffled; on the gas it opens up.
-    this.engineFilter!.frequency.setTargetAtTime(500 + rpm * 0.35 + throttle * 2600, t, 0.08);
+    this.engineFilter!.frequency.setTargetAtTime(260 + rpm * 0.07 + throttle * 350, t, 0.08);
     const whine = 260 + Math.min(1, kmh / 200) * 900;
     this.whineOsc[0].frequency.setTargetAtTime(whine, t, 0.1);
     this.whineOsc[1].frequency.setTargetAtTime(whine * 1.5, t, 0.1);
     this.rumbleGain!.gain.setTargetAtTime(electric ? 0 : 1, t, 0.05);
     this.whineGain!.gain.setTargetAtTime(electric ? 0.06 + k * 0.13 + throttle * 0.06 : 0, t, 0.05);
-    const vol = on ? 0.09 + (rpm / HIGH) * 0.08 + throttle * 0.07 : 0;
+    const vol = on && this.engineOn ? 0.06 + (rpm / HIGH) * 0.035 + throttle * 0.025 : 0;
     const eg = this.engineGain!.gain;
     if (shifted) {
       // Clutch: quieter for a moment while the revs drop, then back.

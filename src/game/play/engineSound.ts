@@ -56,19 +56,19 @@ export function renderEngineLoop(sr: number, rpm: number, bright: number, seed =
       const n = Math.floor(at + k) % len;
       x[(n + len) % len] += amp * Math.sin((Math.PI * k) / thumpW) * Math.exp(-k / (thumpW * 0.35));
     }
+    // Only a tiny, soft puff: noise is what made it hiss in your ears.
     for (let k = 0; k < puff * 4; k++) {
       const n = Math.floor(at + k) % len;
-      x[(n + len) % len] += amp * (0.35 + bright * 0.4) * (r() * 2 - 1) * Math.exp(-k / puff);
+      x[(n + len) % len] += amp * (0.06 + bright * 0.06) * (r() * 2 - 1) * Math.exp(-k / puff);
     }
   }
-  for (let n = 0; n < len; n++) x[n] += (r() * 2 - 1) * (0.02 + bright * 0.03); // a little air
+  for (let n = 0; n < len; n++) x[n] += (r() * 2 - 1) * 0.004; // a breath of air
   // Exhaust and body resonances (fixed in Hz, like a real pipe) plus the plain low end.
   const parts: [Float32Array, number][] = [
-    [lowpass(x, sr, 160), 1.6],
-    [resonate(x, sr, 95, 1.6), 1.1],
-    [resonate(x, sr, 230, 2.5), 0.75],
-    [resonate(x, sr, 520, 3), 0.35 + bright * 0.25],
-    [resonate(x, sr, 1250, 3), 0.08 + bright * 0.18],
+    // Warm and round: mostly the low end, nothing sharp up high.
+    [lowpass(x, sr, 140), 1.8],
+    [resonate(x, sr, 90, 1.4), 1.0],
+    [resonate(x, sr, 210, 2), 0.45 + bright * 0.15],
   ];
   const out = new Float32Array(len);
   let peak = 1e-6;
@@ -78,6 +78,10 @@ export function renderEngineLoop(sr: number, rpm: number, bright: number, seed =
     out[n] = v;
     peak = Math.max(peak, Math.abs(v));
   }
-  for (let n = 0; n < len; n++) out[n] = Math.tanh((out[n] / peak) * 1.6) * 0.8; // soft growl, no harsh clipping
+  // A gentle lowpass on the whole thing and only a hint of saturation (hard clipping sounds harsh).
+  const soft = lowpass(lowpass(out, sr, 700), sr, 700);
+  peak = 1e-6;
+  for (let n = 0; n < len; n++) peak = Math.max(peak, Math.abs(soft[n]));
+  for (let n = 0; n < len; n++) out[n] = Math.tanh((soft[n] / peak) * 1.1) * 0.8;
   return out;
 }
