@@ -453,6 +453,11 @@ export class Game {
     this.offPlayers = session.onPlayers((players) => this.remote?.sync(players));
   }
 
+  /** Show a chat line / emote above the player who sent it. */
+  showChatBubble(playerId: string, text: string, emote: boolean) {
+    this.remote?.showBubble(playerId, text, emote);
+  }
+
   private shareState() {
     const v = this.vehicle, pl = this.player, p = this.profile;
     if (!this.mp || !v || !pl) return;

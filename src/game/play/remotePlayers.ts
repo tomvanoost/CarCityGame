@@ -17,6 +17,8 @@ interface Entry {
   avatar?: Avatar; avatarKey: string; seated: boolean;
   siren?: SirenLights; signals?: TurnSignals;
   label: THREE.Sprite;
+  bubble?: THREE.Sprite;
+  bubbleUntil: number;
   loading: number;
 }
 
@@ -63,12 +65,46 @@ export class RemotePlayers {
       const label = nameTag(p.name);
       root.add(label);
       this.group.add(root);
-      this.entries.set(id, { target: p, x: p.x, z: p.z, h: p.h, root, carKey: '', avatarKey: '', seated: false, label, loading: 0 });
+      this.entries.set(id, { target: p, x: p.x, z: p.z, h: p.h, root, carKey: '', avatarKey: '', seated: false, label, bubbleUntil: 0, loading: 0 });
     }
     for (const [id, e] of this.entries) if (!players.has(id)) { this.remove(e); this.entries.delete(id); }
   }
 
+  /** A speech bubble with a chat line or an emote above a player, for 5 seconds. */
+  showBubble(id: string, text: string, emote: boolean) {
+    const e = this.entries.get(id);
+    if (!e) return;
+    this.clearBubble(e);
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 128;
+    const g = c.getContext('2d')!;
+    g.font = emote ? '72px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif' : '700 34px Nunito, sans-serif';
+    const w = Math.min(500, g.measureText(text).width + 48);
+    g.fillStyle = 'rgba(255,255,255,0.96)';
+    g.beginPath(); g.roundRect((512 - w) / 2, 6, w, 96, 30); g.fill();
+    g.beginPath(); g.moveTo(240, 100); g.lineTo(272, 100); g.lineTo(256, 122); g.fill();
+    g.fillStyle = '#1d2b44'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, 256, 56, 470);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, fog: false }));
+    sprite.scale.set(4, 1, 1);
+    sprite.renderOrder = 5;
+    e.root.add(sprite);
+    e.bubble = sprite;
+    e.bubbleUntil = Date.now() + 5000;
+  }
+
+  private clearBubble(e: Entry) {
+    if (!e.bubble) return;
+    e.bubble.material.map?.dispose();
+    e.bubble.material.dispose();
+    e.bubble.removeFromParent();
+    e.bubble = undefined;
+  }
+
   private remove(e: Entry) {
+    this.clearBubble(e);
     e.loading++;
     e.car?.dispose();
     e.avatar?.dispose();
@@ -168,6 +204,10 @@ export class RemotePlayers {
         a.update(dt);
       }
       e.label.position.set(0, driving ? (SKETCHFAB_VEHICLES[p.vehicle]?.height ?? 1.5) + 0.7 : 2.2, 0);
+      if (e.bubble) {
+        if (now > e.bubbleUntil) this.clearBubble(e);
+        else e.bubble.position.set(0, e.label.position.y + 0.9, 0);
+      }
     }
   }
 

@@ -8,7 +8,7 @@ import { getProfile, onProfileChange, updateProfile } from '../services/session'
 import { createTutorial } from './tutorial';
 import { ApartmentRoom } from '../game/apartmentRoom';
 import { euro } from './money';
-import { getCurrentSession, setCurrentSession } from '../services/multiplayer';
+import { CHAT_MAX, EMOTES, getCurrentSession, loadChatOn, setCurrentSession } from '../services/multiplayer';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
@@ -243,12 +243,64 @@ export const gameScreen: Screen = (root, nav) => {
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
   });
 
+  let chatCleanup = () => {};
   // Multiplayer: join the server picked on the multiplayer screen.
   const mpSession = getCurrentSession();
   setCurrentSession(null);
   if (mpSession) game.setMultiplayer(mpSession);
   const mpPill = h('div', { class: 'mp-pill', hidden: !mpSession }, '');
   root.append(mpPill);
+
+  // 💬 Chat + emotes (multiplayer only). Every line is filtered (rude words, links, phone numbers);
+  // tap a name to mute that player; chat can be switched off in ⚙️ Settings (then only emotes).
+  if (mpSession) {
+    const chatOn = loadChatOn();
+    const muted = new Set<string>();
+    let unread = 0;
+    const badge = h('span', { class: 'chat-badge', hidden: true }, '');
+    const chatBtn = h('button', { class: 'chat-btn', 'aria-label': t('chat'), title: `${t('chat')} (T)` }, '💬', badge);
+    const log = h('div', { class: 'chat-log' });
+    const input = h('input', { class: 'chat-input', maxlength: String(CHAT_MAX), placeholder: t('chatPlaceholder'), 'aria-label': t('chat') }) as HTMLInputElement;
+    const sendBtn = h('button', { class: 'btn btn-primary chat-send' }, t('chatSend'));
+    const emotes = h('div', { class: 'chat-emotes' }, ...EMOTES.map((em) => {
+      const b = h('button', { class: 'chat-emote' }, em);
+      b.addEventListener('click', () => { if (!mpSession.sendEmote(em)) toast(t('chatTooFast')); });
+      return b;
+    }));
+    const panel = h('div', { class: 'card chat-panel', hidden: true },
+      h('div', { class: 'place-head' }, h('h2', {}, `💬 ${t('chat')}`),
+        h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: () => { panel.hidden = true; input.blur(); } }, '✕')),
+      log, emotes,
+      chatOn ? h('div', { class: 'chat-row' }, input, sendBtn) : h('div', { class: 'try-hint' }, t('chatOffHint')),
+      h('div', { class: 'try-hint' }, t('chatMuteHint')),
+    );
+    const send = () => {
+      const text = input.value.trim();
+      if (!text) return;
+      if (mpSession.sendChat(text)) input.value = '';
+      else toast(t('chatTooFast'));
+    };
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } e.stopPropagation(); });
+    const open = () => { panel.hidden = !panel.hidden; unread = 0; badge.hidden = true; if (!panel.hidden && chatOn) setTimeout(() => input.focus(), 50); };
+    chatBtn.addEventListener('click', open);
+    window.addEventListener('keydown', onChatKey);
+    function onChatKey(e: KeyboardEvent) { if (e.code === 'KeyT' && document.activeElement !== input && panel.hidden) { e.preventDefault(); open(); } }
+    const offChat = mpSession.onChat((m) => {
+      if (muted.has(m.from) || (!chatOn && m.text)) return;
+      const mine = m.from === mpSession.myId;
+      const name = h('button', { class: 'chat-name', title: t('chatMute') }, mine ? t('chatYou') : m.name);
+      if (!mine) name.addEventListener('click', () => { muted.add(m.from); toast(`🔇 ${m.name}`); [...log.querySelectorAll(`[data-from="${m.from}"]`)].forEach((el) => el.remove()); });
+      const row = h('div', { class: `chat-line ${m.emote ? 'emote' : ''} ${mine ? 'mine' : ''}`, 'data-from': m.from }, name, h('span', {}, m.emote ?? m.text ?? ''));
+      log.append(row);
+      while (log.childElementCount > 20) log.firstElementChild!.remove();
+      log.scrollTop = log.scrollHeight;
+      if (!mine) game.showChatBubble(m.from, m.emote ?? m.text ?? '', !!m.emote);
+      if (panel.hidden && !mine) { unread++; badge.textContent = String(unread); badge.hidden = false; }
+    });
+    root.append(chatBtn, panel);
+    chatCleanup = () => { offChat(); window.removeEventListener('keydown', onChatKey); };
+  }
   action.addEventListener('click', () => game.pressCar());
   renderEvening();
   ctxBtn.addEventListener('click', () => game.pressContext());
@@ -368,6 +420,7 @@ export const gameScreen: Screen = (root, nav) => {
   if (import.meta.env.DEV) Object.assign(window, { carcityDebug: { game, input } });
 
   return () => {
+    chatCleanup();
     window.removeEventListener('carcity-back', onBack);
     window.removeEventListener('keydown', onBack);
     closeRoom();

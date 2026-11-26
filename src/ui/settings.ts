@@ -1,5 +1,6 @@
 import { Gamepads, type PadKind } from '../game/play/gamepad';
 import { loadQualityChoice, saveQualityChoice, type QualityChoice } from '../game/world/quality';
+import { loadChatOn, saveChatOn } from '../services/multiplayer';
 import { t } from '../i18n';
 import { h } from './dom';
 import { toast } from './toast';
@@ -59,6 +60,19 @@ export function openSettings() {
   window.addEventListener('gamepadconnected', renderPads);
   window.addEventListener('gamepaddisconnected', renderPads);
 
+  // Chat in multiplayer on or off (off: only the friendly emoji).
+  const chatRow = h('div', { class: 'settings-chat' });
+  const renderChat = () => {
+    const on = loadChatOn();
+    const btn = (value: boolean, label: string) => {
+      const b = h('button', { class: `btn settings-choice ${on === value ? 'active' : ''}` }, label);
+      b.addEventListener('click', () => { saveChatOn(value); renderChat(); toast(t('qualitySaved')); });
+      return b;
+    };
+    chatRow.replaceChildren(btn(true, `💬 ${t('chatOnBtn')}`), btn(false, `😀 ${t('chatOffBtn')}`));
+  };
+  renderChat();
+
   const overlay = h('div', { class: 'quality-picker' },
     h('div', { class: 'card quality-card settings-card' },
       h('div', { class: 'place-head' },
@@ -70,6 +84,8 @@ export function openSettings() {
       auto,
       h('h3', { class: 'settings-title' }, `🎮 ${t('controls')}`),
       pads,
+      h('h3', { class: 'settings-title' }, `💬 ${t('chatSetting')}`),
+      chatRow,
     ),
   );
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });

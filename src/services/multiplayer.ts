@@ -40,6 +40,36 @@ export interface RemotePlayer extends PlayerState {
   at: number;
 }
 
+/** Quick emotes everyone can send (no typing needed). */
+export const EMOTES = ['👋', '😀', '😂', '👍', '🎉', '❤️', '😮', '🚗'] as const;
+
+/** A chat message or emote in a server. Text is cleaned by the sender AND again by every receiver. */
+export interface ChatMessage {
+  id: string;
+  from: string;
+  name: string;
+  text?: string;
+  emote?: string;
+  at: number;
+}
+export const CHAT_MAX = 60;
+const CHAT_KEEP = 20;
+const CHAT_EVERY = 2000; // ms between messages from one player
+
+/** Makes an incoming message safe to show (never trust the sender). */
+export function safeMessage(m: Partial<ChatMessage> & { id: string }): ChatMessage | null {
+  const name = cleanText(String(m.name ?? ''), 16);
+  if (m.emote && (EMOTES as readonly string[]).includes(m.emote)) return { id: m.id, from: String(m.from ?? ''), name, emote: m.emote, at: Number(m.at) || Date.now() };
+  const text = cleanText(String(m.text ?? ''), CHAT_MAX);
+  return text ? { id: m.id, from: String(m.from ?? ''), name, text, at: Number(m.at) || Date.now() } : null;
+}
+
+/** Allows one message per CHAT_EVERY ms. */
+export function chatLimiter() {
+  let last = 0;
+  return () => { const now = Date.now(); if (now - last < CHAT_EVERY) return false; last = now; return true; };
+}
+
 export interface MpSession {
   readonly roomId: string;
   readonly roomName: string;
@@ -48,6 +78,11 @@ export interface MpSession {
   publish(state: PlayerState): void;
   /** Everyone else in the room (called on every change). */
   onPlayers(cb: (players: Map<string, RemotePlayer>) => void): () => void;
+  /** Send a chat line (cleaned; false if sent too soon after the last one) or a quick emote. */
+  sendChat(text: string): boolean;
+  sendEmote(emote: string): boolean;
+  /** The last messages (on subscribe) and every new one. */
+  onChat(cb: (m: ChatMessage) => void): () => void;
   leave(): void;
 }
 
@@ -56,6 +91,8 @@ export interface MpService {
   createRoom(name: string, host: string): Promise<string>;
   join(roomId: string): Promise<MpSession>;
 }
+
+import { cleanText } from './textFilter';
 
 /** Rooms nobody is in are hidden from the list after this long. */
 export const EMPTY_ROOM_TTL = 10 * 60 * 1000;
@@ -135,8 +172,17 @@ export class LocalMultiplayer implements MpService {
       for (const [id, p] of players) if (Date.now() - p.at > 6000) { players.delete(id); changed = true; }
       if (changed) emit();
     }, 2000);
+    const chat: ChatMessage[] = [];
+    const chatListeners = new Set<(m: ChatMessage) => void>();
+    const gotChat = (raw: Partial<ChatMessage> & { id: string }) => {
+      const m = safeMessage(raw);
+      if (!m) return;
+      chat.push(m); if (chat.length > CHAT_KEEP) chat.shift();
+      chatListeners.forEach((l) => l(m));
+    };
     ch.onmessage = (e: MessageEvent) => {
-      const m = e.data as { type: 'state'; id: string; state: PlayerState } | { type: 'leave'; id: string };
+      const m = e.data as { type: 'state'; id: string; state: PlayerState } | { type: 'leave'; id: string } | { type: 'chat'; id: string; msg: ChatMessage };
+      if (m.type === 'chat') { gotChat(m.msg); return; }
       if (m.id === myId) return;
       if (m.type === 'leave') players.delete(m.id);
       else players.set(m.id, { ...m.state, id: m.id, at: Date.now() });
@@ -155,9 +201,21 @@ export class LocalMultiplayer implements MpService {
       window.removeEventListener('pagehide', leave);
     };
     window.addEventListener('pagehide', leave);
+    const canChat = chatLimiter();
+    let myName = '';
+    const post = (body: { text?: string; emote?: string }) => {
+      if (left || !canChat()) return false;
+      const msg = { id: Math.random().toString(36).slice(2), from: myId, name: myName, at: Date.now(), ...body };
+      ch.postMessage({ type: 'chat', id: myId, msg });
+      gotChat(msg); // BroadcastChannel doesn't echo to ourselves
+      return true;
+    };
     return {
       roomId, roomName: room.name, myId,
-      publish: send,
+      publish: (st) => { myName = st.name; send(st); },
+      sendChat: (text) => { const t = cleanText(text, CHAT_MAX); return t ? post({ text: t }) : false; },
+      sendEmote: (emote) => ((EMOTES as readonly string[]).includes(emote) ? post({ emote }) : false),
+      onChat: (cb) => { chat.forEach(cb); chatListeners.add(cb); return () => chatListeners.delete(cb); },
       onPlayers: (cb) => { listeners.add(cb); cb(players); return () => listeners.delete(cb); },
       leave,
     };
@@ -170,3 +228,14 @@ export class LocalMultiplayer implements MpService {
 let current: MpSession | null = null;
 export const setCurrentSession = (s: MpSession | null) => { current = s; };
 export const getCurrentSession = () => current;
+
+// ---------------------------------------------------------------------------------------------
+// Chat on/off (⚙️ Settings, saved on this device). Off: no typing and no text from others, only emotes.
+
+const CHAT_KEY = 'carcity.chat';
+export function loadChatOn(): boolean {
+  try { return localStorage.getItem(CHAT_KEY) !== 'off'; } catch { return true; }
+}
+export function saveChatOn(on: boolean) {
+  try { localStorage.setItem(CHAT_KEY, on ? 'on' : 'off'); } catch { /* private mode */ }
+}

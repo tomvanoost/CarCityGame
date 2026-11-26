@@ -11,11 +11,6 @@ tablets, Dutch first with English. Overview and history: `docs/PLAN.md`.
 
 ## Next steps
 
-- [ ] **Multiplayer chat + emotes**: in a multiplayer server, a 💬 button opens a short chat (last ~20 messages in
-  `mp/chat/{room}`, max 60 characters, 1 message per 2 s) plus quick emotes (👋 😀 👍 🎉 ❤️ 🚗) shown as a bubble
-  above the player. Every message goes through `src/services/textFilter.ts` (rude words masked, no links, e-mail
-  or phone numbers). A 🔇 mute per player, and a "Chat aan/uit" switch in ⚙️ Settings (off = only emotes).
-  Add the chat rules to `database.rules.json` (only your own messages, length check).
 - [ ] **Endless countryside**: around the city, endless land made in chunks (e.g. 256 m) that load/unload around
   the player: grass/fields/forest ground, gentle hills outside the city (extend `groundHeight`), country roads that
   continue the city's outer roads in a wide grid, trees and farms as instances. Keep draw calls low (one batched

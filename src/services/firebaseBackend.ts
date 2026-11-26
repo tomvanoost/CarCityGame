@@ -10,8 +10,9 @@ import {
   type Auth,
   type User,
 } from 'firebase/auth';
-import { get, getDatabase, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, onValue, push, ref, remove, serverTimestamp, set, update, type Database } from 'firebase/database';
-import { EMPTY_ROOM_TTL, throttledSender, type MpService, type MpSession, type PlayerState, type RemotePlayer, type RoomInfo } from './multiplayer';
+import { get, getDatabase, limitToLast, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, onValue, push, query, ref, remove, serverTimestamp, set, update, type Database } from 'firebase/database';
+import { CHAT_MAX, chatLimiter, EMOTES, EMPTY_ROOM_TTL, safeMessage, throttledSender, type ChatMessage, type MpService, type MpSession, type PlayerState, type RemotePlayer, type RoomInfo } from './multiplayer';
+import { cleanText } from './textFilter';
 import type { FirebaseWebConfig } from '../config';
 import { newProfile, normalizeProfile } from './profile';
 import { AuthError, type Backend, type Gender, type PlayerProfile } from './types';
@@ -32,6 +33,7 @@ export class FirebaseBackend implements Backend {
    *   mp/rooms/{room}         { name, host, hostUid, created }
    *   mp/online/{room}/{uid}  true while connected (for the player count in the server list)
    *   mp/players/{room}/{uid} the player's live state
+   *   mp/chat/{room}/{msg}    chat lines and emotes { uid, name, text | emote, at } (the last 20 are read)
    * Both player entries are removed by the server when the connection drops (onDisconnect).
    * Child events are used, so each update only sends the one player that changed.
    */
@@ -74,6 +76,23 @@ export class FirebaseBackend implements Backend {
         ];
         const send = throttledSender((state) => { void set(meRef, state).catch(() => {}); });
         let left = false;
+        let myName = '';
+        const canChat = chatLimiter();
+        const chatRef = ref(db, `mp/chat/${roomId}`);
+        const post = (body: { text?: string; emote?: string }) => {
+          if (left || !canChat()) return false;
+          void push(chatRef, { uid: me, name: myName, at: serverTimestamp(), ...body }).catch(() => {});
+          return true;
+        };
+        const chatListeners = new Set<(m: ChatMessage) => void>();
+        const chatLog: ChatMessage[] = [];
+        offs.push(onChildAdded(query(chatRef, limitToLast(20)), (snap) => {
+          const v = snap.val() as { uid: string; name: string; text?: string; emote?: string; at: number };
+          const m = safeMessage({ id: snap.key!, from: v.uid, name: v.name, text: v.text, emote: v.emote, at: v.at });
+          if (!m) return;
+          chatLog.push(m); if (chatLog.length > 20) chatLog.shift();
+          chatListeners.forEach((l) => l(m));
+        }));
         const leave = () => {
           if (left) return;
           left = true;
@@ -85,7 +104,10 @@ export class FirebaseBackend implements Backend {
         window.addEventListener('pagehide', leave);
         return {
           roomId, roomName: room.name, myId: me,
-          publish: (s) => { if (!left) send(s); },
+          publish: (s) => { if (!left) { myName = s.name; send(s); } },
+          sendChat: (text) => { const t = cleanText(text, CHAT_MAX); return t ? post({ text: t }) : false; },
+          sendEmote: (emote) => ((EMOTES as readonly string[]).includes(emote) ? post({ emote }) : false),
+          onChat: (cb) => { chatLog.forEach(cb); chatListeners.add(cb); return () => chatListeners.delete(cb); },
           onPlayers: (cb) => { listeners.add(cb); cb(players); return () => listeners.delete(cb); },
           leave,
         };
