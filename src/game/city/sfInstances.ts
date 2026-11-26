@@ -4,6 +4,47 @@ import { loadGltf } from '../../engine/assets';
 import type { Placement } from './layout';
 import { SKETCHFAB_CITY } from './sketchfabCity';
 
+/** Wind time shared by all tree leaves (advanced every frame by tick()). */
+const windTime = { value: 0 };
+
+/** Leaves sway gently: the higher up the tree, the more; each tree has its own rhythm. */
+function addLeafWind(mat: THREE.Material, height: number) {
+  if (mat.userData.wind) return;
+  mat.userData.wind = true;
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uWind = windTime;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float uWind;')
+      // Leaf cards face every way and looked almost black: light them as a round crown instead
+      // (normals point out from the middle of the crown).
+      // Positions are quantized (a -1..1 box around the model's middle, scaled up by the instance
+      // matrix), so "out from the middle" is simply the position itself, a bit lifted.
+      // Leaf cards face every way and looked almost black: light them as a round crown instead.
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+        vec3 crownN = normalize(position + vec3(0.0, 0.25, 0.0));
+        objectNormal = normalize(mix(objectNormal, crownN, 0.85));`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        #ifdef USE_INSTANCING
+          vec2 treePos = instanceMatrix[3].xz;
+        #else
+          vec2 treePos = vec2(0.0);
+        #endif
+        float k = clamp(transformed.y * 0.5 + 0.5, 0.0, 1.0);
+        k *= k;
+        float ph = treePos.x * 0.13 + treePos.y * 0.17;
+        // ~12 cm of sway at the top (one unit = half the tree height).
+        float amp = ${(2 / height).toFixed(3)};
+        transformed.x += (sin(uWind * 1.1 + ph) * 0.12 + sin(uWind * 2.9 + ph * 3.0 + transformed.y * 4.0) * 0.04) * k * amp;
+        transformed.z += sin(uWind * 0.9 + ph * 1.7) * 0.08 * k * amp;`);
+  };
+  // A little brighter and less shiny, like sunlit leaves.
+  const sm = mat as THREE.MeshStandardMaterial;
+  if (sm.color) sm.color.multiplyScalar(1.15);
+  if ('roughness' in sm) sm.roughness = Math.max(sm.roughness, 0.8);
+  mat.customProgramCacheKey = () => `leafWind${height.toFixed(1)}`;
+  mat.needsUpdate = true;
+}
+
 /** One drawable part: geometry + material + its transform inside the model (keeps quantized data intact). */
 interface Part { geometry: THREE.BufferGeometry; material: THREE.Material; local: THREE.Matrix4 }
 
@@ -60,6 +101,8 @@ export class SfInstances {
       loadParts(`/models/city-sf/${model}.glb`),
       info.lod ? loadParts(`/models/city-sf/${model}_lod.glb`) : Promise.resolve([] as Part[]),
     ]);
+    // Tree leaves (alpha-tested) sway in the wind.
+    if (info.category === 'tree') for (const q of [...near, ...far]) if (q.material.alphaTest > 0) addLeafWind(q.material, info.y);
     const make = (parts: Part[], shadows: boolean) => parts.map(({ geometry, material }) => {
       const im = new THREE.InstancedMesh(geometry, material, placements.length);
       im.count = 0;
@@ -76,6 +119,9 @@ export class SfInstances {
     }));
     this.sets.push({ near: make(near, true), far: make(far, false), nearLocal: near.map((q) => q.local), farLocal: far.map((q) => q.local), inst, nearDist, maxDist });
   }
+
+  /** Every frame: advance the wind. */
+  tick(dt: number) { windTime.value += dt; }
 
   update(cx: number, cy: number, cz: number) {
     const h2 = cy * cy;

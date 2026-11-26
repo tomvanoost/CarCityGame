@@ -384,6 +384,7 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
     update(cam, dt) {
       water.uTime.value += dt;
       if (knockables.active) knockables.update(dt, cam);
+      sfInst.tick(dt);
       lodTimer += dt;
       // Re-check LODs a few times per second, or right away after a big jump.
       if (lodTimer < 0.25 && Math.hypot(cam.x - last.x, cam.z - last.y, cam.y - lastY) < 30) return;

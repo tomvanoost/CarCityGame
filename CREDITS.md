@@ -80,7 +80,9 @@ Skipped (low quality, the game uses its own built-in car shape for these):
 ## Buildings and trees (Sketchfab)
 Some houses, townhouses, shops and apartments, the pines and the bushes come from Sketchfab (downloadable,
 first usable results per search term), modified for the game (`scripts/build-city-sf.mjs`).
-Office towers downtown, street trees, the other buildings, roads, street lights and small props are built-in / CC0.
+Office towers downtown, the other buildings, roads, street lights and small props are built-in / CC0.
+The street and park trees are 4 maples from [Maple trees pack (lowpoly, game ready, LODs)](https://sketchfab.com/3d-models/maple-trees-pack-lowpoly-game-ready-lods-b5d2833c258f4054a01ee2b4ef85adf0)
+by [lolipop_1707](https://sketchfab.com/lolipop_1707), CC Attribution, split and scaled for the game (`scripts/build-trees.mjs`).
 
 | Category | Model | Author | License | Search (rank) |
 |---|---|---|---|---|
