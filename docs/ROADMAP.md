@@ -10,8 +10,5 @@ earn money with simple jobs, buy cars and clothes, collect stickers. Looks good,
 tablets, Dutch first with English. Overview and history: `docs/PLAN.md`.
 
 ## Next steps
-- [ ] **Better replacement cars**: find good Sketchfab models (allowed licenses, see `CLAUDE.md`) for the 7
-      cars that now use the built-in shape (teslo-modelo3, oudi-a4, beemer-3, mersedez-c, modelo-y,
-      kio-ev6, volvu-xc90); check them up close before using them (`/?sflab=1`, `&view=front`, `&view=wheels`).
 - [ ] **Nicer downtown towers**: more facade detail (window frames, entrances, rooftop details) on the
       procedural towers, without extra draw calls.

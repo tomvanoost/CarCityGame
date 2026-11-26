@@ -9,10 +9,11 @@ What is finished, the current state and known problems. The newest finished step
   with driving, walking, traffic, pedestrians, jobs, fuel, car wash, house with your other cars parked in the yard, apartment with a 3D living room, ducks and birds in the park, optional evening light.
 - Deployed by the user from branch `claude/stoic-shannon-4k32uu` on fly.io (`fly.toml` holds the Firebase
   web config). Runs push to `claude/hourly-upgrades` and fast-forward `claude/stoic-shannon-4k32uu`.
-- Vehicles: 27 Sketchfab models (wheels cut out and spinning), 7 cars use the built-in shape (see roadmap).
+- Vehicles: 32 Sketchfab models (wheels cut out and spinning); kio-ev6 and volvu-xc90 use the built-in shape.
   City: CC0 buildings mixed with a few good Sketchfab buildings, CC0 street trees, Sketchfab pines/bushes.
 
 ## Known problems
+- kio-ev6 and volvu-xc90 still use the simple built-in car shape (all Sketchfab results tried were broken).
 - Parked cars in the home yard show the factory color, not the paint you picked (their light models have
   the colors baked in); the car you drive does show your paint.
 - Downtown office towers are plain up close; the vespo scooter looks old and rusty.
@@ -20,6 +21,8 @@ What is finished, the current state and known problems. The newest finished step
   barely play there; use `animations: 'disabled'` screenshots or check them in the menu.
 
 ## Blocked hosts / environment limits
+- `media.sketchfab.com` (Sketchfab preview images) is blocked by the network proxy; model downloads
+  (`sketchfab-prod-media.s3.amazonaws.com`) and the API work. Judge models by rendering them (`/?sflab=…`).
 - `carcitygame.fly.dev` cannot be reached from the cloud environment (connection fails): the live site
   can't be checked from here.
 - No Docker daemon in the cloud environment (nginx config was checked with a locally installed nginx).
@@ -27,6 +30,7 @@ What is finished, the current state and known problems. The newest finished step
   `scripts/flip-vehicles.mjs` and `scripts/vehicle-wheels.mjs`.
 
 ## Done
+- [x] **Better replacement cars**: 5 of the 7 broken cars got good Sketchfab models after close-up checks (teslo-modelo3, oudi-a4, beemer-3 M3 E30, mersedez-c C63, modelo-y); kio-ev6 and volvu-xc90 keep the built-in shape (no usable model among the results).
 - [x] **Apartment view**: going inside your apartment shows a cozy 3D living room at the top of the panel (sofa, rug, table, lamp, open bookshelf, window, plant, picture, TV) with your avatar; tap to cheer, gentle camera sway, follows outfit changes; one merged mesh (`game/apartmentRoom.ts`).
 - [x] **Evening light**: 🌙/☀️ button in the game (remembered per device): peach sunset sky, low warm sun, softer light, re-baked reflections; glowing street lamps with light pools, headlights with a beam on every car; all fake light (2 draw calls for lamps, 1 per car), nothing extra by day (`world/evening.ts`).
 - [x] **Garage at home**: your other cars (up to 4) stand nose-to-street in the front yard (spots skip bushes/trees/walls); walk up and "🔑 Neem deze" swaps cars, parked cars keep their spot and are solid (`play/garage.ts`, light traffic models).

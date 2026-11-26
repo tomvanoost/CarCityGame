@@ -18,13 +18,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.6230920815467834,
       -0.2996000146865845
     ],
-    "credit": {
-      "name": "2025 Volkswagen Golf R",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2025-volkswagen-golf-r-d1a0e38cbb2b4cb3b0da13c2ccdcf730"
-    },
     "wheels": [
       [
         0.763,
@@ -54,7 +47,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.327,
         0.113
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2025 Volkswagen Golf R",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2025-volkswagen-golf-r-d1a0e38cbb2b4cb3b0da13c2ccdcf730"
+    }
   },
   "polino": {
     "length": 4.070000171661377,
@@ -67,13 +67,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.6663431882858276,
       -0.2849000120162964
     ],
-    "credit": {
-      "name": "2024 Volkswagen Polo 170 TSI",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2024-volkswagen-polo-170-tsi-ec0f4dfd1ca84a859725e4002e9cf120"
-    },
     "wheels": [
       [
         0.725,
@@ -103,7 +96,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.294,
         0.095
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2024 Volkswagen Polo 170 TSI",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2024-volkswagen-polo-170-tsi-ec0f4dfd1ca84a859725e4002e9cf120"
+    }
   },
   "cinque": {
     "length": 3.630000114440918,
@@ -116,13 +116,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.6409326767921447,
       -0.2541000080108643
     ],
-    "credit": {
-      "name": "2021 Fiat e500",
-      "author": "tonielpro520",
-      "authorUrl": "https://sketchfab.com/tonielpro520",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/2021-fiat-e500-94dd3a8ce4ad45c8819541a33cb400b2"
-    },
     "wheels": [
       [
         0.725,
@@ -152,7 +145,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.336,
         0.125
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2021 Fiat e500",
+      "author": "tonielpro520",
+      "authorUrl": "https://sketchfab.com/tonielpro520",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/2021-fiat-e500-94dd3a8ce4ad45c8819541a33cb400b2"
+    }
   },
   "kuper": {
     "length": 3.859999895095825,
@@ -165,13 +165,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.7116147351264953,
       0.2701999926567078
     ],
-    "credit": {
-      "name": "Mini Cooper S Facelift",
-      "author": "Mona x Supercars",
-      "authorUrl": "https://sketchfab.com/Car2022",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/mini-cooper-s-facelift-2baca439d2494e02b99596014b49ebd3"
-    },
     "wheels": [
       [
         0.736,
@@ -201,7 +194,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.304,
         0.101
       ]
-    ]
+    ],
+    "credit": {
+      "name": "Mini Cooper S Facelift",
+      "author": "Mona x Supercars",
+      "authorUrl": "https://sketchfab.com/Car2022",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/mini-cooper-s-facelift-2baca439d2494e02b99596014b49ebd3"
+    }
   },
   "klio": {
     "length": 4.050000190734863,
@@ -214,13 +214,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.5817175698280335,
       -0.2835000133514405
     ],
-    "credit": {
-      "name": "2024 Renault Clio",
-      "author": "tonielpro520",
-      "authorUrl": "https://sketchfab.com/tonielpro520",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/2024-renault-clio-5556b5741cf24e408dc03396d6d4caee"
-    },
     "wheels": [
       [
         0.756,
@@ -250,7 +243,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.305,
         0.103
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2024 Renault Clio",
+      "author": "tonielpro520",
+      "authorUrl": "https://sketchfab.com/tonielpro520",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/2024-renault-clio-5556b5741cf24e408dc03396d6d4caee"
+    }
   },
   "yarus": {
     "length": 4.179999828338623,
@@ -263,13 +263,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.6782185435295105,
       -0.2925999879837036
     ],
-    "credit": {
-      "name": "2020 Toyota Yaris Cross",
-      "author": "tonielpro520",
-      "authorUrl": "https://sketchfab.com/tonielpro520",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/2020-toyota-yaris-cross-1b6dd834e8184851887ddeab1e83bc28"
-    },
     "wheels": [
       [
         0.755,
@@ -299,7 +292,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.345,
         0.105
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2020 Toyota Yaris Cross",
+      "author": "tonielpro520",
+      "authorUrl": "https://sketchfab.com/tonielpro520",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/2020-toyota-yaris-cross-1b6dd834e8184851887ddeab1e83bc28"
+    }
   },
   "seel": {
     "length": 4.800000190734863,
@@ -312,13 +312,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.6197797894477844,
       -0.3360000133514405
     ],
-    "credit": {
-      "name": "2024 BYD Seal",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2024-byd-seal-2e82d2aaaa3d47debf39b1160d3fe376"
-    },
     "wheels": [
       [
         0.8,
@@ -348,7 +341,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.353,
         0.114
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2024 BYD Seal",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2024-byd-seal-2e82d2aaaa3d47debf39b1160d3fe376"
+    }
   },
   "taykan": {
     "length": 4.960000038146973,
@@ -361,13 +361,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.5686258149147033,
       -0.3472000026702881
     ],
-    "credit": {
-      "name": "2025 Porsche Taycan Turbo GT Weissach Package",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2025-porsche-taycan-turbo-gt-weissach-package-4e1abafe7cf5413587a421377624ba08"
-    },
     "wheels": [
       [
         0.845,
@@ -397,7 +390,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.358,
         0.164
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2025 Porsche Taycan Turbo GT Weissach Package",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2025-porsche-taycan-turbo-gt-weissach-package-4e1abafe7cf5413587a421377624ba08"
+    }
   },
   "id-vier": {
     "length": 4.579999923706055,
@@ -410,13 +410,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.6871813988685608,
       -0.32059999465942385
     ],
-    "credit": {
-      "name": "2021 Volkswagen ID.4 X",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2021-volkswagen-id4-x-898fcce37f0948499d1b4c1effc051d1"
-    },
     "wheels": [
       [
         0.763,
@@ -446,7 +439,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.373,
         0.128
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2021 Volkswagen ID.4 X",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2021-volkswagen-id4-x-898fcce37f0948499d1b4c1effc051d1"
+    }
   },
   "atto-3": {
     "length": 4.460000038146973,
@@ -459,13 +459,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.6889467930793762,
       -0.31220000267028813
     ],
-    "credit": {
-      "name": "2024 BYD Atto 3",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2024-byd-atto-3-f7ef899186d445d48e4781ddfc84fddc"
-    },
     "wheels": [
       [
         0.779,
@@ -495,7 +488,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.348,
         0.113
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2024 BYD Atto 3",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2024-byd-atto-3-f7ef899186d445d48e4781ddfc84fddc"
+    }
   },
   "rangy-rover": {
     "length": 4.949999809265137,
@@ -508,13 +508,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.7603057193756103,
       -0.3464999866485596
     ],
-    "credit": {
-      "name": "2023 Land Rover Range Rover Sport",
-      "author": "Silyboy",
-      "authorUrl": "https://sketchfab.com/kaleemullah550",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/2023-land-rover-range-rover-sport-c1105996547b4c4c8a4cfc3523a4c726"
-    },
     "wheels": [
       [
         0.861,
@@ -544,7 +537,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.4,
         0.136
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2023 Land Rover Range Rover Sport",
+      "author": "Silyboy",
+      "authorUrl": "https://sketchfab.com/kaleemullah550",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/2023-land-rover-range-rover-sport-c1105996547b4c4c8a4cfc3523a4c726"
+    }
   },
   "id-bus": {
     "length": 4.710000038146973,
@@ -557,13 +557,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.7778002452850341,
       -0.3297000026702881
     ],
-    "credit": {
-      "name": "2023 Volkswagen ID Buzz GTX",
-      "author": "BloxBloger",
-      "authorUrl": "https://sketchfab.com/BloxBloger",
-      "license": "CC Attribution-NonCommercial",
-      "url": "https://sketchfab.com/3d-models/2023-volkswagen-id-buzz-gtx-3cc84dbea5b2495ba1f9468e8b4668d9"
-    },
     "wheels": [
       [
         0.8,
@@ -593,7 +586,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.4,
         0.148
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2023 Volkswagen ID Buzz GTX",
+      "author": "BloxBloger",
+      "authorUrl": "https://sketchfab.com/BloxBloger",
+      "license": "CC Attribution-NonCommercial",
+      "url": "https://sketchfab.com/3d-models/2023-volkswagen-id-buzz-gtx-3cc84dbea5b2495ba1f9468e8b4668d9"
+    }
   },
   "jiep": {
     "length": 4.789999961853027,
@@ -606,13 +606,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.9553867864608764,
       -0.33529999732971194
     ],
-    "credit": {
-      "name": "2013 Equipped Jeep Wrangler Unlimited Rubicon",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2013-equipped-jeep-wrangler-unlimited-rubicon-e3ecbf7d1fda464cb84d4bf41925d383"
-    },
     "wheels": [
       [
         0.819,
@@ -642,7 +635,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.416,
         0.178
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2013 Equipped Jeep Wrangler Unlimited Rubicon",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2013-equipped-jeep-wrangler-unlimited-rubicon-e3ecbf7d1fda464cb84d4bf41925d383"
+    }
   },
   "porsha-911": {
     "length": 4.570000171661377,
@@ -655,13 +655,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.504608495235443,
       -0.3199000120162964
     ],
-    "credit": {
-      "name": "2024 Porsche 992 GT3 R",
-      "author": "Dave Love SketchFab",
-      "authorUrl": "https://sketchfab.com/Tyler_Dave",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/2024-porsche-992-gt3-r-b76c9b2ae2d548c3869426eac4ab8a19"
-    },
     "wheels": [
       [
         0.801,
@@ -691,7 +684,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.337,
         0.17
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2024 Porsche 992 GT3 R",
+      "author": "Dave Love SketchFab",
+      "authorUrl": "https://sketchfab.com/Tyler_Dave",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/2024-porsche-992-gt3-r-b76c9b2ae2d548c3869426eac4ab8a19"
+    }
   },
   "korvet": {
     "length": 4.630000114440918,
@@ -704,13 +704,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.5374903893470764,
       -0.3241000080108643
     ],
-    "credit": {
-      "name": "Chevrolet Corvette (C7)",
-      "author": "Martin Trafas",
-      "authorUrl": "https://sketchfab.com/TinoD2",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/chevrolet-corvette-c7-2b509d1bce104224b147c81757f6f43a"
-    },
     "wheels": [
       [
         0.818,
@@ -740,7 +733,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.37,
         0.147
       ]
-    ]
+    ],
+    "credit": {
+      "name": "Chevrolet Corvette (C7)",
+      "author": "Martin Trafas",
+      "authorUrl": "https://sketchfab.com/TinoD2",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/chevrolet-corvette-c7-2b509d1bce104224b147c81757f6f43a"
+    }
   },
   "ferrara": {
     "length": 4.610000133514404,
@@ -753,13 +753,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.503830440044403,
       -0.32270000934600834
     ],
-    "credit": {
-      "name": "2020 Ferrari F8 Tributo",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2020-ferrari-f8-tributo-8a86c4d634f64f8b8ee836bc93fa6ac8"
-    },
     "wheels": [
       [
         0.844,
@@ -789,7 +782,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.348,
         0.164
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2020 Ferrari F8 Tributo",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2020-ferrari-f8-tributo-8a86c4d634f64f8b8ee836bc93fa6ac8"
+    }
   },
   "maxlaren": {
     "length": 4.539999961853027,
@@ -802,13 +802,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.4925905466079712,
       -0.3177999973297119
     ],
-    "credit": {
-      "name": "2021 McLaren 720S GT3X",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/2021-mclaren-720s-gt3x-fd16600b1e594ceea5cec2470ab560c4"
-    },
     "wheels": [
       [
         0.802,
@@ -838,7 +831,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.341,
         0.175
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2021 McLaren 720S GT3X",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/2021-mclaren-720s-gt3x-fd16600b1e594ceea5cec2470ab560c4"
+    }
   },
   "hurricano": {
     "length": 4.519999980926514,
@@ -851,13 +851,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.6590639162063598,
       -0.31639999866485596
     ],
-    "credit": {
-      "name": "2024 Lamborghini Huracan Sterrato",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2024-lamborghini-huracan-sterrato-7af3c1063acf4439a7e69e05eaf94b9b"
-    },
     "wheels": [
       [
         0.84,
@@ -887,7 +880,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.356,
         0.153
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2024 Lamborghini Huracan Sterrato",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2024-lamborghini-huracan-sterrato-7af3c1063acf4439a7e69e05eaf94b9b"
+    }
   },
   "jessko": {
     "length": 4.610000133514404,
@@ -900,13 +900,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.5056257247924805,
       -0.32270000934600834
     ],
-    "credit": {
-      "name": "2024 Koenigsegg Jesko Attack #7378",
-      "author": "HYPR:IMPS 3D",
-      "authorUrl": "https://sketchfab.com/HYPRIMPS3D",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/2024-koenigsegg-jesko-attack-7378-e4e966bcfdf14a8dbc6c837764cb026b"
-    },
     "wheels": [
       [
         0.837,
@@ -936,7 +929,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.29,
         0.17
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2024 Koenigsegg Jesko Attack #7378",
+      "author": "HYPR:IMPS 3D",
+      "authorUrl": "https://sketchfab.com/HYPRIMPS3D",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/2024-koenigsegg-jesko-attack-7378-e4e966bcfdf14a8dbc6c837764cb026b"
+    }
   },
   "chirone": {
     "length": 4.539999961853027,
@@ -949,13 +949,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.4890392303466797,
       -0.3177999973297119
     ],
-    "credit": {
-      "name": "2022 Bugatti Chiron Profilee",
-      "author": "Ddiaz Design",
-      "authorUrl": "https://sketchfab.com/ddiaz-design",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2022-bugatti-chiron-profilee-b28d46d8d28649729b81472969e35397"
-    },
     "wheels": [
       [
         0.855,
@@ -985,7 +978,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.349,
         0.186
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2022 Bugatti Chiron Profilee",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2022-bugatti-chiron-profilee-b28d46d8d28649729b81472969e35397"
+    }
   },
   "vespo": {
     "length": 1.850000023841858,
@@ -998,14 +998,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.6951177716255188,
       -0.14800000190734863
     ],
+    "wheels": null,
     "credit": {
       "name": "Old Scooter",
       "author": "Nadia Ribitis",
       "authorUrl": "https://sketchfab.com/ribitis",
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/old-scooter-5e9b5072b2224ba982366490ad5f31d9"
-    },
-    "wheels": null
+    }
   },
   "hondo-cbr": {
     "length": 2.130000114440918,
@@ -1018,13 +1018,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.5809468030929565,
       0.17040000915527345
     ],
-    "credit": {
-      "name": "Honda CBR650R",
-      "author": "VTX",
-      "authorUrl": "https://sketchfab.com/VTX_car",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/honda-cbr650r-b9ec190f902d4180aa527659af3f5089"
-    },
     "wheels": [
       [
         0,
@@ -1040,7 +1033,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.299,
         0.093
       ]
-    ]
+    ],
+    "credit": {
+      "name": "Honda CBR650R",
+      "author": "VTX",
+      "authorUrl": "https://sketchfab.com/VTX_car",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/honda-cbr650r-b9ec190f902d4180aa527659af3f5089"
+    }
   },
   "kawa-z900": {
     "length": 2.069999933242798,
@@ -1053,13 +1053,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.550253689289093,
       0.16559999465942382
     ],
-    "credit": {
-      "name": "Z1000 2014",
-      "author": "e-restrepo1114",
-      "authorUrl": "https://sketchfab.com/EmanuelRestrepoVelez",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/z1000-2014-70cecfa5568347428c5ad72e9a156be9"
-    },
     "wheels": [
       [
         0,
@@ -1075,7 +1068,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.31,
         0.08
       ]
-    ]
+    ],
+    "credit": {
+      "name": "Z1000 2014",
+      "author": "e-restrepo1114",
+      "authorUrl": "https://sketchfab.com/EmanuelRestrepoVelez",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/z1000-2014-70cecfa5568347428c5ad72e9a156be9"
+    }
   },
   "yamaho-r1": {
     "length": 2.059999942779541,
@@ -1088,13 +1088,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.5970134735107422,
       0.1647999954223633
     ],
-    "credit": {
-      "name": "Yamaha R1",
-      "author": "ejsnowy",
-      "authorUrl": "https://sketchfab.com/ejsnowy",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/yamaha-r1-7b3343ad0c0f4cbe94238c734e1b731a"
-    },
     "wheels": [
       [
         0.003,
@@ -1110,7 +1103,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.33,
         0.123
       ]
-    ]
+    ],
+    "credit": {
+      "name": "Yamaha R1",
+      "author": "ejsnowy",
+      "authorUrl": "https://sketchfab.com/ejsnowy",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/yamaha-r1-7b3343ad0c0f4cbe94238c734e1b731a"
+    }
   },
   "harly": {
     "length": 2.5999999046325684,
@@ -1123,13 +1123,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.7381402850151062,
       0.20799999237060549
     ],
-    "credit": {
-      "name": "Harley-Davidson Custom Road Glide Style Bagger",
-      "author": "Tulio Portela",
-      "authorUrl": "https://sketchfab.com/TulioPortela",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/harley-davidson-custom-road-glide-style-bagger-bd1640cecf8e438abe7a5749fc76a4ba"
-    },
     "wheels": [
       [
         0,
@@ -1145,7 +1138,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.31,
         0.08
       ]
-    ]
+    ],
+    "credit": {
+      "name": "Harley-Davidson Custom Road Glide Style Bagger",
+      "author": "Tulio Portela",
+      "authorUrl": "https://sketchfab.com/TulioPortela",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/harley-davidson-custom-road-glide-style-bagger-bd1640cecf8e438abe7a5749fc76a4ba"
+    }
   },
   "beemer-gs": {
     "length": 2.2699999809265137,
@@ -1158,13 +1158,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.7228264212608337,
       -0.1815999984741211
     ],
-    "credit": {
-      "name": "2014 BMW R1200GS Adventure",
-      "author": "OUTPISTON",
-      "authorUrl": "https://sketchfab.com/outpiston",
-      "license": "CC Attribution-NonCommercial-ShareAlike",
-      "url": "https://sketchfab.com/3d-models/2014-bmw-r1200gs-adventure-e1e09934424d428d8e59e75c03568716"
-    },
     "wheels": [
       [
         0,
@@ -1180,7 +1173,14 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.317,
         0.085
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2014 BMW R1200GS Adventure",
+      "author": "OUTPISTON",
+      "authorUrl": "https://sketchfab.com/outpiston",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2014-bmw-r1200gs-adventure-e1e09934424d428d8e59e75c03568716"
+    }
   },
   "dukati": {
     "length": 2.0999999046325684,
@@ -1193,13 +1193,6 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       0.5914015769958496,
       -0.16799999237060548
     ],
-    "credit": {
-      "name": "2021 Ducati Panigale V4 SP",
-      "author": "Carlito",
-      "authorUrl": "https://sketchfab.com/brainlesszombie5",
-      "license": "CC Attribution",
-      "url": "https://sketchfab.com/3d-models/2021-ducati-panigale-v4-sp-8c0632e4c54249758114490390f0b73f"
-    },
     "wheels": [
       [
         0,
@@ -1215,6 +1208,258 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
         0.31,
         0.092
       ]
-    ]
+    ],
+    "credit": {
+      "name": "2021 Ducati Panigale V4 SP",
+      "author": "Carlito",
+      "authorUrl": "https://sketchfab.com/brainlesszombie5",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/2021-ducati-panigale-v4-sp-8c0632e4c54249758114490390f0b73f"
+    }
+  },
+  "teslo-modelo3": {
+    "length": 4.71999979019165,
+    "width": 2.1979331970214844,
+    "height": 1.4164592027664185,
+    "bike": false,
+    "paintable": true,
+    "seat": [
+      0.4395866394042969,
+      0.5949128651618957,
+      -0.3303999853134156
+    ],
+    "wheels": [
+      [
+        0.835,
+        0.343,
+        1.57,
+        0.332,
+        0.135
+      ],
+      [
+        -0.834,
+        0.343,
+        1.566,
+        0.332,
+        0.135
+      ],
+      [
+        0.835,
+        0.344,
+        -1.307,
+        0.339,
+        0.138
+      ],
+      [
+        -0.834,
+        0.343,
+        -1.306,
+        0.338,
+        0.138
+      ]
+    ],
+    "credit": {
+      "name": "Tesla 2018 Model 3",
+      "author": "Ameer Studio",
+      "authorUrl": "https://sketchfab.com/uchiha.321abc",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/tesla-2018-model-3-5ef9b845aaf44203b6d04e2c677e444f"
+    }
+  },
+  "oudi-a4": {
+    "length": 4.760000228881836,
+    "width": 2.027106761932373,
+    "height": 1.491572618484497,
+    "bike": false,
+    "paintable": true,
+    "seat": [
+      0.40542135238647464,
+      0.6264604997634887,
+      -0.33320001602172855
+    ],
+    "wheels": [
+      [
+        0.758,
+        0.35,
+        1.415,
+        0.336,
+        0.131
+      ],
+      [
+        -0.758,
+        0.35,
+        1.415,
+        0.336,
+        0.131
+      ],
+      [
+        0.767,
+        0.336,
+        -1.339,
+        0.336,
+        0.131
+      ],
+      [
+        -0.767,
+        0.336,
+        -1.339,
+        0.336,
+        0.131
+      ]
+    ],
+    "credit": {
+      "name": "2005 Audi A4 3.2 FSI quattro",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2005-audi-a4-32-fsi-quattro-fd2e6813f8224d58b104dfbfc1ab3173"
+    }
+  },
+  "beemer-3": {
+    "length": 4.710000038146973,
+    "width": 2.0186660289764404,
+    "height": 1.4593857526779175,
+    "bike": false,
+    "paintable": true,
+    "seat": [
+      0.4037332057952881,
+      0.6129420161247253,
+      -0.3297000026702881
+    ],
+    "wheels": [
+      [
+        0.753,
+        0.336,
+        1.522,
+        0.337,
+        0.256
+      ],
+      [
+        -0.753,
+        0.336,
+        1.522,
+        0.337,
+        0.256
+      ],
+      [
+        0.766,
+        0.336,
+        -1.276,
+        0.335,
+        0.137
+      ],
+      [
+        -0.766,
+        0.336,
+        -1.276,
+        0.335,
+        0.137
+      ]
+    ],
+    "credit": {
+      "name": "[FREE] BMW M3 E30",
+      "author": "Martin Trafas",
+      "authorUrl": "https://sketchfab.com/TinoD2",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/free-bmw-m3-e30-ac3c7013434e403e8faff87948caf422"
+    }
+  },
+  "mersedez-c": {
+    "length": 4.75,
+    "width": 2.0057120323181152,
+    "height": 1.4660297632217407,
+    "bike": false,
+    "paintable": false,
+    "seat": [
+      0.4011424064636231,
+      0.6157325005531311,
+      -0.3325
+    ],
+    "wheels": [
+      [
+        0.774,
+        0.323,
+        1.523,
+        0.323,
+        0.154
+      ],
+      [
+        -0.773,
+        0.323,
+        1.523,
+        0.323,
+        0.154
+      ],
+      [
+        0.76,
+        0.323,
+        -1.264,
+        0.323,
+        0.154
+      ],
+      [
+        -0.759,
+        0.323,
+        -1.264,
+        0.323,
+        0.154
+      ]
+    ],
+    "credit": {
+      "name": "2008 Mercedes-Benz C63 AMG",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2008-mercedes-benz-c63-amg-8f541d1d07b545799a20217c555a3948"
+    }
+  },
+  "modelo-y": {
+    "length": 4.75,
+    "width": 2.029071092605591,
+    "height": 1.6497693061828613,
+    "bike": false,
+    "paintable": false,
+    "seat": [
+      0.4058142185211182,
+      0.6929031085968017,
+      -0.3325
+    ],
+    "wheels": [
+      [
+        0.771,
+        0.363,
+        1.461,
+        0.363,
+        0.165
+      ],
+      [
+        -0.771,
+        0.363,
+        1.471,
+        0.363,
+        0.167
+      ],
+      [
+        0.771,
+        0.363,
+        -1.424,
+        0.363,
+        0.167
+      ],
+      [
+        -0.772,
+        0.363,
+        -1.414,
+        0.363,
+        0.166
+      ]
+    ],
+    "credit": {
+      "name": "2021 Tesla Model Y",
+      "author": "tonielpro520",
+      "authorUrl": "https://sketchfab.com/tonielpro520",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/2021-tesla-model-y-59e2ead369984b1a85c800ff6cf6789d"
+    }
   }
 };

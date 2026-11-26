@@ -9,25 +9,8 @@
       "Mirrors"
     ]
   },
-  "mersedez-c": {
-    "rotate": 180,
-    "skip": "broken: loose black/red pieces, hood missing"
-  },
-  "volvu-xc90": {
-    "color": "#1c2a3a",
-    "rotate": 180,
-    "skip": "untextured grey clay look"
-  },
-  "modelo-y": {
-    "color": "#f2f2f2",
-    "skip": "untextured grey, doors open, no windows"
-  },
   "kuper": {
     "rotate": 180
-  },
-  "beemer-3": {
-    "rotate": 180,
-    "skip": "crumpled, dented doors"
   },
   "hondo-cbr": {
     "rotate": 180
@@ -45,12 +28,12 @@
     "wheels": false
   },
   "teslo-modelo3": {
-    "skip": "glass roof shows a grey pattern, plain white wheels"
-  },
-  "oudi-a4": {
-    "skip": "noisy camouflage wrap all over the car"
+    "rotate": 180
   },
   "kio-ev6": {
-    "skip": "hood open, parts missing"
+    "skip": "tried 3 models: open doors/broken parts, then untextured and broken wheels; uses the built-in shape"
+  },
+  "volvu-xc90": {
+    "skip": "tried 2 models: untextured clay, then broken spiky parts; other results are a photoscan, Lego or parts; uses the built-in shape"
   }
 }

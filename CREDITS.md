@@ -54,16 +54,18 @@ uncolored models were given colors (`scripts/build-vehicles.mjs`). In the game t
 | harly | [Harley-Davidson Custom Road Glide Style Bagger](https://sketchfab.com/3d-models/harley-davidson-custom-road-glide-style-bagger-bd1640cecf8e438abe7a5749fc76a4ba) | [Tulio Portela](https://sketchfab.com/TulioPortela) | CC Attribution | "harley davidson street glide" #1 |
 | beemer-gs | [2014 BMW R1200GS Adventure](https://sketchfab.com/3d-models/2014-bmw-r1200gs-adventure-e1e09934424d428d8e59e75c03568716) | [OUTPISTON](https://sketchfab.com/outpiston) | CC Attribution-NonCommercial-ShareAlike | "bmw r1300gs" #1 |
 | dukati | [2021 Ducati Panigale V4 SP](https://sketchfab.com/3d-models/2021-ducati-panigale-v4-sp-8c0632e4c54249758114490390f0b73f) | [Carlito](https://sketchfab.com/brainlesszombie5) | CC Attribution | "2024 ducati panigale v4" #1 |
+| teslo-modelo3 | [Tesla 2018 Model 3](https://sketchfab.com/3d-models/tesla-2018-model-3-5ef9b845aaf44203b6d04e2c677e444f) | [Ameer Studio](https://sketchfab.com/uchiha.321abc) | CC Attribution | "tesla model 3" #1 (replaced a broken first pick) |
+| oudi-a4 | [2005 Audi A4 3.2 FSI quattro](https://sketchfab.com/3d-models/2005-audi-a4-32-fsi-quattro-fd2e6813f8224d58b104dfbfc1ab3173) | [Ddiaz Design](https://sketchfab.com/ddiaz-design) | CC Attribution-NonCommercial-ShareAlike | "audi a4" #1 (replaced a broken first pick) |
+| beemer-3 | [[FREE] BMW M3 E30](https://sketchfab.com/3d-models/free-bmw-m3-e30-ac3c7013434e403e8faff87948caf422) | [Martin Trafas](https://sketchfab.com/TinoD2) | CC Attribution | "bmw 3 series" #1 (replaced a broken first pick) |
+| mersedez-c | [2008 Mercedes-Benz C63 AMG](https://sketchfab.com/3d-models/2008-mercedes-benz-c63-amg-8f541d1d07b545799a20217c555a3948) | [Ddiaz Design](https://sketchfab.com/ddiaz-design) | CC Attribution-NonCommercial-ShareAlike | "mercedes c class" #6 (replaced a broken first pick) |
+| modelo-y | [2021 Tesla Model Y](https://sketchfab.com/3d-models/2021-tesla-model-y-59e2ead369984b1a85c800ff6cf6789d) | [tonielpro520](https://sketchfab.com/tonielpro520) | CC Attribution | "tesla model y" #6 (replaced a broken first pick) |
 <!-- sketchfab-vehicles:end -->
 
 Skipped (low quality, the game uses its own built-in car shape for these):
-- teslo-modelo3: glass roof shows a grey pattern, plain white wheels
-- oudi-a4: noisy camouflage wrap all over the car
-- beemer-3: crumpled, dented doors
-- mersedez-c: broken: loose black/red pieces, hood missing
-- modelo-y: untextured grey, doors open, no windows
-- kio-ev6: hood open, parts missing
-- volvu-xc90: untextured grey clay look
+- kio-ev6: tried 3 models: open doors/broken parts, then untextured and broken wheels; uses the built-in shape
+- volvu-xc90: tried 2 models: untextured clay, then broken spiky parts; other results are a photoscan, Lego or parts; uses the built-in shape
+- First picks that were replaced by better models: teslo-modelo3, oudi-a4, beemer-3, mersedez-c, modelo-y (patterned roof,
+  camouflage wrap, dented doors, broken pieces, untextured with open doors).
 
 <!-- sketchfab-city:start -->
 ## Buildings and trees (Sketchfab)
