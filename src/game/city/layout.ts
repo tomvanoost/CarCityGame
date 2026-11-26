@@ -50,7 +50,7 @@ export interface Tower { x: number; z: number; w: number; d: number; h: number; 
 export interface Collider {
   x0: number; z0: number; x1: number; z1: number;
   /** Small things (trees, lamp posts, traffic lights) that a fast car knocks over instead of stopping at. */
-  knock?: boolean;
+  knock?: 'tree' | 'metal';
   /** Knocked over right now: no collision until it's back up. */
   off?: boolean;
 }
@@ -127,7 +127,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   };
   const addTree = (x: number, z: number, model?: string, scale?: number) => {
     L.nature.push({ model: model ?? rng.pick(TREES), x, z, rot: rng.range(0, Math.PI * 2), scale: scale ?? rng.range(0.85, 1.2) });
-    L.colliders.push({ x0: x - 0.4, z0: z - 0.4, x1: x + 0.4, z1: z + 0.4, knock: true });
+    L.colliders.push({ x0: x - 0.4, z0: z - 0.4, x1: x + 0.4, z1: z + 0.4, knock: 'tree' });
   };
   const addSmall = (x: number, z: number, model: string, scale = 1) =>
     L.nature.push({ model, x, z, rot: rng.range(0, Math.PI * 2), scale: scale * rng.range(0.8, 1.2) });
@@ -309,7 +309,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
         const x = s.ox + s.ax * d - s.outX * off, z = s.oz + s.az * d - s.outZ * off;
         if (k % 3 === 1) {
           L.props.push({ model: 'Streetlight_Single', x, z, rot: Math.atan2(s.outX, s.outZ), scale: 1 });
-          L.colliders.push({ x0: x - 0.2, z0: z - 0.2, x1: x + 0.2, z1: z + 0.2, knock: true });
+          L.colliders.push({ x0: x - 0.2, z0: z - 0.2, x1: x + 0.2, z1: z + 0.2, knock: 'metal' });
         } else if (b.district !== 'gas' || k % 3 === 0) {
           addTree(x, z, undefined, rng.range(0.75, 0.95));
         }
@@ -326,7 +326,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       for (const [sx, sz] of [[1, 1], [-1, -1]]) {
         const x = cx + sx * o, z = cz + sz * o;
         L.props.push({ model: 'TrafficLight_2', x, z, rot: Math.atan2(-sx, -sz) + Math.PI / 4, scale: 1 });
-        L.colliders.push({ x0: x - 0.2, z0: z - 0.2, x1: x + 0.2, z1: z + 0.2, knock: true });
+        L.colliders.push({ x0: x - 0.2, z0: z - 0.2, x1: x + 0.2, z1: z + 0.2, knock: 'metal' });
       }
     }
   }
@@ -341,7 +341,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       if (rng.chance(0.12)) addSmall(px, pz, rng.chance(0.5) ? rng.pick(BUSHES) : rng.pick(['Rock_Moss_1', 'Rock_Moss_2']), 2);
       else {
         L.nature.push({ model: rng.chance(0.45) ? rng.pick(PINES) : rng.pick(TREES), x: px, z: pz, rot: rng.range(0, 6.28), scale: rng.range(1, 1.5) });
-        L.colliders.push({ x0: px - 0.5, z0: pz - 0.5, x1: px + 0.5, z1: pz + 0.5, knock: true });
+        L.colliders.push({ x0: px - 0.5, z0: pz - 0.5, x1: px + 0.5, z1: pz + 0.5, knock: 'tree' });
       }
     }
   }

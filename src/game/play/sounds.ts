@@ -290,14 +290,65 @@ class Sounds {
     this.tone(ctx, 'sine', 2637, t + 0.08, 0.25, 0.03);
   }
 
-  /** Cartoon "bonk + whoosh" when a tree or lamp post tips over. */
-  knock() {
+  private noiseBuf: AudioBuffer | null = null;
+
+  /** A burst of filtered noise (cracks, rustling leaves, thuds). */
+  private noise(ctx: AudioContext, start: number, dur: number, vol: number, type: BiquadFilterType, freq: number, q = 1, attack = 0.005, endFreq?: number) {
+    if (!this.noiseBuf) {
+      this.noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      const d = this.noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    src.buffer = this.noiseBuf;
+    f.type = type; f.frequency.setValueAtTime(freq, start); f.Q.value = q;
+    if (endFreq) f.frequency.exponentialRampToValueAtTime(endFreq, start + dur);
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(vol, start + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    src.connect(f).connect(g).connect(this.master!);
+    src.start(start, Math.random() * 1.5);
+    src.stop(start + dur + 0.02);
+  }
+
+  /**
+   * Something tipping over. tree: a wooden crack and thump, rustling leaves, and a soft thud when it
+   * lands. metal (lamp post, traffic light): a ringing clang and a clatter when it lands.
+   * k: 0..1, how fast you hit it.
+   */
+  knock(kind: 'tree' | 'metal', k = 1) {
     const ctx = this.ready();
     if (!ctx) return;
-    const t = ctx.currentTime;
-    this.tone(ctx, 'triangle', 520, t, 0.12, 0.22, 140);
-    this.tone(ctx, 'sine', 90, t, 0.18, 0.3, 50);
-    this.tone(ctx, 'sine', 900, t + 0.06, 0.35, 0.05, 300);
+    const t = ctx.currentTime, v = 0.6 + k * 0.4;
+    if (kind === 'tree') {
+      this.noise(ctx, t, 0.1, 0.32 * v, 'bandpass', 1700, 0.9);               // crack
+      this.noise(ctx, t + 0.02, 0.07, 0.18 * v, 'bandpass', 900, 1.5);         // splinter
+      this.tone(ctx, 'sine', 150, t, 0.28, 0.4 * v, 55);                        // woody thump
+      this.tone(ctx, 'triangle', 320, t, 0.09, 0.07 * v, 170);                  // knock
+      this.noise(ctx, t + 0.05, 0.75, 0.07 * v, 'highpass', 2600, 0.7, 0.18, 1500); // leaves rustling
+      this.noise(ctx, t + 0.55, 0.35, 0.3 * v, 'lowpass', 320, 0.8);            // lands on the ground
+      this.tone(ctx, 'sine', 85, t + 0.55, 0.32, 0.32 * v, 45);
+      this.noise(ctx, t + 0.56, 0.4, 0.05 * v, 'highpass', 2200, 0.7, 0.04);    // leaves settle
+    } else {
+      this.noise(ctx, t, 0.05, 0.18 * v, 'bandpass', 2800, 1.2);                // impact
+      this.tone(ctx, 'sine', 130, t, 0.22, 0.28 * v, 60);                        // thud
+      // A pole rings with a few out-of-tune partials, like a real metal pipe.
+      const partials: [number, number, number][] = [[523, 0.11, 1.1], [1187, 0.06, 0.8], [1961, 0.035, 0.5], [2793, 0.02, 0.35]];
+      for (const [f, vol, dur] of partials) this.tone(ctx, 'sine', f, t, dur, vol * v, f * 0.985);
+      for (const [f, vol] of partials.slice(0, 3)) this.tone(ctx, 'sine', f * 1.06, t + 0.5, 0.3, vol * 0.5 * v); // clatter on the ground
+      this.noise(ctx, t + 0.5, 0.16, 0.08 * v, 'bandpass', 2000, 1);
+      this.tone(ctx, 'sine', 110, t + 0.5, 0.18, 0.2 * v, 55);
+    }
+  }
+
+  /** Bumping into a wall: a soft rubbery thud (k: 0..1, how hard). */
+  bump(k = 1) {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const t = ctx.currentTime, v = 0.35 + k * 0.65;
+    this.noise(ctx, t, 0.22, 0.35 * v, 'lowpass', 420, 0.8);
+    this.tone(ctx, 'sine', 95, t, 0.26, 0.35 * v, 48);
+    this.tone(ctx, 'triangle', 230, t, 0.08, 0.08 * v, 140);
   }
 
   /** Soft car door clunk. */

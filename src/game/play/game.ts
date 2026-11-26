@@ -877,6 +877,12 @@ export class Game {
       const h0 = v.heading;
       v.update(dt, driveInput, this.world); // you drive right through people: no stopping, no bump
       this.knockOver(v);
+      this.bumpSoundTimer = Math.max(0, this.bumpSoundTimer - dt);
+      if (v.wallHit) {
+        if (this.bumpSoundTimer === 0) sounds.bump(Math.min(1, v.wallHit / 15));
+        this.bumpSoundTimer = 0.4; // sliding along a wall doesn't keep thudding
+        v.wallHit = 0;
+      }
       if (this.signals?.side) {
         // Left turns raise the heading, right turns lower it. Turned ~60° and the wheel is straight again: off.
         this.blinkTurned += (v.heading - h0) * (this.signals.side === 'left' ? 1 : -1);
@@ -990,6 +996,8 @@ export class Game {
   }
 
   /** Trees / lamp posts the car just hit tip over the way it drove, and come back later. */
+  private bumpSoundTimer = 0;
+
   private knockOver(v: Vehicle) {
     const hits = this.world?.takeKnocked();
     if (!hits?.length || !this.city) return;
@@ -1002,7 +1010,8 @@ export class Game {
       this.lamps?.setLit(x, z, false);
       this.city.knock(x, z, sx, sz, () => { b.off = false; this.lamps?.setLit(x, z, true); });
     }
-    sounds.knock();
+    // One sound per kind (several trees at once still sound like one crash).
+    for (const kind of new Set(hits.map((b) => b.knock ?? 'tree'))) sounds.knock(kind, Math.min(1, Math.abs(v.speed) / 20));
     this.shake = Math.max(this.shake, 0.2);
   }
 

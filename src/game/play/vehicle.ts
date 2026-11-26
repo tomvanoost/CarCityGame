@@ -35,6 +35,8 @@ export class Vehicle {
   private tmp = { x: 0, z: 0 };
   /** Set when the car bumped into something this frame (for a little shake). */
   bumped = 0;
+  /** Speed (m/s) of the last bump into a wall, for the bump sound (the game resets it). */
+  wallHit = 0;
   /** True while the car is braking by itself for a person. */
   yielding = false;
   /** Extra speed limit in m/s (e.g. empty tank). */
@@ -123,7 +125,7 @@ export class Vehicle {
         // Only lose speed when driving *into* the obstacle.
         const into = -(r.nx * fx + r.nz * fz) * Math.sign(this.speed || 1);
         if (into > 0.2) {
-          if (Math.abs(this.speed) > 3) this.bumped = 0.3;
+          if (Math.abs(this.speed) > 3) { this.bumped = 0.3; this.wallHit = Math.max(this.wallHit, Math.abs(this.speed) * into); }
           this.speed *= 1 - 0.8 * into;
         }
       }
