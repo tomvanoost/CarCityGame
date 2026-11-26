@@ -4,8 +4,9 @@ A friendly open-world city game for **kids**: drive, walk, earn money with jobs,
 TypeScript + Three.js + Vite, hosted on fly.io, accounts in Firebase (demo mode without Firebase).
 
 ## Requirements that ALWAYS apply
-- **No violence.** No weapons, fighting, damage, crashes into people, or scary content. Cars always
-  stop before pedestrians (`Vehicle.yieldToPeople`). Never re-add the removed fighting animations.
+- **No violence.** No weapons, fighting, damage, crashes into people, or scary content. Your car and you
+  pass right through people (ghost-style, nobody is hit or pushed); traffic cars still stop for people.
+  Never re-add the removed fighting animations.
 - **Very easy to use, simple UI.** Few screens, big buttons, no busy menus. Kids aged ~6–12.
 - **Fast on tablets.** Keep draw calls low (BatchedMesh / InstancedMesh / merged meshes), use LOD,
   watch the FPS counter. New 3D content must be optimized (see `scripts/build-models.mjs`).

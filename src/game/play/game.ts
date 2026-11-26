@@ -642,10 +642,10 @@ export class Game {
       this.people?.honk(v.x, v.z);
       awardSticker('honk');
     }
-    sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0);
+    sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0, !!v.spec.electric);
     if (driving) {
       const before = { x: v.x, z: v.z };
-      v.update(dt, driveInput, this.world, this.people?.obstacles());
+      v.update(dt, driveInput, this.world); // you drive right through people: no stopping, no bump
       const moved = Math.hypot(v.x - before.x, v.z - before.z);
       if (moved > 0) {
         this.meters += moved;
@@ -664,7 +664,7 @@ export class Game {
         blocked: this.blocked,
       });
     } else {
-      v.update(dt, null, this.world, this.people?.obstacles());
+      v.update(dt, null, this.world);
       if (!this.paused) this.player.update(dt, this.input.walk(), jump, this.follow.yaw, this.world);
       this.focus.set(this.player.x, this.player.y + 1.4, this.player.z);
       this.follow.update(dt, this.focus, { behindYaw: null, distance: 5.5, pitch: 0.32, blocked: this.blocked });

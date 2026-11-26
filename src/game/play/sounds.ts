@@ -1,6 +1,6 @@
 /**
  * Friendly game sounds, synthesized with WebAudio (no audio files to download).
- * - engine: a soft hum whose pitch follows the speed
+ * - engine: a soft hum whose pitch follows the speed (electric cars: a quiet rising whine)
  * - horn: a cheerful two-tone "toot toot"
  * - coin: a bright "ching" when you earn money
  * - door: a soft "clunk" when you get in or out
@@ -16,6 +16,10 @@ class Sounds {
   private engineGain: GainNode | null = null;
   private engineOsc: OscillatorNode[] = [];
   private engineFilter: BiquadFilterNode | null = null;
+  /** Combustion part (rumble) and electric part (whine) of the engine sound. */
+  private rumbleGain: GainNode | null = null;
+  private whineGain: GainNode | null = null;
+  private whineOsc: OscillatorNode[] = [];
   private muted = loadMuted();
   /** The toot that is playing now (its own volume node), so a new tap can cut it off. */
   private hornBus: { gain: GainNode; oscs: OscillatorNode[] } | null = null;
@@ -46,22 +50,39 @@ class Sounds {
   private startEngine(ctx: AudioContext) {
     this.engineGain = ctx.createGain();
     this.engineGain.gain.value = 0;
+    this.engineGain.connect(this.master!);
+    // Combustion: a filtered sawtooth with a sine below it ("vroom").
+    this.rumbleGain = ctx.createGain();
+    this.rumbleGain.connect(this.engineGain);
     this.engineFilter = ctx.createBiquadFilter();
     this.engineFilter.type = 'lowpass';
     this.engineFilter.frequency.value = 300;
-    this.engineFilter.connect(this.engineGain);
-    this.engineGain.connect(this.master!);
+    this.engineFilter.connect(this.rumbleGain);
     const saw = ctx.createOscillator(); saw.type = 'sawtooth';
     const sub = ctx.createOscillator(); sub.type = 'sine';
     const subGain = ctx.createGain(); subGain.gain.value = 0.8;
     saw.connect(this.engineFilter);
-    sub.connect(subGain).connect(this.engineGain);
+    sub.connect(subGain).connect(this.rumbleGain);
     saw.start(); sub.start();
     this.engineOsc = [saw, sub];
+    // Electric: two soft sines a fifth apart, the futuristic whine of an electric motor.
+    this.whineGain = ctx.createGain();
+    this.whineGain.gain.value = 0;
+    this.whineGain.connect(this.engineGain);
+    const w1 = ctx.createOscillator(); w1.type = 'sine';
+    const w2 = ctx.createOscillator(); w2.type = 'triangle';
+    const w2Gain = ctx.createGain(); w2Gain.gain.value = 0.25;
+    w1.connect(this.whineGain);
+    w2.connect(w2Gain).connect(this.whineGain);
+    w1.start(); w2.start();
+    this.whineOsc = [w1, w2];
   }
 
-  /** Every frame: engine on while driving; pitch follows the speed, a bit louder on the gas. */
-  engine(on: boolean, kmh: number, throttle: number) {
+  /**
+   * Every frame: engine on while driving; pitch follows the speed, a bit louder on the gas.
+   * Electric cars don't go "vroom": they make a quiet whine that rises with the speed.
+   */
+  engine(on: boolean, kmh: number, throttle: number, electric = false) {
     const ctx = this.ready();
     if (!ctx) return;
     if (!this.engineGain) { if (!on) return; this.startEngine(ctx); }
@@ -70,6 +91,11 @@ class Sounds {
     this.engineOsc[0].frequency.setTargetAtTime(base, t, 0.12);
     this.engineOsc[1].frequency.setTargetAtTime(base / 2, t, 0.12);
     this.engineFilter!.frequency.setTargetAtTime(240 + k * 600 + throttle * 150, t, 0.12);
+    const whine = 260 + Math.min(1, kmh / 200) * 900;
+    this.whineOsc[0].frequency.setTargetAtTime(whine, t, 0.1);
+    this.whineOsc[1].frequency.setTargetAtTime(whine * 1.5, t, 0.1);
+    this.rumbleGain!.gain.setTargetAtTime(electric ? 0 : 1, t, 0.05);
+    this.whineGain!.gain.setTargetAtTime(electric ? 0.12 + k * 0.25 + throttle * 0.12 : 0, t, 0.05);
     this.engineGain!.gain.setTargetAtTime(on ? 0.05 + k * 0.05 + throttle * 0.03 : 0, t, on ? 0.15 : 0.08);
   }
 

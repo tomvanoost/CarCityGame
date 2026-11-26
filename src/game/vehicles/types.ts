@@ -67,6 +67,8 @@ export interface VehicleSpec {
   kind: 'car' | 'motor';
   /** Default paint color. */
   color: string;
+  /** Electric car: no engine "vroom", a soft electric whine instead. */
+  electric?: boolean;
   /** Real top speed of the car it's modeled on, in km/h (also the in-game top speed). */
   topSpeed: number;
   /** Gameplay stats (1..10) shown in the shop. */

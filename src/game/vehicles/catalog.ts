@@ -49,11 +49,13 @@ const TOP_SPEED: Record<string, number> = {
   dukati: 300, // Ducati Panigale V4 SP
 };
 const top = (id: string) => TOP_SPEED[id] ?? 180;
+/** Fully electric vehicles (of the models used: the Mini is a petrol Cooper S). */
+const ELECTRIC = new Set(['teslo-modelo3', 'modelo-y', 'cinque', 'seel', 'atto-3', 'taykan', 'id-vier', 'id-bus', 'kio-ev6']);
 /** The shop's speed bar follows the real top speed: 40 km/h per step, 1..10. */
 const speedStat = (id: string) => Math.max(1, Math.min(10, Math.round(top(id) / 40)));
 
 const car = (id: string, brand: string, model: string, year: number, price: number, color: string, stats: Stats, shape: ShapeParams): VehicleSpec =>
-  ({ id, brand, model, year, price, kind: 'car', color, topSpeed: top(id), stats: { ...stats, speed: speedStat(id) }, shape: makeShape(shape) });
+  ({ id, brand, model, year, price, kind: 'car', color, electric: ELECTRIC.has(id), topSpeed: top(id), stats: { ...stats, speed: speedStat(id) }, shape: makeShape(shape) });
 const bike = (id: string, brand: string, model: string, year: number, price: number, color: string, stats: Stats, shape: BikeShape): VehicleSpec =>
   ({ id, brand, model, year, price, kind: 'motor', color, topSpeed: top(id), stats: { ...stats, speed: speedStat(id) }, bike: shape });
 
@@ -101,6 +103,7 @@ export const VEHICLES: VehicleSpec[] = [
     price: 24000,
     kind: 'car',
     color: '#c8102e',
+    electric: true,
     topSpeed: top('teslo-modelo3'),
     stats: { speed: speedStat('teslo-modelo3'), accel: 9, handling: 8 },
     shape: {

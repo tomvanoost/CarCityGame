@@ -278,7 +278,7 @@ export class Pedestrians {
     return this.people.filter((p) => p.active).map((p) => ({ x: p.x, z: p.z, r: 0.45 }));
   }
 
-  update(dt: number, fx: number, fz: number, car: Vehicle | null, playerPos: { x: number; z: number } | null) {
+  update(dt: number, fx: number, fz: number, car: Vehicle | null, _playerPos: { x: number; z: number } | null) {
     if (!this.templates.length) return;
     // Keep the right number of people around the player.
     while (this.people.length < this.count) if (!this.spawn(null, fx, fz)) break;
@@ -355,18 +355,7 @@ export class Pedestrians {
         } else if (p.state === 'walk') this.atCorner(p, car);
       }
 
-      // Never stand inside the parked car or the player.
-      if (car) {
-        for (const off of [car.length / 2 - car.width / 2, 0, -(car.length / 2 - car.width / 2)]) {
-          const cx = car.x + Math.sin(car.heading) * off, cz = car.z + Math.cos(car.heading) * off;
-          const ex = p.x - cx, ez = p.z - cz, e = Math.hypot(ex, ez), min = car.width / 2 + 0.45;
-          if (e < min && e > 1e-4) { p.x = cx + (ex / e) * min; p.z = cz + (ez / e) * min; }
-        }
-      }
-      if (playerPos) {
-        const ex = p.x - playerPos.x, ez = p.z - playerPos.z, e = Math.hypot(ex, ez);
-        if (e < 0.8 && e > 1e-4) { p.x = playerPos.x + (ex / e) * 0.8; p.z = playerPos.z + (ez / e) * 0.8; }
-      }
+      // You can drive and walk right through people (nobody gets bumped), so nobody is pushed aside here.
       if (p.state === 'dodge') {
         this.world.resolveCircle(p.x, p.z, 0.35, this.tmp);
         p.x = this.tmp.x; p.z = this.tmp.z;

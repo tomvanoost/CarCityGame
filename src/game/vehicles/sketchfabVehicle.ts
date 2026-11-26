@@ -23,16 +23,25 @@ function seatFor(info: { length: number; width: number; height: number; bike: bo
 type Wheel = [number, number, number, number, number];
 
 /**
+ * Only the rim (spokes, hub) rolls: the part within this share of the wheel radius. The round
+ * tire stays put (it looks the same turning or not), so no piece of tire or wheel arch is cut
+ * out and swung around.
+ */
+const RIM = 0.8;
+
+/**
  * Cuts the wheels out of a loaded model (once per file; every copy shares the result):
  * triangles that lie fully inside a wheel's cylinder move to their own mesh under a pivot
  * at the wheel center (`CCG_WHEEL_<i>`) with a spin group inside (`CCG_SPIN`). The pivot
  * steers, the spin group rolls. Wheel spots come from scripts/lib/wheels.mjs.
  */
-function splitWheels(model: THREE.Object3D, wheels: Wheel[], byAxle: boolean) {
+function splitWheels(model: THREE.Object3D, found: Wheel[], byAxle: boolean) {
   if (model.userData.wheelsSplit) return;
   model.userData.wheelsSplit = true;
   model.updateMatrixWorld(true);
   const toModel = new THREE.Matrix4().copy(model.matrixWorld).invert();
+  const wheels = refineWheels(model, toModel, found);
+  model.userData.wheelShift = wheels.map((w, k) => Math.hypot(w[1] - found[k][1], w[2] - found[k][2]));
   // byAxle (traffic cars, they only roll): both wheels of an axle share one part, fewer draw calls.
   const groupOf = (k: number) => (byAxle && wheels.length === 4 ? (k < 2 ? 0 : 1) : k);
   const centers: [number, number, number][] = byAxle && wheels.length === 4
@@ -61,7 +70,7 @@ function splitWheels(model: THREE.Object3D, wheels: Wheel[], byAxle: boolean) {
       v.fromBufferAttribute(pos, i).applyMatrix4(m);
       for (let k = 0; k < wheels.length; k++) {
         const [x, y, z, r, hw] = wheels[k];
-        if (Math.abs(v.x - x) <= hw + 0.04 && (v.y - y) ** 2 + (v.z - z) ** 2 <= (r * 1.06) ** 2) { inWheel[i] = k; break; }
+        if (Math.abs(v.x - x) <= hw + 0.04 && (v.y - y) ** 2 + (v.z - z) ** 2 <= (r * RIM) ** 2) { inWheel[i] = k; break; }
       }
     }
     const index = g.getIndex();
@@ -96,6 +105,38 @@ function splitWheels(model: THREE.Object3D, wheels: Wheel[], byAxle: boolean) {
   }
   // Pivots live in the model's own space.
   for (const p of pivots) model.add(p);
+}
+
+/**
+ * The found wheel spots can be a few cm off the real axle; a rim spinning around the wrong
+ * point wobbles. This moves each center to the middle of the rim's own vertices (a few rounds,
+ * as the cylinder then catches the rim better).
+ */
+function refineWheels(model: THREE.Object3D, toModel: THREE.Matrix4, wheels: Wheel[]): Wheel[] {
+  const pts: number[] = [];
+  const m = new THREE.Matrix4(), v = new THREE.Vector3();
+  model.traverse((o) => {
+    const mesh = o as THREE.Mesh, pos = mesh.isMesh ? mesh.geometry.getAttribute('position') : null;
+    if (!pos) return;
+    m.multiplyMatrices(toModel, mesh.matrixWorld);
+    for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(m); pts.push(v.x, v.y, v.z); }
+  });
+  return wheels.map(([x, y0, z0, r, hw]) => {
+    let y = y0, z = z0;
+    for (let round = 0; round < 6; round++) {
+      let y1 = Infinity, y2 = -Infinity, z1 = Infinity, z2 = -Infinity;
+      for (let i = 0; i < pts.length; i += 3) {
+        if (Math.abs(pts[i] - x) > hw + 0.04 || (pts[i + 1] - y) ** 2 + (pts[i + 2] - z) ** 2 > (r * RIM) ** 2) continue;
+        y1 = Math.min(y1, pts[i + 1]); y2 = Math.max(y2, pts[i + 1]); z1 = Math.min(z1, pts[i + 2]); z2 = Math.max(z2, pts[i + 2]);
+      }
+      if (y1 > y2) break;
+      // The middle of the rim (it's round). Small steps only: a big jump means something else was caught.
+      const ny = (y1 + y2) / 2, nz = (z1 + z2) / 2, max = r * 0.1;
+      y += THREE.MathUtils.clamp(ny - y, -max, max);
+      z += THREE.MathUtils.clamp(nz - z, -max, max);
+    }
+    return [x, y, z, r, hw];
+  });
 }
 
 export const hasSketchfabModel = (id: string) => id in SKETCHFAB_VEHICLES;
