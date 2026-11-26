@@ -1,10 +1,6 @@
 import * as THREE from 'three';
 import { loadGltf } from '../../engine/assets';
 import { SKETCHFAB_CITY, type SfCategory } from './sketchfabCity';
-import { SKETCHFAB_TREES } from './sketchfabTrees';
-
-// Realistic maple trees (scripts/build-trees.mjs) are drawn like the other Sketchfab city models.
-Object.assign(SKETCHFAB_CITY, SKETCHFAB_TREES);
 
 /**
  * Sketchfab models of a category. With fewer than 3 good ones the built-in (CC0) models are
@@ -31,10 +27,9 @@ export const TOWNHOUSES = sf('townhouse', CC0_TOWNHOUSES);
 export const HOUSES = sf('house', CC0_HOUSES);
 export const SHOPS = sf('shop', CC0_SHOPS);
 export const APARTMENTS = sf('apartment', CC0_APARTMENTS);
-// Realistic maples (leaf clusters + a billboard far away). The medium ones twice as often as the
-// small ones. (Earlier Sketchfab street trees looked out of place: a dark blob, a cone on a dome.)
-const MAPLES = Object.keys(SKETCHFAB_TREES);
-export const TREES: readonly string[] = MAPLES.length ? [...MAPLES.filter((m) => m.includes('_m')).flatMap((m) => [m, m]), ...MAPLES.filter((m) => m.includes('_s'))] : CC0_TREES;
+// The Sketchfab street trees looked out of place (a huge dark blob; a cone on a grass dome):
+// the built-in trees match the built-in buildings better.
+export const TREES = CC0_TREES;
 export const PINES = sf('pine', CC0_PINES, false);
 export const BUSHES = sf('bush', ['Bush_1', 'Bush_2', 'BushBerries_1'] as const, false);
 export const SMALL_NATURE = ['Bush_1', 'Bush_2', 'BushBerries_1', 'Flowers', 'Rock_Moss_1', 'Rock_Moss_2', 'Lilypad'] as const;

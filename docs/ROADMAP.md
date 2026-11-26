@@ -11,18 +11,26 @@ tablets, Dutch first with English. Overview and history: `docs/PLAN.md`.
 
 ## Next steps
 
-More realistic nature, one small step per run (the user's request). Keep draw calls low (one
-InstancedMesh / shader per feature, distance fade, off on Snel), check FPS-relevant numbers, and take
-close-up screenshots before and after.
-Asset sources: dl.polyhaven.org, api.polyhaven.com and ambientcg.com are blocked from the container;
-api.sketchfab.com works (CC0 / CC-BY models and their textures, see `scripts/sketchfab-download.mjs`),
-or generate textures procedurally (canvas / shader noise) at load time.
+New gameplay features, one per run (the user's request: no more "more realistic" graphics steps —
+the realistic trees glitched and were reverted). Each one small, kid-friendly, simple big-button UI,
+NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
+(the game stays free: no real money, no ads).
 
-- [ ] **Bushes and hedges**: realistic hedges along front gardens and bushes in the park (instanced, CC-BY / CC0
-  Sketchfab or procedural textures), replacing the plain bush models.
-- [ ] **Ground details**: soft color variation, worn paths across the park grass, and small stones /
-  leaves near trees (decal-style in the terrain shader, no extra draw calls).
-- [ ] **Water**: a more realistic pond (subtle waves, reflections of the sky, reeds and lily pads around the
-  edge).
+- [ ] **Ice cream shop**: an ice cream stand in the park (marker on the map); walk up, pick one of 4
+  flavors with big buttons (€5); your avatar holds the ice cream for a while; a sticker for the first one.
+- [ ] **Pet shop**: buy a dog or a cat (a few colors); the pet follows you when you walk and sits in the
+  car with you; pick / swap pets at home.
+- [ ] **Car paint & wheels shop**: a garage where you repaint your own cars (any color you own) and pick
+  rims / a roof stripe; changes show right away on the car and for other players in multiplayer.
+- [ ] **Furniture shop for the apartment**: buy a few pieces (bed, sofa, lamp, plant, rug, TV, posters)
+  and place them in your apartment room on fixed spots.
+- [ ] **Pizza delivery job**: pick up pizzas at a pizza shop and deliver them before they get cold
+  (a friendly timer, bonus money when fast, no penalty when late).
+- [ ] **Supermarket**: buy snacks and drinks that give a small bonus (e.g. a drink refills your
+  run energy / a snack gives a little money bonus on the next job); a cart you can push around.
+- [ ] **Fun fair in the park**: a Ferris wheel and a carousel you can ride (camera view from the top
+  of the Ferris wheel), €10 per ride.
+- [ ] **Daily missions**: three simple daily goals (drive 5 km, do 2 jobs, honk at 3 cars...) with
+  money and sticker rewards, shown in a small panel in the menu.
 
 (Add new ideas here, in order, for the next runs.)
