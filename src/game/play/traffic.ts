@@ -31,7 +31,14 @@ type Seg =
 
 interface Car {
   spec: VehicleSpec;
+  /** The model shown now: the light one, or the detailed one when the car is close to you. */
   built: BuiltCar;
+  light: BuiltCar;
+  full?: BuiltCar;
+  loadingFull?: boolean;
+  color: string;
+  driver?: THREE.Object3D;
+  driverScale?: number;
   root: THREE.Group;
   half: number;
   radius: number;
@@ -66,7 +73,10 @@ export class Traffic {
   private building = false;
   private disposed = false;
 
-  constructor(private graph: RoadGraph, count: number) {
+  private detailTimer = 0;
+
+  /** detailSlots: how many nearby cars may use the detailed model (0 on the fastest setting). */
+  constructor(private graph: RoadGraph, count: number, private detailSlots = 2) {
     this.pending = count;
   }
 
@@ -145,7 +155,8 @@ export class Traffic {
     const real = all.filter((v) => v.id in SKETCHFAB_VEHICLES);
     const cars = real.length >= 4 ? real : all;
     const spec = cars[Math.floor(Math.random() * cars.length)];
-    const built = await loadVehicle(spec, PAINT_COLORS[Math.floor(Math.random() * PAINT_COLORS.length)], { lod: true });
+    const color = PAINT_COLORS[Math.floor(Math.random() * PAINT_COLORS.length)];
+    const built = await loadVehicle(spec, color, { lod: true });
     if (this.disposed) { built.dispose(); return; }
     const root = new THREE.Group();
     root.add(built.root);
@@ -154,7 +165,7 @@ export class Traffic {
     head.visible = this.lights;
     root.add(head);
     const car: Car = {
-      spec, built, root, half: dims.length / 2, radius: dims.width / 2,
+      spec, built, light: built, color, root, half: dims.length / 2, radius: dims.width / 2,
       from: 0, to: 0, seg: this.lineSeg(...this.graph.edges[0]), d: 0, speed: 0, x: 0, z: 0, heading: 0,
       waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0,
     };
@@ -189,6 +200,9 @@ export class Traffic {
       this.build(focus).finally(() => { this.building = false; });
     }
 
+    this.detailTimer -= dt;
+    if (this.detailTimer <= 0) { this.detailTimer = 0.5; this.updateDetail(focus); }
+
     const peds = people?.obstacles() ?? [];
     const pc = { x: player.x, z: player.z, h: player.heading, half: player.length / 2, r: player.width / 2 };
 
@@ -197,6 +211,8 @@ export class Traffic {
         const drv = people.makeDriver();
         if (drv) {
           car.built.root.add(drv);
+          car.driver = drv;
+          car.driverScale = drv.scale.x;
           const scale = car.built.seatScale ?? SEATED_SCALE;
           drv.position.copy(seatedRootPosition(car.built.seat, scale));
           drv.scale.multiplyScalar(scale);
@@ -280,6 +296,48 @@ export class Traffic {
     }
   }
 
+  /**
+   * The few traffic cars close to you get the detailed model (textures, real lights and wheels);
+   * the rest stay the light one-draw-call version. Swapped back (and freed) when they drive off.
+   */
+  private updateDetail(focus: P) {
+    const dist = (c: Car) => Math.hypot(c.x - focus.x, c.z - focus.z);
+    const near = this.detailSlots > 0
+      ? this.cars.filter((c) => c.root.visible && dist(c) < (c.full ? 40 : 28)).sort((a, b) => dist(a) - dist(b)).slice(0, this.detailSlots)
+      : [];
+    for (const c of this.cars) {
+      const want = near.includes(c);
+      if (want && !c.full && !c.loadingFull) {
+        c.loadingFull = true;
+        loadVehicle(c.spec, c.color).then((full) => {
+          c.loadingFull = false;
+          if (this.disposed || !this.cars.includes(c)) { full.dispose(); return; }
+          c.full = full;
+          this.show(c, full);
+        }).catch(() => { c.loadingFull = false; });
+      } else if (!want && c.full) {
+        const full = c.full;
+        c.full = undefined;
+        this.show(c, c.light);
+        full.dispose();
+      }
+    }
+  }
+
+  /** Puts this model in the car (with its driver and the same wheel spin). */
+  private show(c: Car, model: BuiltCar) {
+    if (c.built === model) return;
+    c.built.root.removeFromParent();
+    c.root.add(model.root);
+    c.built = model;
+    if (c.driver) {
+      model.root.add(c.driver);
+      const scale = model.seatScale ?? SEATED_SCALE;
+      c.driver.position.copy(seatedRootPosition(model.seat, scale));
+      c.driver.scale.setScalar((c.driverScale ?? 1) * scale);
+    }
+  }
+
   /** The node after `to` (chosen once per intersection). */
   private peekNext(car: Car) {
     // Safety net: only ever turn onto a road that really leaves the crossing the car drives to.
@@ -290,7 +348,7 @@ export class Traffic {
 
   dispose() {
     this.disposed = true;
-    for (const c of this.cars) c.built.dispose();
+    for (const c of this.cars) { c.light.dispose(); c.full?.dispose(); }
     this.group.removeFromParent();
   }
 }

@@ -143,6 +143,8 @@ export class Game {
   /** Destination picked on the big map. */
   private dest: P | null = null;
   private trafficCount = 8;
+  /** Nearby traffic cars that may use the detailed model. */
+  private trafficDetail = 2;
   player?: Player;
   avatar?: Avatar;
   mode: Mode = 'driving';
@@ -192,6 +194,7 @@ export class Game {
     const q = pickQuality();
     this.peopleCount = q.people;
     this.trafficCount = q.traffic;
+    this.trafficDetail = q.name === 'fast' ? 0 : q.name === 'low' ? 1 : 2;
     this.renderer = createRenderer(canvas, { shadows: q.shadowMap > 0, antialias: q.antialias });
     this.scaler = new ResolutionScaler(this.renderer, q.maxPixelRatio, q.minPixelRatio);
     this.scene.fog = new THREE.Fog(SKY.horizon, q.fogNear, q.fogFar);
@@ -278,7 +281,7 @@ export class Game {
     this.roads = new RoadGraph(city.layout);
     this.nav = new Navigator(this.roads);
     this.scene.add(this.nav.arrows);
-    this.traffic = new Traffic(this.roads, this.trafficCount);
+    this.traffic = new Traffic(this.roads, this.trafficCount, this.trafficDetail);
     this.scene.add(this.traffic.group);
     this.traffic.setLights(this.evening);
   }

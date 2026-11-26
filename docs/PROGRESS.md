@@ -35,6 +35,7 @@ What is finished, the current state and known problems. The newest finished step
   `scripts/flip-vehicles.mjs` and `scripts/vehicle-wheels.mjs`.
 
 ## Done
+- [x] **Better-looking cars**: all vehicles rebuilt with ~110k triangles (bikes ~70k) instead of 60k (less blotchy paint), light traffic versions ~24k with smooth normals (the light Kona was shredded into shards at 12k). The 2 traffic cars nearest to you (within ~25 m; 1 on Low, 0 on Fast) swap to the detailed model and back when they drive off (`traffic.ts` updateDetail). Vehicle picks list restored from the manifest credits (it was lost with an old container); models re-downloaded. Vehicle folder 43 → 66 MB (only the cars in use are loaded).
 - [x] **Gentler keyboard steering**: arrow keys / A-D now ease in (full in ~0.45 s) up to 65% of full lock and straighten out quickly; controllers, wheels and touch unchanged.
 - [x] **Hyundo Kono (2026)**: new car in the shop (€22,000, 210 km/h) from the owner's GLB = Sketchfab "2026 Hyundai Kona Limited" by twr422 (CC-BY, credited). Built with a higher detail budget (112k tris; `tris` in `scripts/vehicle-fixes.json`) because 60k left blotchy paint; light traffic version 22k. Wheels found automatically: all four roll, front ones steer.
 - [x] **Better crash sounds**: trees: wooden crack + thump, rustling leaves and a thud when it lands; lamp posts / traffic lights: a ringing metal clang (out-of-tune partials) and a clatter on landing; bumping a wall: a soft rubbery thud (was silent). Louder when you hit faster.

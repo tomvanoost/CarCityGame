@@ -1,10 +1,10 @@
 // Turns the downloaded Sketchfab vehicles (assets-src/sketchfab/raw) into game-ready models:
-//   public/models/vehicles/<id>.glb      detailed: ~60k triangles, textures max 1024 px (WebP)
-//   public/models/vehicles/<id>_lod.glb  light (traffic): ~12k triangles, colors baked into the
+//   public/models/vehicles/<id>.glb      detailed: ~110k triangles, textures max 1024 px (WebP)
+//   public/models/vehicles/<id>_lod.glb  light (traffic): ~24k triangles, smooth normals, colors baked into the
 //                                        vertices, ONE mesh + ONE material = one draw call
 // and writes src/game/vehicles/sketchfabManifest.ts + the vehicle part of CREDITS.md.
 // Usage: node scripts/build-vehicles.mjs [id ...]
-import { getBounds, prune, transformMesh } from '@gltf-transform/functions';
+import { getBounds, normals, prune, transformMesh, weld } from '@gltf-transform/functions';
 import { autoColor, bakeToWorld, buildLod, finish, io, simplifyTo, triCount } from './lib/pipeline.mjs';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { NodeIO } from '@gltf-transform/core';
@@ -112,7 +112,7 @@ for (const [id, p] of Object.entries(picks)) {
     const paintNames = fixes[id]?.paint ?? [];
     autoColor(doc0, color, paintNames);
     const paintable = markPaint(doc0, paintNames);
-    await simplifyTo(doc0, fixes[id]?.tris ?? (bike ? 40000 : 60000), 0.004);
+    await simplifyTo(doc0, fixes[id]?.tris ?? (bike ? 70000 : 110000), 0.004);
     const tris0 = triCount(doc0);
     const size0 = await finish(doc0, `${OUT}/${id}.glb`, { textures: true });
     // Light version (from a fresh read, so its simplification starts from full detail).
@@ -120,7 +120,10 @@ for (const [id, p] of Object.entries(picks)) {
     const d1 = await normalize(doc1, id);
     autoColor(doc1, color, paintNames);
     await buildLod(doc1, d1.length);
-    await simplifyTo(doc1, bike ? 6000 : 12000, 0.02, false);
+    await simplifyTo(doc1, bike ? 10000 : 24000, 0.01, false);
+    // Smooth normals (without them every triangle was shaded flat: a faceted, blotchy look).
+    // Parts keep their own color, so the edges between body, windows and tyres stay crisp.
+    await doc1.transform(weld(), normals({ overwrite: true }));
     const tris1 = triCount(doc1);
     const size1 = await finish(doc1, `${OUT}/${id}_lod.glb`, { textures: false });
     manifest[id] = {
