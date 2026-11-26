@@ -240,7 +240,18 @@ button, input { font: inherit; color: inherit; }
 .tablet .job-card { top: calc(max(6px, env(safe-area-inset-top)) + 100px); }
 .tablet.has-dash .job-card { top: calc(max(6px, env(safe-area-inset-top)) + 100px); }
 /* graphics quality (menu ⚙️) */
-.icon-btn.settings-btn { top: calc(max(12px, env(safe-area-inset-top)) + 100px); right: 12px; font-size: 22px; }
+.btn.settings-btn { position: absolute; top: calc(max(12px, env(safe-area-inset-top)) + 100px); right: 12px; height: 48px; padding: 0 16px;
+  background: var(--card); color: var(--ink); font-size: 18px; box-shadow: var(--shadow); }
+.settings-card { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.settings-title { margin: 4px 0 0; font-size: 18px; font-weight: 900; color: var(--ink); }
+.settings-auto { display: flex; justify-content: center; }
+.btn-small { padding: 8px 14px; background: #eef4ff; color: var(--ink); font-size: 15px; }
+.pad-list { display: flex; flex-direction: column; gap: 8px; }
+.pad-item { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 16px; background: #e8f8ee; }
+.pad-item small { color: #1f9d55; font-weight: 800; }
+.pad-icon { font-size: 28px; }
+.pad-help { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 14px; background: #f4f7fc; font-size: 14px; color: var(--muted); }
+.pad-help b { color: var(--ink); }
 .quality-picker { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(20, 30, 50, .4); }
 .quality-card { width: min(460px, 100%); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
 .quality-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

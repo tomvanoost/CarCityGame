@@ -6,7 +6,7 @@ import { getBackend, getProfile, onProfileChange, setProfile, updateProfile } fr
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { openStickerBook } from './stickers';
-import { openQualityPicker } from './qualityPicker';
+import { openSettings } from './settings';
 import { STICKERS } from '../game/stickers';
 
 /** Game menu: avatar (top-left), selected car in the showroom, shops and Play. */
@@ -41,6 +41,7 @@ export const menuScreen: Screen = (root, nav) => {
   const next = h('button', { class: 'round-btn', 'aria-label': 'next' }, svgIcon('<path d="M9 5l7 7-7 7"/>', 26));
   const picker = h('div', { class: 'car-picker' }, prev, carName, next);
 
+  let closeSettings: (() => void) | null = null;
   let saveTimer = 0;
   const renderCar = () => {
     const prof = getProfile()!;
@@ -83,7 +84,7 @@ export const menuScreen: Screen = (root, nav) => {
     picker,
     actions,
     h('button', { class: 'icon-btn logout', onclick: logout, 'aria-label': t('logout'), title: t('logout') }, svgIcon(icons.logout, 22)),
-    h('button', { class: 'icon-btn settings-btn', onclick: () => openQualityPicker(), 'aria-label': t('quality'), title: t('quality') }, '⚙️'),
+    h('button', { class: 'btn settings-btn', onclick: () => { closeSettings = openSettings(); }, 'aria-label': t('settings'), title: t('settings') }, '⚙️ ', h('span', {}, t('settings'))),
   );
 
   const offProfile = onProfileChange((np) => {
@@ -96,7 +97,7 @@ export const menuScreen: Screen = (root, nav) => {
     clearTimeout(saveTimer);
     offProfile();
     document.querySelector('.sticker-book')?.remove();
-    document.querySelector('.quality-picker')?.remove();
+    closeSettings?.();
     showroom.dispose();
     avatarView.dispose();
   };

@@ -292,9 +292,20 @@ export const gameScreen: Screen = (root, nav) => {
   canvas.addEventListener('pointercancel', endDrag);
   render();
 
+  // Controller B / ○ or Esc: close the open panel (taps its ✕ button).
+  const onBack = (e: Event) => {
+    if (e instanceof KeyboardEvent && e.key !== 'Escape') return;
+    const btn = [...root.querySelectorAll<HTMLButtonElement>('.close-btn')].find((b) => b.offsetParent !== null);
+    btn?.click();
+  };
+  window.addEventListener('carcity-back', onBack);
+  window.addEventListener('keydown', onBack);
+
   if (import.meta.env.DEV) Object.assign(window, { carcityDebug: { game, input } });
 
   return () => {
+    window.removeEventListener('carcity-back', onBack);
+    window.removeEventListener('keydown', onBack);
     closeRoom();
     cancelAnimationFrame(mapRaf);
     window.removeEventListener('pointerdown', sounds.unlock);

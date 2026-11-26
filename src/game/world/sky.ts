@@ -74,8 +74,9 @@ export class Sun {
 
   constructor(private renderer: THREE.WebGLRenderer, private size: number, mapSize: number) {
     this.light = new THREE.DirectionalLight('#fff1dd', 2.1);
-    this.light.castShadow = true;
-    this.light.shadow.mapSize.set(mapSize, mapSize);
+    // mapSize 0 = no shadows ("Snel" in the settings).
+    this.light.castShadow = mapSize > 0;
+    this.light.shadow.mapSize.set(Math.max(mapSize, 1), Math.max(mapSize, 1));
     const cam = this.light.shadow.camera;
     cam.left = cam.bottom = -size / 2;
     cam.right = cam.top = size / 2;
@@ -96,13 +97,13 @@ export class Sun {
   /** Moves the shadow area to `focus`, snapped to shadow texels to avoid shimmering. */
   follow(focus: THREE.Vector3, force = false) {
     if (!force && focus.distanceToSquared(this.lastFocus) < 9) return;
-    const texel = this.size / this.light.shadow.mapSize.x;
+    const texel = this.light.castShadow ? this.size / this.light.shadow.mapSize.x : 1;
     const fx = Math.round(focus.x / texel) * texel, fz = Math.round(focus.z / texel) * texel;
     this.light.target.position.set(fx, 0, fz);
     this.light.position.set(fx + SKY.sunDir.x * 300, SKY.sunDir.y * 300, fz + SKY.sunDir.z * 300);
     this.light.target.updateMatrixWorld();
     this.light.updateMatrixWorld();
     this.lastFocus.copy(focus);
-    this.renderer.shadowMap.needsUpdate = true;
+    if (this.light.castShadow) this.renderer.shadowMap.needsUpdate = true;
   }
 }

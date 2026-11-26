@@ -13,6 +13,8 @@ TypeScript + Three.js + Vite, hosted on fly.io, accounts in Firebase (demo mode 
 - **Beautiful but light graphics.** Stylized-realistic, PBR materials, shadows, sky and fog.
 - **Dutch first, English second.** Every UI text goes through `src/i18n.ts` (both `nl` and `en`).
 - **Tablet mode** (steering wheel, pedals, joystick) must keep working for every feature.
+- **Controllers** (Xbox / PlayStation / Nintendo and Logitech wheels with pedals, `src/game/play/gamepad.ts`)
+  must keep working too; ⚙️ Settings in the menu shows them and the graphics choice (Snel / Kwaliteit).
 - **Vehicles** are Sketchfab models of the real cars; in the UI they keep look-alike names.
 - **Assets:** CC0, or Sketchfab models with CC-BY / CC-BY-SA / CC-BY-NC / CC-BY-NC-SA (never ND, Standard
   or Editorial). Every non-CC0 asset is credited in `CREDITS.md`. NC models mean the game must stay free

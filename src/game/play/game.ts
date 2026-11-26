@@ -135,7 +135,7 @@ export class Game {
     const q = pickQuality();
     this.peopleCount = q.people;
     this.trafficCount = q.traffic;
-    this.renderer = createRenderer(canvas, { shadows: true });
+    this.renderer = createRenderer(canvas, { shadows: q.shadowMap > 0, antialias: q.antialias });
     this.scaler = new ResolutionScaler(this.renderer, q.maxPixelRatio, q.minPixelRatio);
     this.scene.fog = new THREE.Fog(SKY.horizon, q.fogNear, q.fogFar);
     this.scene.environment = skyEnvironment(this.renderer);
@@ -604,6 +604,7 @@ export class Game {
     if (!this.city || !this.vehicle || !this.player || !this.avatar || !this.world) return;
     this.save();
 
+    this.input.poll(dt); // game controllers / steering wheel
     const ctx = this.context();
     const key = this.input.takeInteract();
     if (!this.paused) {

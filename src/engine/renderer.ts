@@ -6,13 +6,15 @@ export const isTouch = matchMedia('(pointer: coarse)').matches;
 export interface RendererOptions {
   alpha?: boolean;
   shadows?: boolean;
+  /** Smooth edges (default on). */
+  antialias?: boolean;
 }
 
 /** Creates a renderer with good-looking, tablet-friendly defaults. */
 export function createRenderer(canvas: HTMLCanvasElement, opts: RendererOptions = {}) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    antialias: opts.antialias ?? true,
     alpha: !!opts.alpha,
     powerPreference: 'high-performance',
   });

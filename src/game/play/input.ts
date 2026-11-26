@@ -1,6 +1,8 @@
+import { Gamepads, type PadState } from './gamepad';
+
 /**
- * All controls end up in one place, whether they come from the keyboard
- * or from the on-screen tablet controls.
+ * All controls end up in one place, whether they come from the keyboard, the on-screen
+ * tablet controls, a game controller or a steering wheel.
  */
 export class Input {
   /** Values set by the touch controls (0..1 / -1..1). */
@@ -11,6 +13,8 @@ export class Input {
   private hornQueued = false;
   private lookDX = 0;
   private lookDY = 0;
+  private gamepads = new Gamepads();
+  private pad: PadState | null = null;
 
   constructor() {
     window.addEventListener('keydown', this.onKey);
@@ -33,25 +37,40 @@ export class Input {
 
   private key(...codes: string[]) { return codes.some((c) => this.keys.has(c)) ? 1 : 0; }
 
+  /** Once per frame: read the game controllers / steering wheel. */
+  poll(dt: number) {
+    const p = this.gamepads.poll();
+    this.pad = p;
+    if (!p) return;
+    if (p.interact) this.interactQueued = true;
+    if (p.jump) this.jumpQueued = true;
+    if (p.horn) this.hornQueued = true;
+    // The game screen closes an open panel (house, shop, map) on this, like the ✕ button.
+    if (p.back) window.dispatchEvent(new Event('carcity-back'));
+    // Right stick looks around like dragging the screen (~700 px per second at full tilt).
+    if (p.lookX || p.lookY) this.addLook(p.lookX * 700 * dt, p.lookY * 450 * dt);
+  }
+
   /** Car controls. Steer: +1 = right. */
   drive() {
     const fwd = this.key('KeyW', 'ArrowUp'), back = this.key('KeyS', 'ArrowDown');
     const steer = this.key('KeyD', 'ArrowRight') - this.key('KeyA', 'ArrowLeft');
+    const pad = this.pad;
     return {
-      throttle: Math.max(fwd, this.touch.throttle),
-      brake: Math.max(back, this.touch.brake),
-      steer: Math.max(-1, Math.min(1, steer + this.touch.steer)),
-      handbrake: this.keys.has('Space'),
+      throttle: Math.max(fwd, this.touch.throttle, pad?.throttle ?? 0),
+      brake: Math.max(back, this.touch.brake, pad?.brake ?? 0),
+      steer: Math.max(-1, Math.min(1, steer + this.touch.steer + (pad?.steer ?? 0))),
+      handbrake: this.keys.has('Space') || !!pad?.handbrake,
     };
   }
 
   /** Walking: x = right, y = forward, relative to the camera. */
   walk() {
-    let x = this.key('KeyD', 'ArrowRight') - this.key('KeyA', 'ArrowLeft') + this.touch.moveX;
-    let y = this.key('KeyW', 'ArrowUp') - this.key('KeyS', 'ArrowDown') + this.touch.moveY;
+    let x = this.key('KeyD', 'ArrowRight') - this.key('KeyA', 'ArrowLeft') + this.touch.moveX + (this.pad?.moveX ?? 0);
+    let y = this.key('KeyW', 'ArrowUp') - this.key('KeyS', 'ArrowDown') + this.touch.moveY + (this.pad?.moveY ?? 0);
     const len = Math.hypot(x, y);
     if (len > 1) { x /= len; y /= len; }
-    const run = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || this.touch.run;
+    const run = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || this.touch.run || !!this.pad?.run;
     return { x, y, run };
   }
 
