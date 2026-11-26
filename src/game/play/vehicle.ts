@@ -11,7 +11,7 @@ export interface DriveInput { throttle: number; brake: number; steer: number; ha
 /**
  * Arcade car: easy to drive for kids, no damage. A simple bicycle model:
  * the heading changes with speed / wheelbase * tan(steering angle).
- * Bumping into things just pushes the car back and slows it down.
+ * Bumping into walls pushes the car back and slows it down; trees and lamp posts fall over when hit fast.
  */
 export class Vehicle {
   readonly car: BuiltCar;
@@ -114,7 +114,9 @@ export class Vehicle {
       this.z += fz * this.speed * dt / steps;
       for (const off of this.circles) {
         const cx = this.x + fx * off, cz = this.z + fz * off;
-        const r = world.resolveCircle(cx, cz, this.radius, this.tmp);
+        // Faster than ~15 km/h, trees and lamp posts fall over and the car only loses a little speed.
+        const r = world.resolveCircle(cx, cz, this.radius, this.tmp, Math.abs(this.speed) > 4);
+        if (r.knocked) { this.speed *= 0.88 ** r.knocked; this.bumped = 0.3; }
         if (!r.hit) continue;
         this.x += this.tmp.x - cx;
         this.z += this.tmp.z - cz;

@@ -876,6 +876,7 @@ export class Game {
       const before = { x: v.x, z: v.z };
       const h0 = v.heading;
       v.update(dt, driveInput, this.world); // you drive right through people: no stopping, no bump
+      this.knockOver(v);
       if (this.signals?.side) {
         // Left turns raise the heading, right turns lower it. Turned ~60° and the wheel is straight again: off.
         this.blinkTurned += (v.heading - h0) * (this.signals.side === 'left' ? 1 : -1);
@@ -986,6 +987,23 @@ export class Game {
       this.lastState = key;
       this.events.onState(state);
     }
+  }
+
+  /** Trees / lamp posts the car just hit tip over the way it drove, and come back later. */
+  private knockOver(v: Vehicle) {
+    const hits = this.world?.takeKnocked();
+    if (!hits?.length || !this.city) return;
+    const dx = Math.sin(v.heading) * Math.sign(v.speed || 1), dz = Math.cos(v.heading) * Math.sign(v.speed || 1);
+    for (const b of hits) {
+      const x = (b.x0 + b.x1) / 2, z = (b.z0 + b.z1) / 2;
+      // Lean a little away from the car's middle too, so a tree hit with the corner falls to that side.
+      const side = (x - v.x) * dz - (z - v.z) * dx;
+      const sx = dx + dz * Math.sign(side) * 0.35, sz = dz - dx * Math.sign(side) * 0.35;
+      this.lamps?.setLit(x, z, false);
+      this.city.knock(x, z, sx, sz, () => { b.off = false; this.lamps?.setLit(x, z, true); });
+    }
+    sounds.knock();
+    this.shake = Math.max(this.shake, 0.2);
   }
 
   private blocked = (x: number, z: number) => this.world!.pointBlocked(x, z);

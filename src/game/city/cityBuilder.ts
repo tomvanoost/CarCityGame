@@ -5,6 +5,7 @@ import { createBatchMaterial, createRoadMaterial, createTerrainMaterial, createT
 import { ALL_CITY_MODELS, isSketchfabCity, loadCityModels, type CityModel } from './models';
 import { SKETCHFAB_CITY } from './sketchfabCity';
 import { SfInstances } from './sfInstances';
+import { Knockables, type KnockTarget } from './knockables';
 
 export interface CityQuality {
   /** Distance where buildings switch to their light version. */
@@ -21,6 +22,8 @@ export interface City {
   layout: CityLayout;
   /** Call every frame with the camera position (LOD work is throttled inside). */
   update(camera: THREE.Vector3, dt: number): void;
+  /** Tips over the tree / lamp post at (x, z) the way (dirX, dirZ); onBack runs when it stands again. */
+  knock(x: number, z: number, dirX: number, dirZ: number, onBack: () => void): boolean;
   dispose(): void;
 }
 
@@ -119,6 +122,13 @@ class LodBatch {
     this.mesh.setMatrixAt(id, m);
     this.mesh.setColorAt(id, new THREE.Color(color ?? '#ffffff'));
     this.inst[id] = { x: p.x, z: p.z, lod0, lod1, state: 0 };
+  }
+
+  /** The instance standing at (x, z), to tip it over (null if none). */
+  find(x: number, z: number): KnockTarget | null {
+    const id = this.inst.findIndex((q) => q && Math.abs(q.x - x) < 0.3 && Math.abs(q.z - z) < 0.3);
+    if (id < 0) return null;
+    return { get: (out) => { this.mesh.getMatrixAt(id, out); }, set: (m) => { this.mesh.setMatrixAt(id, m); } };
   }
 
   /** state: 0 = detailed, 1 = light, 2 = hidden */
@@ -357,6 +367,7 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   group.add(createHills(track));
 
   onProgress(1);
+  const knockables = new Knockables();
   let lodTimer = 1;
   const last = new THREE.Vector2(1e9, 1e9);
   let lastY = 0;
@@ -364,8 +375,15 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   return {
     group,
     layout,
+    knock(x, z, dirX, dirZ, onBack) {
+      const target = sfInst.find(x, z) ?? nature.find(x, z);
+      if (!target) { onBack(); return false; }
+      knockables.knock(target, dirX, dirZ, onBack);
+      return true;
+    },
     update(cam, dt) {
       water.uTime.value += dt;
+      if (knockables.active) knockables.update(dt, cam);
       lodTimer += dt;
       // Re-check LODs a few times per second, or right away after a big jump.
       if (lodTimer < 0.25 && Math.hypot(cam.x - last.x, cam.z - last.y, cam.y - lastY) < 30) return;

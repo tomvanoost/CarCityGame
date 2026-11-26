@@ -11,6 +11,9 @@ export class CollisionWorld {
   private cell = 16;
   private grid = new Map<number, number[]>();
 
+  /** Things knocked over since the last takeKnocked(). */
+  private knocked: Collider[] = [];
+
   constructor(private boxes: Collider[]) {
     boxes.forEach((b, i) => {
       for (let cx = this.ci(b.x0); cx <= this.ci(b.x1); cx++)
@@ -29,6 +32,7 @@ export class CollisionWorld {
     if (!list) return false;
     for (const i of list) {
       const b = this.boxes[i];
+      if (b.off) continue;
       // Ignore thin things (trees, lamps): only buildings block the camera.
       if (b.x1 - b.x0 < 2 && b.z1 - b.z0 < 2) continue;
       if (x > b.x0 - 0.3 && x < b.x1 + 0.3 && z > b.z0 - 0.3 && z < b.z1 + 0.3) return true;
@@ -43,8 +47,8 @@ export class CollisionWorld {
    * Pushes a circle out of any boxes it overlaps. Returns the push vector
    * (0, 0 when free), and writes the corrected position into `out`.
    */
-  resolveCircle(x: number, z: number, r: number, out: { x: number; z: number }): { nx: number; nz: number; hit: boolean } {
-    let px = x, pz = z, hit = false, nx = 0, nz = 0;
+  resolveCircle(x: number, z: number, r: number, out: { x: number; z: number }, canKnock = false): { nx: number; nz: number; hit: boolean; knocked: number } {
+    let px = x, pz = z, hit = false, nx = 0, nz = 0, knocked = 0;
     const seen = new Set<number>();
     for (let cx = this.ci(x - r); cx <= this.ci(x + r); cx++) {
       for (let cz = this.ci(z - r); cz <= this.ci(z + r); cz++) {
@@ -54,10 +58,18 @@ export class CollisionWorld {
           if (seen.has(i)) continue;
           seen.add(i);
           const b = this.boxes[i];
+          if (b.off) continue;
           const qx = Math.max(b.x0, Math.min(px, b.x1)), qz = Math.max(b.z0, Math.min(pz, b.z1));
           let dx = px - qx, dz = pz - qz;
           const d2 = dx * dx + dz * dz;
           if (d2 >= r * r) continue;
+          if (canKnock && b.knock) {
+            // A fast car knocks it over and keeps going.
+            b.off = true;
+            this.knocked.push(b);
+            knocked++;
+            continue;
+          }
           hit = true;
           if (d2 > 1e-8) {
             const d = Math.sqrt(d2), push = r - d;
@@ -82,7 +94,14 @@ export class CollisionWorld {
     out.x = px;
     out.z = pz;
     const n = Math.hypot(nx, nz) || 1;
-    return { nx: nx / n, nz: nz / n, hit };
+    return { nx: nx / n, nz: nz / n, hit, knocked };
+  }
+
+  /** The things knocked over since the last call (the game tips them over and brings them back later). */
+  takeKnocked(): Collider[] {
+    const k = this.knocked;
+    this.knocked = [];
+    return k;
   }
 }
 

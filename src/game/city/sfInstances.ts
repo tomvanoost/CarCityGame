@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { KnockTarget } from './knockables';
 import { loadGltf } from '../../engine/assets';
 import type { Placement } from './layout';
 import { SKETCHFAB_CITY } from './sketchfabCity';
@@ -45,7 +46,8 @@ export class SfInstances {
     far: THREE.InstancedMesh[];
     nearLocal: THREE.Matrix4[];
     farLocal: THREE.Matrix4[];
-    inst: { x: number; z: number; m: THREE.Matrix4 }[];
+    /** slot: index in near (>= 0), in far (-2 - index), or -1 when hidden. */
+    inst: { x: number; z: number; m: THREE.Matrix4; slot: number }[];
     nearDist: number;
     maxDist: number;
   }[] = [];
@@ -69,7 +71,7 @@ export class SfInstances {
       return im;
     });
     const inst = placements.map(({ p, y }) => ({
-      x: p.x, z: p.z,
+      x: p.x, z: p.z, slot: -1,
       m: new THREE.Matrix4().compose(new THREE.Vector3(p.x, y, p.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.rot), new THREE.Vector3(p.scale, p.scale, p.scale)),
     }));
     this.sets.push({ near: make(near, true), far: make(far, false), nearLocal: near.map((q) => q.local), farLocal: far.map((q) => q.local), inst, nearDist, maxDist });
@@ -84,15 +86,36 @@ export class SfInstances {
         const dx = it.x - cx, dz = it.z - cz, d2 = dx * dx + dz * dz + h2;
         if (d2 < n2 || (!s.far.length && d2 < m2)) {
           s.near.forEach((im, i) => im.setMatrixAt(kn, this.tmp.multiplyMatrices(it.m, s.nearLocal[i])));
-          kn++;
+          it.slot = kn++;
         } else if (d2 < m2) {
           s.far.forEach((im, i) => im.setMatrixAt(kf, this.tmp.multiplyMatrices(it.m, s.farLocal[i])));
-          kf++;
-        }
+          it.slot = -2 - kf++;
+        } else it.slot = -1;
       }
       for (const im of s.near) { im.count = kn; im.visible = kn > 0; im.instanceMatrix.needsUpdate = true; }
       for (const im of s.far) { im.count = kf; im.visible = kf > 0; im.instanceMatrix.needsUpdate = true; }
     }
+  }
+
+  /** The instance standing at (x, z), to tip it over (null if none). */
+  find(x: number, z: number): KnockTarget | null {
+    for (const s of this.sets) {
+      const it = s.inst.find((q) => Math.abs(q.x - x) < 0.3 && Math.abs(q.z - z) < 0.3);
+      if (!it) continue;
+      return {
+        get: (out) => { out.copy(it.m); },
+        set: (m) => {
+          it.m.copy(m);
+          if (it.slot === -1) return;
+          const far = it.slot < -1, k = far ? -2 - it.slot : it.slot;
+          (far ? s.far : s.near).forEach((im, i) => {
+            im.setMatrixAt(k, this.tmp.multiplyMatrices(it.m, (far ? s.farLocal : s.nearLocal)[i]));
+            im.instanceMatrix.needsUpdate = true;
+          });
+        },
+      };
+    }
+    return null;
   }
 
   dispose() {

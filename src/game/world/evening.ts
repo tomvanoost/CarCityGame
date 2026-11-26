@@ -101,6 +101,7 @@ function mergeGeos(parts: THREE.BufferGeometry[]) {
 export class StreetLamps {
   readonly group = new THREE.Group();
   private meshes: THREE.InstancedMesh[] = [];
+  private lamps: { x: number; z: number; glow: THREE.Matrix4; pool: THREE.Matrix4 }[] = [];
 
   constructor(layout: CityLayout) {
     const lamps = layout.props.filter((p) => p.model.startsWith('Streetlight'));
@@ -109,11 +110,12 @@ export class StreetLamps {
     const puff = mergeGeos([new THREE.PlaneGeometry(2.2, 2.2), new THREE.PlaneGeometry(2.2, 2.2).rotateY(Math.PI / 2)]);
     const glow = new THREE.InstancedMesh(puff, additive('#ffcf73', 0.95), n);
     const pool = new THREE.InstancedMesh(new THREE.PlaneGeometry(10, 10).rotateX(-Math.PI / 2), additive('#ffc46a', 0.5), n);
-    const m = new THREE.Matrix4();
     lamps.forEach((p, i) => {
       const y = groundHeight(p.x, p.z);
-      glow.setMatrixAt(i, m.makeTranslation(p.x, y + 5.45 * p.scale, p.z));
-      pool.setMatrixAt(i, m.makeTranslation(p.x, y + 0.03, p.z));
+      const g = new THREE.Matrix4().makeTranslation(p.x, y + 5.45 * p.scale, p.z), q = new THREE.Matrix4().makeTranslation(p.x, y + 0.03, p.z);
+      glow.setMatrixAt(i, g);
+      pool.setMatrixAt(i, q);
+      this.lamps.push({ x: p.x, z: p.z, glow: g, pool: q });
     });
     glow.count = pool.count = lamps.length;
     for (const im of [glow, pool]) {
@@ -123,6 +125,16 @@ export class StreetLamps {
       this.meshes.push(im);
     }
     this.group.visible = false;
+  }
+
+  /** Turns the light of the lamp at (x, z) off while it lies knocked over, and on again. */
+  setLit(x: number, z: number, lit: boolean) {
+    const i = this.lamps.findIndex((l) => Math.abs(l.x - x) < 0.3 && Math.abs(l.z - z) < 0.3);
+    if (i < 0) return;
+    const off = new THREE.Matrix4().makeScale(0, 0, 0);
+    this.meshes[0].setMatrixAt(i, lit ? this.lamps[i].glow : off);
+    this.meshes[1].setMatrixAt(i, lit ? this.lamps[i].pool : off);
+    for (const im of this.meshes) im.instanceMatrix.needsUpdate = true;
   }
 
   dispose() {

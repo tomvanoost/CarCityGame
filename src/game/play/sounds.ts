@@ -279,6 +279,16 @@ class Sounds {
     this.tone(ctx, 'sine', 2637, t + 0.08, 0.25, 0.03);
   }
 
+  /** Cartoon "bonk + whoosh" when a tree or lamp post tips over. */
+  knock() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this.tone(ctx, 'triangle', 520, t, 0.12, 0.22, 140);
+    this.tone(ctx, 'sine', 90, t, 0.18, 0.3, 50);
+    this.tone(ctx, 'sine', 900, t + 0.06, 0.35, 0.05, 300);
+  }
+
   /** Soft car door clunk. */
   door() {
     const ctx = this.ready();
