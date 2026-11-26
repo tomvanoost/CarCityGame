@@ -28,6 +28,8 @@ What is finished, the current state and known problems. The newest finished step
   can't be checked from here.
 - The Fly MCP cannot build or deploy images (only manage machines/secrets); deploys run through the GitHub
   Action `.github/workflows/fly-deploy.yml`, which needs the repo secret `FLY_API_TOKEN`.
+- The Firebase Realtime Database (`*.firebasedatabase.app`) can't be reached from the cloud environment: multiplayer is
+  tested in demo mode (browser tabs) and checked against `database.rules.json` by reading.
 - No Docker daemon in the cloud environment (nginx config was checked with a locally installed nginx).
 - Raw Sketchfab downloads (`assets-src/`) are not in the repo; processed models are fixed in place with
   `scripts/flip-vehicles.mjs` and `scripts/vehicle-wheels.mjs`.

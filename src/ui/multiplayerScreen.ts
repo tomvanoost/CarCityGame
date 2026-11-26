@@ -30,7 +30,8 @@ export const multiplayerScreen: Screen = (root, nav) => {
       if (disposed) return session.leave();
       setCurrentSession(session);
       nav('game');
-    } catch {
+    } catch (e) {
+      console.warn('[mp] join failed', e);
       toast(t('mpJoinFailed'));
       void refresh();
     } finally { busy = false; }
@@ -45,7 +46,8 @@ export const multiplayerScreen: Screen = (root, nav) => {
       const id = await mp.createRoom(name, profile.username);
       busy = false;
       await join(id);
-    } catch {
+    } catch (e) {
+      console.warn('[mp] create failed', e);
       toast(t('mpJoinFailed'));
     } finally { busy = false; }
   });
@@ -65,7 +67,8 @@ export const multiplayerScreen: Screen = (root, nav) => {
       const rooms = await (await getBackend()).multiplayer().listRooms();
       if (disposed) return;
       list.replaceChildren(...(rooms.length ? rooms.map(row) : [h('div', { class: 'try-hint' }, t('mpEmpty'))]));
-    } catch {
+    } catch (e) {
+      console.warn('[mp] server list failed', e);
       if (!disposed) list.replaceChildren(h('div', { class: 'try-hint' }, t('mpOffline')));
     }
   };

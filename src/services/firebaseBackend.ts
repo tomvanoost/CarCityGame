@@ -43,11 +43,13 @@ export class FirebaseBackend implements Backend {
     const uid = () => { const u = auth.currentUser; if (!u) throw new Error('not logged in'); return u.uid; };
     this.mp = {
       async listRooms(): Promise<RoomInfo[]> {
-        const [rooms, online] = await Promise.all([get(ref(db, 'mp/rooms')), get(ref(db, 'mp/online'))]);
-        const on = (online.val() ?? {}) as Record<string, Record<string, boolean>>;
+        // The rules allow reading who is online per server (mp/online/{room}), not all at once.
+        const rooms = Object.entries(((await get(ref(db, 'mp/rooms'))).val() ?? {}) as Record<string, { name: string; host: string; created: number }>);
+        const counts = await Promise.all(rooms.map(([id]) => get(ref(db, `mp/online/${id}`))
+          .then((snap) => Object.keys(snap.val() ?? {}).length).catch(() => 0)));
         const now = Date.now();
-        return Object.entries((rooms.val() ?? {}) as Record<string, { name: string; host: string; created: number }>)
-          .map(([id, r]) => ({ id, name: r.name, host: r.host, created: r.created ?? 0, players: Object.keys(on[id] ?? {}).length }))
+        return rooms
+          .map(([id, r], i) => ({ id, name: r.name, host: r.host, created: r.created ?? 0, players: counts[i] }))
           .filter((r) => r.players > 0 || now - r.created < EMPTY_ROOM_TTL)
           .sort((a, b) => b.players - a.players || b.created - a.created);
       },
