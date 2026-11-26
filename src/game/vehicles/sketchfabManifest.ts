@@ -1608,5 +1608,54 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/hse-irish-ambulance-478663159a014ccca6e12ed4ded8a26b"
     }
+  },
+  "hyundo-kono": {
+    "length": 4.385000228881836,
+    "width": 2.0727598667144775,
+    "height": 1.6119588613510132,
+    "bike": false,
+    "paintable": true,
+    "seat": [
+      0.4145519733428955,
+      0.6770227217674255,
+      -0.30695001602172856
+    ],
+    "wheels": [
+      [
+        0.786,
+        0.349,
+        1.329,
+        0.349,
+        0.133
+      ],
+      [
+        -0.785,
+        0.349,
+        1.317,
+        0.349,
+        0.133
+      ],
+      [
+        0.786,
+        0.349,
+        -1.35,
+        0.349,
+        0.133
+      ],
+      [
+        -0.785,
+        0.349,
+        -1.362,
+        0.349,
+        0.133
+      ]
+    ],
+    "credit": {
+      "name": "2026 Hyundai Kona Limited",
+      "author": "twr422",
+      "authorUrl": "https://sketchfab.com/twr422",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/2026-hyundai-kona-limited-000ae8ac48a24f78841b0c6053f48030"
+    }
   }
 };

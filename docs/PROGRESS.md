@@ -35,6 +35,7 @@ What is finished, the current state and known problems. The newest finished step
   `scripts/flip-vehicles.mjs` and `scripts/vehicle-wheels.mjs`.
 
 ## Done
+- [x] **Hyundo Kono (2026)**: new car in the shop (€22,000, 210 km/h) from the owner's GLB = Sketchfab "2026 Hyundai Kona Limited" by twr422 (CC-BY, credited). Built with a higher detail budget (112k tris; `tris` in `scripts/vehicle-fixes.json`) because 60k left blotchy paint; light traffic version 22k. Wheels found automatically: all four roll, front ones steer.
 - [x] **Better crash sounds**: trees: wooden crack + thump, rustling leaves and a thud when it lands; lamp posts / traffic lights: a ringing metal clang (out-of-tune partials) and a clatter on landing; bumping a wall: a soft rubbery thud (was silent). Louder when you hit faster.
 - [x] **Softer engine sound + on/off switch**: the engine was irritating: noise puffs and the high resonances removed, both loops lowpassed (~700 Hz), live filter max ~900 Hz, calmer revs (800–4600 rpm) and lower volume. ⚙️ Settings has "Motorgeluid aan/uit" (saved on this device; horn and other sounds stay).
 - [x] **New engine sound**: the oscillator buzz is replaced by a rendered loop of a running 4-cylinder (every firing a thump + puff with small random differences, exhaust resonances, soft growl; `src/game/play/engineSound.ts`), a deep low-revs loop and a raspy high-revs loop crossfaded and pitched with the revs and the 6-gear gearbox; muffled off the gas.

@@ -28,6 +28,7 @@ const TOP_SPEED: Record<string, number> = {
   'modelo-y': 217, // Tesla Model Y Long Range
   'id-vier': 160, // VW ID.4
   'atto-3': 160, // BYD Atto 3
+  'hyundo-kono': 210, // Hyundai Kona 1.6 T-GDi (2026)
   'kio-ev6': 185, // Kia EV6
   'volvu-xc90': 180, // Volvo XC90
   'rangy-rover': 242, // Range Rover Sport
@@ -139,6 +140,8 @@ export const VEHICLES: VehicleSpec[] = [
     presets.suv({ length: 4.58, height: 1.63, headlights: 'bar', grille: 'none', roofColor: 'black', rims: 'aero', roofRear: 0.82, rearEnd: 0.95 })),
   car('atto-3', 'BYDee', 'Atto 3', 2024, 20000, '#3f86c6', { speed: 6, accel: 7, handling: 7 },
     presets.suv({ length: 4.46, height: 1.62, taillights: 'bar', grille: 'none', rims: 'multi' })),
+  car('hyundo-kono', 'Hyundo', 'Kono', 2026, 22000, '#2f5d8a', { speed: 6, accel: 6, handling: 7 },
+    presets.suv({ length: 4.385, height: 1.585, taillights: 'bar', headlights: 'slim', grille: 'none', rims: 'multi' })),
   car('kio-ev6', 'Kio', 'EV6', 2024, 27000, '#5a6b4f', { speed: 8, accel: 9, handling: 8 },
     presets.suv({ length: 4.69, height: 1.55, belt: 1.0, nose: 0.82, clearance: 0.18, roofFront: 0.46, roofRear: 0.7, rearEnd: 0.92, taillights: 'bar', grille: 'none', rims: 'sport', boxiness: 4, endRound: 0.3 })),
   car('volvu-xc90', 'Volvu', 'XC90', 2024, 45000, '#d8d2c4', { speed: 7, accel: 6, handling: 6 },

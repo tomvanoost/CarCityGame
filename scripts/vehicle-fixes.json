@@ -35,5 +35,9 @@
   },
   "volvu-xc90": {
     "skip": "tried 2 models: untextured clay, then broken spiky parts; other results are a photoscan, Lego or parts; uses the built-in shape"
+  },
+  "hyundo-kono": {
+    "color": "#2f5d8a",
+    "tris": 110000
   }
 }
