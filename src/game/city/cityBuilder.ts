@@ -301,7 +301,8 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   group.add(pond, fountainWater);
   // Everything outside the city: ground (grass, desert dunes), roads out, the lake with its bridges.
   // (The ground sits slightly below the roads at y = 0.02, so the two never z-fight.)
-  group.add(buildOutskirts(layout, terrainMat, water.mat, track));
+  const outskirts = buildOutskirts(layout, terrainMat, water.mat, track);
+  group.add(outskirts);
 
   const parts: THREE.BufferGeometry[] = [...roofParts];
   // pond rim stones
@@ -381,6 +382,7 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
     update(cam, dt) {
       water.uTime.value += dt;
       if (knockables.active) knockables.update(dt, cam);
+      outskirts.userData.update?.(dt); // windmill sails
       lodTimer += dt;
       // Re-check LODs a few times per second, or right away after a big jump.
       if (lodTimer < 0.25 && Math.hypot(cam.x - last.x, cam.z - last.y, cam.y - lastY) < 30) return;
@@ -402,7 +404,7 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
 
 /** A ring of soft low-poly hills far outside the city, so the horizon isn't empty. */
 function createHills(track: <T extends { dispose(): void }>(x: T) => T): THREE.Mesh {
-  const seg = 96, rings = 6, r0 = 1500, r1 = 2300; // beyond the desert and the lake
+  const seg = 128, rings = 6, r0 = 2500, r1 = 3300; // beyond the towns at the world edge (2300 m)
   const pos: number[] = [], col: number[] = [];
   const h = (a: number, r: number) => {
     const t = (r - r0) / (r1 - r0);

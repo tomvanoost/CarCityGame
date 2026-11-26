@@ -1,5 +1,5 @@
 import { GRID_BLOCKS, LINES, type CityLayout } from '../city/layout';
-import { EAST_ROAD, SOUTH_ROAD } from '../city/outskirts';
+import { DESERT_TOWN, LAKE_TOWN, LINK_ROAD, SOUTH_ROAD } from '../city/outskirts';
 
 export interface P { x: number; z: number }
 
@@ -16,8 +16,9 @@ export class RoadGraph {
   readonly adj: number[][] = [];
   readonly edges: [number, number][] = [];
   /**
-   * For navigation and the maps: the city grid plus the roads out of the city (east to the desert,
-   * south over the lake). Traffic only uses the grid (`adj` / `edges`): the roads out are dead ends.
+   * For navigation: the city grid plus the loop outside the city (east to the desert town, south
+   * through the farmland, west to the lake town's ring road, north over the bridge back to the city).
+   * Traffic drives the loop too (`adj` / `edges`); the towns' side streets aren't in the graph.
    */
   readonly navEdges: [number, number][] = [];
   readonly navAdj: number[][] = [];
@@ -49,18 +50,27 @@ export class RoadGraph {
       }
     this.navEdges.push(...this.edges);
     this.adj.forEach((a, i) => { this.navAdj[i] = [...a]; });
-    // Roads out of the city: from the grid crossing on the city edge to the road's end.
+    // The loop outside the city.
     const nearestNode = (x: number, z: number) => this.nodes.reduce((best, p, i) => (Math.hypot(p.x - x, p.z - z) < Math.hypot(this.nodes[best].x - x, this.nodes[best].z - z) ? i : best), 0);
-    const addOut = (from: { x: number; z: number }, end: { x: number; z: number }) => {
-      const a = nearestNode(from.x, from.z), b = this.nodes.length;
-      this.nodes.push(end);
-      this.adj[b] = [];
-      this.navAdj[b] = [a];
-      this.navAdj[a].push(b);
-      this.navEdges.push([a, b]);
+    const add = (p: P) => { const id = this.nodes.length; this.nodes.push(p); this.adj[id] = []; this.navAdj[id] = []; return id; };
+    const join = (a: number, b: number) => {
+      this.adj[a].push(b); this.adj[b].push(a); this.edges.push([a, b]);
+      this.navAdj[a].push(b); this.navAdj[b].push(a); this.navEdges.push([a, b]);
     };
-    addOut({ x: EAST_ROAD.x0, z: EAST_ROAD.z }, { x: EAST_ROAD.x1, z: EAST_ROAD.z });
-    addOut({ x: SOUTH_ROAD.x, z: SOUTH_ROAD.z0 }, { x: SOUTH_ROAD.x, z: SOUTH_ROAD.z1 });
+    // Lake town ring road: 16 points around the square (k = 0 east, 4 south, 8 west, 12 north).
+    const ring: number[] = [];
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      ring.push(add({ x: LAKE_TOWN.x + Math.cos(a) * LAKE_TOWN.ring, z: LAKE_TOWN.z + Math.sin(a) * LAKE_TOWN.ring }));
+    }
+    ring.forEach((id, k) => join(id, ring[(k + 1) % 16]));
+    const cityEast = nearestNode(480, DESERT_TOWN.z), citySouth = nearestNode(SOUTH_ROAD.x, 480);
+    const desertTown = add({ x: DESERT_TOWN.x, z: DESERT_TOWN.z });
+    const farmCorner = add({ x: DESERT_TOWN.x, z: LINK_ROAD.z });
+    join(cityEast, desertTown);
+    join(desertTown, farmCorner);
+    join(farmCorner, ring[0]);
+    join(ring[12], citySouth);
   }
 
   /** Closest point on any road center line. */

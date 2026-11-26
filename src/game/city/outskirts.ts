@@ -1,27 +1,55 @@
 /**
- * The land outside the city: a road east into a desert with dunes, and a road south to a big lake
- * with a long car bridge, plus a small stream with a footbridge (people only). Plain numbers and
- * helpers, used by the layout (trees, water colliders), the ground height, the 3D build and the map.
+ * The land outside the city, as plain numbers and helpers (used by the layout, the ground height,
+ * the 3D build, the road graph and the maps):
+ * - east: a road through a desert with dunes to a desert town (low adobe buildings, a plaza);
+ * - south: a road over a big lake on a long car bridge to a lake town (Dutch gabled houses around a
+ *   ring road, a church on the square); a small stream with a footbridge (people only);
+ * - a loop road from the desert town south through farmland (fields, barns, windmills) and west to
+ *   the lake town, so you can drive all the way round.
  *
  * World axes as in the city: X = east, Z = south, meters.
  */
 
 /** Edge of the playable world. */
-export const WORLD_EDGE = 1430;
+export const WORLD_EDGE = 2300;
 
 // Same numbers as layout.ts (not imported: layout.ts imports this file). HALF_CITY 480 + half a road.
 const ROAD_WIDTH = 10;
 const CITY_EDGE = 480 + ROAD_WIDTH / 2;
-
-/** Road east from the middle of the city's east side, into the desert. */
-export const EAST_ROAD = { z: 0, x0: CITY_EDGE, x1: 1385 };
-/** Road south from the middle of the city's south side, over the lake. */
-export const SOUTH_ROAD = { x: 0, z0: CITY_EDGE, z1: 1385 };
 export const OUT_ROAD_HALF = ROAD_WIDTH / 2;
 
-/** The desert (sand from here; it fades in over the first 80 m). */
-export const DESERT = { x0: 680, x1: 1440, z0: -720, z1: 720 };
+/** Desert town: a main street (east-west) and a cross street (north-south). */
+export const DESERT_TOWN = { x: 1850, z: 0, x0: 1650, x1: 2050, z0: -200, z1: 200 };
+/** Lake town: a ring road around a central square. */
+export const LAKE_TOWN = { x: 0, z: 1775, ring: 150, square: 40, r: 215 };
+
+/** Road east from the middle of the city's east side, through the desert to the desert town. */
+export const EAST_ROAD = { z: 0, x0: CITY_EDGE, x1: DESERT_TOWN.x0 };
+/** Road south from the middle of the city's south side, over the lake to the lake town's ring road. */
+export const SOUTH_ROAD = { x: 0, z0: CITY_EDGE, z1: LAKE_TOWN.z - LAKE_TOWN.ring };
+/** The loop: from the desert town south through the farmland, then west to the lake town. */
+export const FARM_ROAD = { x: DESERT_TOWN.x, z0: DESERT_TOWN.z1, z1: LAKE_TOWN.z };
+export const LINK_ROAD = { z: LAKE_TOWN.z, x0: LAKE_TOWN.x + LAKE_TOWN.ring, x1: DESERT_TOWN.x };
+
+/** All straight roads outside the city (incl. the towns' own straight streets), as segments. */
+export const OUT_ROADS: { ax: number; az: number; bx: number; bz: number }[] = [
+  { ax: EAST_ROAD.x0, az: 0, bx: DESERT_TOWN.x1, bz: 0 }, // east road + the desert town's main street
+  { ax: DESERT_TOWN.x, az: DESERT_TOWN.z0, bx: DESERT_TOWN.x, bz: FARM_ROAD.z1 }, // cross street + farm road
+  { ax: LINK_ROAD.x0, az: LINK_ROAD.z, bx: LINK_ROAD.x1 + OUT_ROAD_HALF, bz: LINK_ROAD.z },
+  { ax: SOUTH_ROAD.x, az: SOUTH_ROAD.z0, bx: SOUTH_ROAD.x, bz: SOUTH_ROAD.z1 },
+  // Lake town: streets from the ring road to the central square (west, south, east, north).
+  { ax: LAKE_TOWN.x - LAKE_TOWN.ring, az: LAKE_TOWN.z, bx: LAKE_TOWN.x - LAKE_TOWN.square, bz: LAKE_TOWN.z },
+  { ax: LAKE_TOWN.x, az: LAKE_TOWN.z + LAKE_TOWN.square, bx: LAKE_TOWN.x, bz: LAKE_TOWN.z + LAKE_TOWN.ring },
+  { ax: LAKE_TOWN.x + LAKE_TOWN.square, az: LAKE_TOWN.z, bx: LAKE_TOWN.x + LAKE_TOWN.ring, bz: LAKE_TOWN.z },
+  { ax: LAKE_TOWN.x, az: LAKE_TOWN.z - LAKE_TOWN.ring, bx: LAKE_TOWN.x, bz: LAKE_TOWN.z - LAKE_TOWN.square },
+];
+
+/** The desert (sand from here; it fades in over the first 80 m). Edges on the 80 m ground grid. */
+export const DESERT = { x0: 640, x1: 2400, z0: -800, z1: 800 };
 const DESERT_FADE = 80;
+
+/** Farmland in the south-east, between the lake and the loop road. */
+export const FARM = { x0: 560, x1: 1800, z0: 840, z1: 1700 };
 
 /** The big lake (an ellipse). */
 export const LAKE = { x: 0, z: 1010, rx: 420, rz: 230 };
@@ -55,14 +83,31 @@ export function inStream(x: number, z: number, m = 0) {
 /** Water surface here (lake or stream), bridges or not. */
 export const isWater = (x: number, z: number) => inLake(x, z) || inStream(x, z);
 
-/** On one of the roads out of the city (incl. the car bridge). m: extra margin. */
+/** Distance from (x, z) to the nearest straight road outside the city (its center line). */
+export function outRoadDistance(x: number, z: number) {
+  let best = Infinity;
+  for (const r of OUT_ROADS) {
+    const dx = r.bx - r.ax, dz = r.bz - r.az, len2 = dx * dx + dz * dz;
+    const t = Math.max(0, Math.min(1, ((x - r.ax) * dx + (z - r.az) * dz) / len2));
+    best = Math.min(best, Math.hypot(x - (r.ax + dx * t), z - (r.az + dz * t)));
+  }
+  return best;
+}
+
+/** Distance from the lake town's ring road center line. */
+export const ringDistance = (x: number, z: number) => Math.abs(Math.hypot(x - LAKE_TOWN.x, z - LAKE_TOWN.z) - LAKE_TOWN.ring);
+
+/** On one of the roads outside the city (incl. the car bridge and the ring road). m: extra margin. */
 export function onOutRoad(x: number, z: number, m = 0) {
-  const h = OUT_ROAD_HALF + m;
-  return (x > EAST_ROAD.x0 - 1 && x < EAST_ROAD.x1 + h && Math.abs(z - EAST_ROAD.z) < h) ||
-    (z > SOUTH_ROAD.z0 - 1 && z < SOUTH_ROAD.z1 + h && Math.abs(x - SOUTH_ROAD.x) < h);
+  return outRoadDistance(x, z) < OUT_ROAD_HALF + m || ringDistance(x, z) < OUT_ROAD_HALF + m;
 }
 
 export const onPath = (x: number, z: number, m = 0) => x > PATH.x0 - m && x < PATH.x1 + m && Math.abs(z - PATH.z) < PATH.half + m;
+
+export const inDesertTown = (x: number, z: number, m = 0) =>
+  x > DESERT_TOWN.x0 - m && x < DESERT_TOWN.x1 + m && z > DESERT_TOWN.z0 - m && z < DESERT_TOWN.z1 + m;
+export const inLakeTown = (x: number, z: number, m = 0) => Math.hypot(x - LAKE_TOWN.x, z - LAKE_TOWN.z) < LAKE_TOWN.r + m;
+export const inFarm = (x: number, z: number, m = 0) => x > FARM.x0 - m && x < FARM.x1 + m && z > FARM.z0 - m && z < FARM.z1 + m;
 
 /** 0 outside the desert, 1 in its middle (smooth edge). */
 export function desertAmount(x: number, z: number) {
@@ -70,13 +115,16 @@ export function desertAmount(x: number, z: number) {
   return smooth(0, DESERT_FADE, d);
 }
 
-/** Gentle dunes you can drive over (flat on and next to the road). */
+/** Gentle dunes you can drive over (flat on and next to the roads and in the desert town). */
 export function duneHeight(x: number, z: number) {
   const a = desertAmount(x, z);
   if (a <= 0) return 0;
-  const nearRoad = smooth(10, 45, Math.abs(z - EAST_ROAD.z));
-  const n = Math.sin(x * 0.045 + Math.sin(z * 0.02) * 2) * 0.55 + Math.sin(z * 0.06 + x * 0.013) * 0.3 + Math.sin((x + z) * 0.11) * 0.15;
-  return Math.max(0, (n * 0.5 + 0.5)) * 3.8 * a * nearRoad;
+  // How far outside the desert town (0 inside): flat in town, dunes start 40 m out.
+  const out = Math.max(DESERT_TOWN.x0 - x, x - DESERT_TOWN.x1, DESERT_TOWN.z0 - z, z - DESERT_TOWN.z1);
+  const flat = Math.min(smooth(10, 45, outRoadDistance(x, z)), smooth(0, 40, out));
+  if (flat <= 0) return 0;
+  const n = Math.sin(x * 0.045 + Math.sin(z * 0.02) * 2) * 0.6 + Math.sin(z * 0.06 + x * 0.013) * 0.4;
+  return Math.max(0, (n * 0.5 + 0.5)) * 3.8 * a * flat;
 }
 
 /** Height of the car bridge deck at z (0 where it meets the ground). */
@@ -99,18 +147,19 @@ export function footbridgeHeight(x: number) {
 export function outskirtsHeight(x: number, z: number) {
   if (onBridge(x, z)) return bridgeHeight(z);
   if (onFootbridge(x, z)) return footbridgeHeight(x);
-  if (x > DESERT.x0) return duneHeight(x, z);
+  if (x > DESERT.x0 && z > DESERT.z0 && z < DESERT.z1) return duneHeight(x, z);
   return 0;
 }
 
-/** Plain meadow (grass blades may grow here): not desert, water, beach, roads or the path. */
+/** Plain meadow (grass blades may grow here): not desert, water, beach, roads, towns, fields or the path. */
 export function isMeadow(x: number, z: number) {
   return desertAmount(x, z) < 0.3 && !inLake(x, z, 14) && !inStream(x, z, 2) && !onOutRoad(x, z, 1.5) && !onPath(x, z, 0.5) &&
-    Math.max(Math.abs(x), Math.abs(z)) < WORLD_EDGE;
+    !inLakeTown(x, z, -LAKE_TOWN.r + LAKE_TOWN.square + 2) && !inFarm(x, z) && Math.max(Math.abs(x), Math.abs(z)) < WORLD_EDGE;
 }
 
-/** Keep trees out of here: desert, water + beach, roads, the path and around the footbridge. */
+/** Keep forest trees out of here: desert, water + beach, roads, towns, fields, the path and around the footbridge. */
 export function noTrees(x: number, z: number) {
   return desertAmount(x, z) > 0 || inLake(x, z, 30) || inStream(x, z, 10) || onOutRoad(x, z, 9) || onPath(x, z, 6) ||
+    inLakeTown(x, z, 15) || inDesertTown(x, z, 30) || inFarm(x, z, 10) ||
     (x > FOOTBRIDGE.x0 - 15 && x < FOOTBRIDGE.x1 + 15 && Math.abs(z - FOOTBRIDGE.z) < 15);
 }

@@ -24,8 +24,6 @@ NL + EN, works with keyboard, tablet controls and controllers. Everything costs 
   and place them in your apartment room on fixed spots.
 - [ ] **Pizza delivery job**: pick up pizzas at a pizza shop and deliver them before they get cold
   (a friendly timer, bonus money when fast, no penalty when late).
-- [ ] **Supermarket**: buy snacks and drinks that give a small bonus (e.g. a drink refills your
-  run energy / a snack gives a little money bonus on the next job); a cart you can push around.
 - [ ] **Fun fair in the park**: a Ferris wheel and a carousel you can ride (camera view from the top
   of the Ferris wheel), €10 per ride.
 - [ ] **Daily missions**: three simple daily goals (drive 5 km, do 2 jobs, honk at 3 cars...) with

@@ -1,16 +1,21 @@
 import type { CityLayout, District } from '../game/city/layout';
 import type { MapState } from '../game/play/game';
 import type { P, RoadGraph } from '../game/play/roads';
-import { BRIDGE, DESERT, FOOTBRIDGE, LAKE, PATH, STREAM } from '../game/city/outskirts';
+import { BRIDGE, DESERT, DESERT_TOWN, FARM, FOOTBRIDGE, LAKE, LAKE_TOWN, OUT_ROADS, PATH, STREAM } from '../game/city/outskirts';
 
 /** World extent shown on the maps: -E..E meters on both axes (city, desert, lake, countryside). */
-const E = 1450;
-/** What the big map shows: the city plus the desert (east) and the lake (south). */
-const VIEW = { x0: -560, x1: 1440, z0: -560, z1: 1400 };
+const E = 2350;
+/** What the big map shows: the city, the desert town (east), the lake town (south) and the farmland between. */
+const VIEW = { x0: -560, x1: 2120, z0: -560, z1: 2020 };
 /** Places outside the city, with an icon on both maps. */
-const OUT_PLACES: [P, string, string][] = [[{ x: 1080, z: 0 }, '🌵', '#d9a441'], [{ x: LAKE.x, z: LAKE.z }, '🌉', '#2f8bff']];
-/** Base map resolution: pixels per meter. */
-const K = 1;
+const OUT_PLACES: [P, string, string][] = [
+  [{ x: DESERT_TOWN.x, z: DESERT_TOWN.z }, '🏜️', '#d9a441'],
+  [{ x: LAKE_TOWN.x, z: LAKE_TOWN.z }, '🏘️', '#e5484d'],
+  [{ x: LAKE.x, z: LAKE.z }, '🌉', '#2f8bff'],
+  [{ x: (FARM.x0 + FARM.x1) / 2, z: (FARM.z0 + FARM.z1) / 2 }, '🚜', '#16b862'],
+];
+/** Base map resolution: pixels per meter (the whole world must fit in a canvas tablets allow). */
+const K = 0.7;
 
 const BLOCK_COLORS: Record<District, string> = {
   downtown: '#d9d4cb', midrise: '#d9d4cb', shops: '#e8dfcf', townhouses: '#e6dccc',
@@ -40,6 +45,12 @@ export function renderBaseMap(layout: CityLayout, roads: RoadGraph): HTMLCanvasE
   g.fillStyle = '#6fb6ea';
   g.beginPath(); g.ellipse(X(LAKE.x), X(LAKE.z), LAKE.rx * K, LAKE.rz * K, 0, 0, Math.PI * 2); g.fill();
   g.fillRect(X(STREAM.x0), X(STREAM.z0), (STREAM.x1 - STREAM.x0) * K, (STREAM.z1 - STREAM.z0) * K);
+  // Farmland fields, the desert town plaza, the lake town square.
+  const CROP: Record<string, string> = { wheat: '#ecd97f', green: '#8cc46a', plowed: '#b9967a', tulips: '#f29bb5' };
+  for (const f of layout.towns.fields) { g.fillStyle = CROP[f.crop]; g.fillRect(X(f.x0), X(f.z0), (f.x1 - f.x0) * K, (f.z1 - f.z0) * K); }
+  const pl = layout.towns.plaza;
+  g.fillStyle = '#e6d2ad'; g.fillRect(X(pl.x0), X(pl.z0), (pl.x1 - pl.x0) * K, (pl.z1 - pl.z0) * K);
+  g.fillStyle = '#ddd5c6'; g.beginPath(); g.arc(X(LAKE_TOWN.x), X(LAKE_TOWN.z), LAKE_TOWN.square * K, 0, Math.PI * 2); g.fill();
   g.fillStyle = '#9fcf7f';
   g.fillRect(X(-520), X(-520), 1040 * K, 1040 * K);
   for (const b of layout.blocks) {
@@ -49,12 +60,16 @@ export function renderBaseMap(layout: CityLayout, roads: RoadGraph): HTMLCanvasE
   const pk = layout.park;
   g.fillStyle = '#6fb6ea';
   g.beginPath(); g.arc(X(pk.pond.x), X(pk.pond.z), pk.pond.r * K, 0, Math.PI * 2); g.fill();
-  // Buildings (big colliders only, not trees and lamps).
-  g.fillStyle = '#c3b9a8';
+  // Buildings (big colliders only, not trees, lamps, railings or water), in the city and the towns.
+  g.fillStyle = '#a99c86';
+  g.strokeStyle = '#8c7f6a';
+  g.lineWidth = Math.max(1, K);
   for (const b of layout.colliders) {
-    if (b.x1 - b.x0 < 3 && b.z1 - b.z0 < 3) continue;
-    if (Math.max(Math.abs(b.x0), Math.abs(b.z0)) > 520 || b.water) continue;
-    g.fillRect(X(b.x0), X(b.z0), (b.x1 - b.x0) * K, (b.z1 - b.z0) * K);
+    const w = b.x1 - b.x0, d = b.z1 - b.z0;
+    if ((w < 3 && d < 3) || b.water || Math.min(w, d) < 1) continue;
+    if (Math.max(Math.abs(b.x0), Math.abs(b.z0)) < 520 && Math.max(Math.abs(b.x1), Math.abs(b.z1)) > 525) continue;
+    g.fillRect(X(b.x0), X(b.z0), w * K, d * K);
+    g.strokeRect(X(b.x0), X(b.z0), w * K, d * K);
   }
   const gas = layout.gas.rect;
   g.fillStyle = '#b9bcc0';
@@ -66,9 +81,14 @@ export function renderBaseMap(layout: CityLayout, roads: RoadGraph): HTMLCanvasE
     g.lineWidth = w * K;
     g.beginPath();
     for (const [a, b] of roads.navEdges) {
-      g.moveTo(X(roads.nodes[a].x), X(roads.nodes[a].z));
-      g.lineTo(X(roads.nodes[b].x), X(roads.nodes[b].z));
+      const A = roads.nodes[a], B = roads.nodes[b];
+      if (Math.max(Math.abs(A.x), Math.abs(A.z), Math.abs(B.x), Math.abs(B.z)) > 490) continue; // drawn below
+      g.moveTo(X(A.x), X(A.z));
+      g.lineTo(X(B.x), X(B.z));
     }
+    for (const r of OUT_ROADS) { g.moveTo(X(r.ax), X(r.az)); g.lineTo(X(r.bx), X(r.bz)); }
+    g.moveTo(X(LAKE_TOWN.x + LAKE_TOWN.ring), X(LAKE_TOWN.z));
+    g.arc(X(LAKE_TOWN.x), X(LAKE_TOWN.z), LAKE_TOWN.ring * K, 0, Math.PI * 2);
     g.stroke();
   }
   // The car bridge (grey edges over the water), the gravel path and the wooden footbridge.
@@ -116,7 +136,7 @@ function drawRoute(g: CanvasRenderingContext2D, path: P[], toX: (p: P) => [numbe
   }
 }
 
-export interface MapPlaces { home: P; apartment: P; gas: P; iceCream: P }
+export interface MapPlaces { home: P; apartment: P; gas: P; iceCream: P; supermarket: P }
 
 /** Small round map in the corner. It turns with you: forward is always up. */
 export class Minimap {
@@ -168,7 +188,7 @@ export class Minimap {
       this.el.width = this.el.height = Math.round(css * dpr);
     }
     const W = this.el.width, R = W / 2;
-    const zoom = W / 260; // ~260 m across
+    const zoom = W / (260 * K); // ~260 m across
     const g = this.el.getContext('2d')!;
     g.clearRect(0, 0, W, W);
     g.save();
@@ -196,9 +216,11 @@ export class Minimap {
       badge(g, emoji, R + dx, R + dy, (far ? 7.5 : 10) * dpr, ring);
       g.globalAlpha = 1;
     };
-    for (const [p, emoji, ring] of OUT_PLACES) icon(p, emoji, ring);
+    // Towns and places outside the city only when you're nearby (the minimap edge would get crowded).
+    for (const [p, emoji, ring] of OUT_PLACES) if (Math.hypot(p.x - s.x, p.z - s.z) < 600) icon(p, emoji, ring);
     icon(this.places.gas, '⛽', '#e5484d');
     icon(this.places.iceCream, '🍦', '#ff6f91');
+    icon(this.places.supermarket, '🛒', '#e5484d');
     icon(this.places.apartment, '🏢', '#8e5bd9');
     icon(this.places.home, '🏠', '#ff8a2b');
     icon(s.dest, '📍', '#16b862');
@@ -275,6 +297,7 @@ export class BigMap {
     for (const [p, emoji, ring] of OUT_PLACES) badge(g, emoji, ...at(p), big, ring);
     badge(g, '⛽', ...at(this.places.gas), big, '#e5484d');
     badge(g, '🍦', ...at(this.places.iceCream), big, '#ff6f91');
+    badge(g, '🛒', ...at(this.places.supermarket), big, '#e5484d');
     badge(g, '🏢', ...at(this.places.apartment), big, '#8e5bd9');
     badge(g, '🏠', ...at(this.places.home), big, '#ff8a2b');
     if (s.job) badge(g, '⭐', ...at(s.job), big, '#16b862');

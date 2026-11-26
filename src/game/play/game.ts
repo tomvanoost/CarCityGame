@@ -18,6 +18,7 @@ import { Navigator } from './navigation';
 import { Pedestrians } from './pedestrians';
 import { Wildlife } from './wildlife';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
+import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
 import { FLAVORS, ICE_CREAM_PRICE, ICE_CREAM_TIME, IceCreamStand, coneGeometry, type Flavor } from './iceCream';
 import { Garage, type GarageSpot } from './garage';
 import { DAY, EVENING, headlightRig, loadEvening, saveEvening, SirenLights, StreetLamps, TurnSignals } from '../world/evening';
@@ -37,7 +38,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
+export type ContextAction = { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -107,10 +108,10 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket'): void;
   onJobStart(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
-  onPlace(place: 'home' | 'apartment' | 'iceCream'): void;
+  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket'): void;
   /** Short message (i18n key + optional number). */
   onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
@@ -142,6 +143,7 @@ export class Game {
   wildlife?: Wildlife;
   carWash?: CarWash;
   private iceStand?: IceCreamStand;
+  private supermarket?: SupermarketBuilding;
   /** Seconds left holding an ice cream (0 = none). */
   private iceCreamTimer = 0;
   garage?: Garage;
@@ -287,6 +289,8 @@ export class Game {
     this.scene.add(this.carWash.group);
     this.iceStand = new IceCreamStand(city.layout);
     this.scene.add(this.iceStand.group);
+    this.supermarket = new SupermarketBuilding(city.layout);
+    this.scene.add(this.supermarket.group);
     this.lamps = new StreetLamps(city.layout);
     this.scene.add(this.lamps.group);
     if (this.evening) this.applyLight();
@@ -475,6 +479,22 @@ export class Game {
     this.iceCreamTimer = ICE_CREAM_TIME;
     sounds.coin();
     awardSticker('iceCream');
+    return true;
+  }
+
+  /** Buy a snack at the supermarket (juice: run faster, banana: jump higher, chocolate: hold it). */
+  buySnack(id: SnackId): boolean {
+    const item = SNACKS.find((q) => q.id === id)!;
+    const p = this.profile;
+    if (p.money < item.price) { this.events.onMessage('needMoney', item.price - p.money); return false; }
+    setProfile({ ...p, money: p.money - item.price });
+    void updateProfile({ money: p.money - item.price });
+    this.events.onMoney(-item.price, 'supermarket');
+    if (id === 'juice' && this.player) this.player.speedBoost = SNACK_TIME;
+    if (id === 'banana' && this.player) this.player.jumpBoost = SNACK_TIME;
+    if (id === 'chocolate') { this.avatar?.holdItem(chocolateGeometry().scale(1.6, 1.6, 1.6)); this.iceCreamTimer = SNACK_TIME; }
+    sounds.coin();
+    awardSticker('supermarket');
     return true;
   }
 
@@ -694,6 +714,7 @@ export class Game {
     const near = (d: { x: number; z: number }) => Math.hypot(p.x - d.x, p.z - d.z) < 3.2;
     if (near(L.pois.home.door)) return { kind: 'home' };
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
+    if (Math.hypot(p.x - L.pois.supermarket.front.x, p.z - L.pois.supermarket.front.z) < 4) return { kind: 'supermarket' };
     const parked = this.garage?.near(p.x, p.z);
     if (parked) return { kind: 'takeCar', id: parked.id };
     if (near(L.pois.apartment.door)) return this.profile.ownsApartment ? { kind: 'apartment' } : { kind: 'buyApartment', price: APARTMENT_PRICE };
@@ -723,6 +744,7 @@ export class Game {
       case 'home':
       case 'apartment':
       case 'iceCream':
+      case 'supermarket':
         this.paused = true;
         this.events.onPlace(c.kind);
         break;
@@ -1138,6 +1160,7 @@ export class Game {
     this.grass?.dispose();
     this.carWash?.dispose();
     this.iceStand?.dispose();
+    this.supermarket?.dispose();
     this.garage?.dispose();
     this.lamps?.dispose();
     // The sky colors are shared (also used by the menu backdrop): put the day colors back.

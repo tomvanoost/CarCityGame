@@ -1,6 +1,7 @@
 import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
-import { BRIDGE, DESERT, FOOTBRIDGE, LAKE, STREAM, WORLD_EDGE, desertAmount, noTrees, onOutRoad } from './outskirts';
+import { BRIDGE, DESERT, FOOTBRIDGE, LAKE, STREAM, WORLD_EDGE, desertAmount, inDesertTown, noTrees, onOutRoad } from './outskirts';
+import { buildingCollider, generateTowns, type TownsData } from './towns';
 
 /**
  * The city plan, as plain data. Deterministic: the same seed always gives the
@@ -69,6 +70,8 @@ export interface CityLayout {
   gas: { rect: Rect; canopy: Rect; pumps: { x: number; z: number }[]; shop: Placement; /** Drive-through car wash (inside, along X). */ wash: Rect };
   /** Desert decorations (cacti and rocks), outside the city. */
   desert: { cacti: { x: number; z: number; s: number; rot: number }[]; rocks: { x: number; z: number; s: number; rot: number }[] };
+  /** The desert town, the lake town and the farmland (see towns.ts). */
+  towns: TownsData;
   pois: {
     spawn: { x: number; z: number; rot: number };
     gasStation: { x: number; z: number };
@@ -76,6 +79,8 @@ export interface CityLayout {
     apartment: { x: number; z: number; door: { x: number; z: number } };
     /** Ice cream stand in the park: where it stands, and the spot in front of its counter (+Z side). */
     iceCream: { x: number; z: number; front: { x: number; z: number } };
+    /** Supermarket on a shops block near home: building middle, its entrance (+Z side), the parking lot. */
+    supermarket: { x: number; z: number; w: number; d: number; front: { x: number; z: number }; parking: Rect };
   };
   /** Paths inside the park (thin paved rectangles). */
   paths: Rect[];
@@ -97,7 +102,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   const rng = new Rng(seed);
   const L: CityLayout = {
     blocks: [], buildings: [], towers: [], nature: [], props: [], colliders: [], paths: [],
-    park: null!, gas: null!, pois: null!, desert: { cacti: [], rocks: [] },
+    park: null!, gas: null!, pois: null!, desert: { cacti: [], rocks: [] }, towns: null!,
   };
   const inset = ROAD_WIDTH / 2;
 
@@ -368,7 +373,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   // ---------- desert: cacti and rocks (not on the road) ----------
   for (let i = 0; i < 260; i++) {
     const x = rng.range(DESERT.x0 + 60, DESERT.x1 - 20), z = rng.range(DESERT.z0 + 30, DESERT.z1 - 30);
-    if (onOutRoad(x, z, 8) || desertAmount(x, z) < 0.6) continue;
+    if (onOutRoad(x, z, 8) || desertAmount(x, z) < 0.6 || inDesertTown(x, z, 25)) continue;
     if (rng.chance(0.55)) {
       const s2 = rng.range(0.8, 1.4);
       L.desert.cacti.push({ x, z, s: s2, rot: rng.range(0, 6.28) });
@@ -378,6 +383,20 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       L.desert.rocks.push({ x, z, s: s2, rot: rng.range(0, 6.28) });
       if (s2 > 1.1) L.colliders.push({ x0: x - 0.8 * s2, z0: z - 0.8 * s2, x1: x + 0.8 * s2, z1: z + 0.8 * s2 });
     }
+  }
+
+  // ---------- towns and farmland outside the city ----------
+  const T = generateTowns(rng);
+  L.towns = T;
+  for (const b of T.buildings) L.colliders.push(buildingCollider(b));
+  for (const w of T.windmills) L.colliders.push({ x0: w.x - 2.6, z0: w.z - 2.6, x1: w.x + 2.6, z1: w.z + 2.6 });
+  for (const b of T.bales) L.colliders.push({ x0: b.x - 0.7, z0: b.z - 0.7, x1: b.x + 0.7, z1: b.z + 0.7 });
+  for (const p of T.palms) L.colliders.push({ x0: p.x - 0.3, z0: p.z - 0.3, x1: p.x + 0.3, z1: p.z + 0.3 });
+  const well = T.plaza.well;
+  L.colliders.push({ x0: well.x - 1.4, z0: well.z - 1.4, x1: well.x + 1.4, z1: well.z + 1.4 });
+  for (const t of T.trees) {
+    L.nature.push({ model: rng.pick(TREES), x: t.x, z: t.z, rot: rng.range(0, 6.28), scale: rng.range(0.85, 1.15) });
+    L.colliders.push({ x0: t.x - 0.4, z0: t.z - 0.4, x1: t.x + 0.4, z1: t.z + 0.4, knock: 'tree' });
   }
 
   // ---------- water: the lake (in bands, with a gap for the bridge) and the stream ----------
@@ -410,6 +429,18 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   L.colliders = L.colliders.filter((c) => !(c.knock && clear((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2)));
   L.colliders.push({ x0: ic.x - 1.5, z0: ic.z - 1.1, x1: ic.x + 1.5, z1: ic.z + 1.1 });
 
+  // ---------- supermarket: on the shops block nearest to home (replaces that block's buildings) ----------
+  const shopBlocks = L.blocks.filter((b) => b.district === 'shops');
+  const sb = shopBlocks.sort((a, b) => Math.hypot(a.bx - HOME_BLOCK[0], a.bz - HOME_BLOCK[1]) - Math.hypot(b.bx - HOME_BLOCK[0], b.bz - HOME_BLOCK[1]))[0] ?? L.blocks[0];
+  const lot = sb.lot;
+  const inLot = (x: number, z: number) => x > lot.x0 && x < lot.x1 && z > lot.z0 && z < lot.z1;
+  L.buildings = L.buildings.filter((b) => !inLot(b.x, b.z));
+  L.nature = L.nature.filter((n) => !inLot(n.x, n.z));
+  L.colliders = L.colliders.filter((c) => !inLot((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2));
+  const smW = 34, smD = 24, smX = (lot.x0 + lot.x1) / 2, smZ = lot.z0 + 6 + smD / 2;
+  L.colliders.push({ x0: smX - smW / 2, z0: smZ - smD / 2, x1: smX + smW / 2, z1: smZ + smD / 2 });
+  const supermarket = { x: smX, z: smZ, w: smW, d: smD, front: { x: smX, z: smZ + smD / 2 + 2 }, parking: { x0: lot.x0 + 4, z0: smZ + smD / 2 + 4, x1: lot.x1 - 4, z1: lot.z1 - 2 } };
+
   // ---------- points of interest ----------
   const gasC = { x: (L.gas.canopy.x0 + L.gas.canopy.x1) / 2, z: (L.gas.canopy.z0 + L.gas.canopy.z1) / 2 };
   L.pois = {
@@ -419,6 +450,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     home: homeLot!,
     apartment: apartment!,
     iceCream: { x: ic.x, z: ic.z, front: { x: ic.x, z: ic.z + 2.4 } },
+    supermarket,
   };
   return L;
 }

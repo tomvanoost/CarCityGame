@@ -15,6 +15,9 @@ export class Player {
   private vy = 0;
   private grounded = true;
   private tmp = { x: 0, z: 0 };
+  /** Supermarket snacks: seconds left of running faster (juice) / jumping higher (banana). */
+  speedBoost = 0;
+  jumpBoost = 0;
 
   constructor(readonly avatar: Avatar) {}
 
@@ -33,7 +36,9 @@ export class Player {
     let dx = fx * move.y + rx * move.x, dz = fz * move.y + rz * move.x;
     const amount = Math.min(1, Math.hypot(move.x, move.y));
     const running = move.run || amount > 0.92;
-    const speed = (running ? RUN : WALK) * amount;
+    this.speedBoost = Math.max(0, this.speedBoost - dt);
+    this.jumpBoost = Math.max(0, this.jumpBoost - dt);
+    const speed = (running ? RUN : WALK) * amount * (this.speedBoost > 0 ? 1.6 : 1);
     this.speed = amount > 0.05 ? speed : 0;
     if (amount > 0.05) {
       const len = Math.hypot(dx, dz);
@@ -51,7 +56,7 @@ export class Player {
     // Gravity + jumping (also steps up onto curbs smoothly).
     const gy = groundHeight(this.x, this.z);
     if (jump && this.grounded) {
-      this.vy = JUMP;
+      this.vy = JUMP * (this.jumpBoost > 0 ? 1.45 : 1);
       this.grounded = false;
       this.avatar.play('Jump', { once: true, fade: 0.1, then: 'Idle' });
     }

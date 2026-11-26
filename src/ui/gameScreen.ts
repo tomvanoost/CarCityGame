@@ -1,4 +1,5 @@
 import { FLAVORS, ICE_CREAM_PRICE } from '../game/play/iceCream';
+import { SNACKS } from '../game/play/supermarket';
 import { isTouch } from '../engine/renderer';
 import { getClothes } from '../game/avatar/clothes';
 import { Game, type GameState } from '../game/play/game';
@@ -194,6 +195,7 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'wash' ? (state.washing ? `🫧 ${t('washing')}` : `🫧 ${t('wash')} ${euro(c.price)}`)
         : c.kind === 'takeCar' ? `🔑 ${t('takeCar')}: ${vehicleName(getVehicle(c.id))}`
         : c.kind === 'iceCream' ? `🍦 ${t('buyIceCream')} ${euro(c.price)}`
+        : c.kind === 'supermarket' ? `🛒 ${t('goShopping')}`
         : c.kind === 'buyApartment' ? `🏢 ${t('buyApartment')} ${euro(c.price)}` : `🏠 ${t('goInside')}`;
       ctxBtn.classList.toggle('busy', state.refueling || state.washing);
     }
@@ -246,9 +248,9 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : t('pickedPassenger')),
-    onPlace: (place) => (place === 'iceCream' ? openIceCream() : openPanel(place)),
+    onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : openPanel(place)),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
     onPlayer: (kind, name) => toast(t(kind === 'joined' ? 'mpJoined' : kind === 'left' ? 'mpLeft' : 'mpFound').replace('{name}', name)),
   });
@@ -339,7 +341,7 @@ export const gameScreen: Screen = (root, nav) => {
     if (!minimap && game.roads && game.city) {
       const L = game.city.layout;
       const base = renderBaseMap(L, game.roads);
-      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front };
+      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front };
       minimap = new Minimap(base, places, openMap, (id) => {
         const name = game.navigateToPlayer(id);
         if (name) toast(t('mpNavTo').replace('{name}', name));
@@ -375,6 +377,30 @@ export const gameScreen: Screen = (root, nav) => {
           h('span', { class: 'tile-emoji flavor-scoop', style: `background:${f.color}` }, f.emoji),
           h('span', {}, t(`fl_${f.id}`)));
         b.addEventListener('click', () => { if (game.buyIceCream(f.id)) { close(); toast(t('yum')); } });
+        return b;
+      })),
+      h('button', { class: 'btn btn-primary btn-big', onclick: close }, t('continuePlaying')),
+    ));
+    panel.hidden = false;
+    render();
+  }
+
+  /** The supermarket: three snacks as big buttons, each with what it does. */
+  function openSupermarket() {
+    touch.reset();
+    const close = () => { panel.hidden = true; game.resume(); render(); };
+    panel.replaceChildren(h('div', { class: 'card place-card' },
+      h('div', { class: 'place-head' },
+        h('h2', {}, `🛒 ${t('supermarket')}`),
+        h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
+      ),
+      h('h3', {}, t('pickSnack')),
+      h('div', { class: 'tiles' }, ...SNACKS.map((sn) => {
+        const b = h('button', { class: 'tile snack-tile' },
+          h('span', { class: 'tile-emoji' }, sn.emoji),
+          h('b', {}, `${t(`sn_${sn.id}`)} ${euro(sn.price)}`),
+          h('small', {}, t(`sn_${sn.id}_info`)));
+        b.addEventListener('click', () => { if (game.buySnack(sn.id)) { close(); toast(t('snackBought')); } });
         return b;
       })),
       h('button', { class: 'btn btn-primary btn-big', onclick: close }, t('continuePlaying')),

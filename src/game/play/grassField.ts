@@ -168,6 +168,7 @@ export class GrassField {
     if (!b.green || !inRect(b.lot, x, z, 0.25)) return false; // paved lot or sidewalk
     for (const p of L.paths) if (inRect(p, x, z, -0.3)) return false;
     if (inRect(L.gas.rect, x, z, -0.5)) return false;
+    if (inRect(L.pois.supermarket.parking, x, z, -1)) return false;
     return !this.blocked(x, z);
   }
 
