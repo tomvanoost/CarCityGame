@@ -39,6 +39,8 @@ export class Vehicle {
   yielding = false;
   /** Extra speed limit in m/s (e.g. empty tank). */
   limit = Infinity;
+  /** The player's own max speed (m/s, set with 🏁 in the game); the car never drives faster. */
+  cap = Infinity;
 
   /** Loads the vehicle's model (Sketchfab or built-in) and returns a ready Vehicle. */
   static async create(spec: VehicleSpec, color?: string) {
@@ -89,6 +91,7 @@ export class Vehicle {
     }
     if (inp.handbrake) this.speed *= Math.pow(0.08, dt);
     this.speed = THREE.MathUtils.clamp(this.speed, -this.limit, this.limit);
+    if (this.speed > this.cap) this.speed = Math.max(this.cap, this.speed - 14 * dt); // ease down to the max
     if (!inp.throttle && !inp.brake) {
       const drag = 1.6 * dt;
       this.speed = Math.abs(this.speed) <= drag ? 0 : this.speed - Math.sign(this.speed) * drag;

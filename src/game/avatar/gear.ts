@@ -6,7 +6,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
  * and attached to a bone of the character, so they follow every animation. Each piece is one small
  * mesh (one draw call), sized for the 1.7 m avatar.
  */
-export type GearKind = 'cape' | 'bubbleHelmet' | 'jetpack' | 'backpack' | 'cap' | 'capBackwards' | 'antenna' | 'goggles';
+export type GearKind = 'cape' | 'bubbleHelmet' | 'jetpack' | 'backpack' | 'cap' | 'capBackwards' | 'antenna' | 'goggles' | 'peakedCap';
 
 export interface GearPiece { kind: GearKind; color: string; color2?: string }
 
@@ -73,6 +73,16 @@ function shape(p: GearPiece): { geo: THREE.BufferGeometry; bone: 'Head' | 'Torso
         paint(new THREE.CylinderGeometry(0.2, 0.2, 0.025, 20, 1, false, -Math.PI / 2, Math.PI).scale(1.15, 1, 1.1)
           .rotateY(dir > 0 ? 0 : Math.PI).translate(HEAD.x, HEAD.y + 0.11, HEAD.z + dir * (HEAD_R - 0.02)), c2),
         paint(new THREE.SphereGeometry(0.035, 8, 6).translate(HEAD.x, HEAD.y + HEAD_R + 0.01, HEAD.z), c2),
+      ];
+      return { geo: merged(parts), bone: 'Head' };
+    }
+    case 'peakedCap': {
+      // Police cap: a round flat-topped crown, a dark band, a shiny visor in front and a gold badge.
+      const y = HEAD.y + 0.16, parts = [
+        paint(new THREE.CylinderGeometry(HEAD_R + 0.06, HEAD_R + 0.01, 0.16, 26).translate(HEAD.x, y + 0.08, HEAD.z), p.color),
+        paint(new THREE.CylinderGeometry(HEAD_R + 0.015, HEAD_R + 0.015, 0.07, 26).translate(HEAD.x, y - 0.02, HEAD.z), '#15181f'),
+        paint(new THREE.CylinderGeometry(0.2, 0.2, 0.02, 20, 1, false, -Math.PI / 2, Math.PI).scale(1.1, 1, 0.9).translate(HEAD.x, y - 0.05, HEAD.z + HEAD_R - 0.04), '#15181f'),
+        paint(new THREE.CylinderGeometry(0.055, 0.055, 0.02, 12).rotateX(Math.PI / 2).translate(HEAD.x, y + 0.06, HEAD.z + HEAD_R + 0.05), p.color2 ?? '#ffd34d'),
       ];
       return { geo: merged(parts), bone: 'Head' };
     }

@@ -1510,5 +1510,103 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "license": "CC Attribution-NonCommercial-ShareAlike",
       "url": "https://sketchfab.com/3d-models/2012-bmw-m6-coupe-f13-patrol-df09eab1442d43cdadab51d329045c02"
     }
+  },
+  "brandweer": {
+    "length": 7.599999904632568,
+    "width": 2.4036545753479004,
+    "height": 2.901240348815918,
+    "bike": false,
+    "paintable": true,
+    "seat": [
+      0.4807309150695801,
+      1.2185209465026856,
+      -0.5319999933242798
+    ],
+    "wheels": [
+      [
+        0.855,
+        0.438,
+        2.438,
+        0.438,
+        0.13
+      ],
+      [
+        -0.855,
+        0.438,
+        2.438,
+        0.438,
+        0.13
+      ],
+      [
+        0.855,
+        0.438,
+        -1.287,
+        0.438,
+        0.13
+      ],
+      [
+        -0.855,
+        0.438,
+        -1.287,
+        0.438,
+        0.13
+      ]
+    ],
+    "credit": {
+      "name": "firetruck",
+      "author": "Niclas",
+      "authorUrl": "https://sketchfab.com/niclas.schoepe",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/firetruck-cb0c3a0c2dcb4b68a8de4ffb3265157d"
+    }
+  },
+  "ambulance": {
+    "length": 6,
+    "width": 2.2645275592803955,
+    "height": 2.5177712440490723,
+    "bike": false,
+    "paintable": true,
+    "seat": [
+      0.45290551185607913,
+      1.0574639225006104,
+      -0.42000000000000004
+    ],
+    "wheels": [
+      [
+        0.854,
+        0.337,
+        2.032,
+        0.338,
+        0.096
+      ],
+      [
+        -0.81,
+        0.337,
+        2.028,
+        0.338,
+        0.095
+      ],
+      [
+        0.99,
+        0.337,
+        -1.339,
+        0.338,
+        0.095
+      ],
+      [
+        -0.937,
+        0.337,
+        -1.347,
+        0.338,
+        0.095
+      ]
+    ],
+    "credit": {
+      "name": "HSE Irish Ambulance",
+      "author": "Alexandrovich",
+      "authorUrl": "https://sketchfab.com/alexandrovich",
+      "license": "CC Attribution",
+      "url": "https://sketchfab.com/3d-models/hse-irish-ambulance-478663159a014ccca6e12ed4ded8a26b"
+    }
   }
 };

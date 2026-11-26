@@ -132,7 +132,7 @@ export class StreetLamps {
 }
 
 /**
- * Flashing police lights for the light bar on the roof (car faces +Z, stands on y = 0): a red glow
+ * Flashing emergency lights for the light bar on the roof (car faces +Z, stands on y = 0): a red glow
  * on the left and a blue one on the right that flash in turn, and a soft colored glow on the road.
  * Fake light only (2 small meshes), hidden while the siren is off.
  */
@@ -143,10 +143,11 @@ export class SirenLights {
   private pool: THREE.Mesh;
   private t = 0;
 
-  constructor(width: number, height: number, roofZ: number) {
+  /** colors: [left, right] lamp colors (police red + blue, fire red, ambulance blue). */
+  constructor(width: number, height: number, roofZ: number, private colors: [string, string] = ['#ff2a2a', '#2a6bff']) {
     const puff = () => mergeGeos([0, Math.PI / 2, Math.PI / 4, -Math.PI / 4].map((ry) => new THREE.PlaneGeometry(0.9, 0.7).rotateY(ry)));
-    this.red = new THREE.Mesh(puff(), additive('#ff2a2a', 0.95));
-    this.blue = new THREE.Mesh(puff(), additive('#2a6bff', 0.95));
+    this.red = new THREE.Mesh(puff(), additive(colors[0], 0.95));
+    this.blue = new THREE.Mesh(puff(), additive(colors[1], 0.95));
     this.red.position.set(width * 0.2, height + 0.02, roofZ);
     this.blue.position.set(-width * 0.2, height + 0.02, roofZ);
     this.pool = new THREE.Mesh(new THREE.PlaneGeometry(width * 3.2, width * 4).rotateX(-Math.PI / 2), additive('#ffffff', 0.35));
@@ -166,7 +167,7 @@ export class SirenLights {
     const flash = k < 0.1 || (k > 0.17 && k < 0.27);
     this.red.visible = left && flash;
     this.blue.visible = !left && flash;
-    (this.pool.material as THREE.MeshBasicMaterial).color.set(left ? '#ff3030' : '#3070ff');
+    (this.pool.material as THREE.MeshBasicMaterial).color.set(left ? this.colors[0] : this.colors[1]);
     (this.pool.material as THREE.MeshBasicMaterial).opacity = flash ? 0.35 : 0.12;
   }
 

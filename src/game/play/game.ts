@@ -21,6 +21,7 @@ import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Garage, type GarageSpot } from './garage';
 import { DAY, EVENING, headlightRig, loadEvening, saveEvening, SirenLights, StreetLamps } from '../world/evening';
 import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
+import type { VehicleSpec } from '../vehicles/types';
 import { awardSticker } from '../../ui/stickers';
 import { RoadGraph, type P } from './roads';
 import { Traffic } from './traffic';
@@ -32,6 +33,28 @@ export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
 export type ContextAction = { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
+
+const MAX_SPEED_KEY = 'carcity.maxSpeed';
+function loadMaxSpeed(): number | null {
+  try { const v = Number(localStorage.getItem(MAX_SPEED_KEY)); return v > 0 ? v : null; } catch { return null; }
+}
+
+/** Lamp colors per emergency vehicle: police red + blue, fire truck red, ambulance blue. */
+const SIREN_COLORS: Record<NonNullable<VehicleSpec['siren']>, [string, string]> = {
+  police: ['#ff2a2a', '#2a6bff'], fire: ['#ff2a2a', '#ff5a1a'], ambulance: ['#2a6bff', '#3aa0ff'],
+};
+
+/** Where the light bar goes: the top of the roof (found with a ray), over the cab for trucks and vans. */
+function lightBarSpot(v: Vehicle): [number, number] {
+  const sf = SKETCHFAB_VEHICLES[v.spec.id];
+  const height = sf?.height ?? 1.4;
+  const z = v.spec.siren === 'fire' ? v.length / 2 - 0.9 : v.spec.siren === 'ambulance' ? v.length / 2 - 2.3 : -0.15;
+  v.car.root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(v.car.root.matrixWorld).invert();
+  const from = new THREE.Vector3(0, height + 2, z).applyMatrix4(v.car.root.matrixWorld);
+  const hit = new THREE.Raycaster(from, new THREE.Vector3(0, -1, 0)).intersectObject(v.car.root, true)[0];
+  return [hit ? hit.point.applyMatrix4(inv).y : height, z];
+}
 
 export interface GameState {
   mode: Mode;
@@ -46,7 +69,10 @@ export interface GameState {
   job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number } | null;
   /** Navigation to a destination you picked on the map. */
   dest: { meters: number } | null;
-  /** Driving the police car (shows the 🚨 button), and whether its siren is on. */
+  /** The car's real top speed and the player's own max speed (🏁), km/h; null = no limit. */
+  topSpeed: number;
+  maxSpeed: number | null;
+  /** Driving an emergency vehicle (shows the 🚨 button), and whether its siren is on. */
   police: boolean;
   siren: boolean;
 }
@@ -138,6 +164,8 @@ export class Game {
   /** Police car: flashing lights on its roof, and whether the siren is on. */
   private sirenLights?: SirenLights;
   private sirenOn = false;
+  /** The player's max speed (km/h, 🏁 next to the home button), saved on this device; null = the car's top speed. */
+  private maxKmh: number | null = loadMaxSpeed();
 
   constructor(canvas: HTMLCanvasElement, private input: Input, profile: PlayerProfile, private events: GameEvents) {
     const q = pickQuality();
@@ -324,9 +352,8 @@ export class Game {
     this.sirenLights = undefined;
     this.vehicle?.dispose();
     v.place(at.x, at.z, at.rot);
-    if (v.spec.police) {
-      // The light bar sits on the middle of the roof.
-      this.sirenLights = new SirenLights(v.width, SKETCHFAB_VEHICLES[v.spec.id]?.height ?? 1.4, -0.15);
+    if (v.spec.siren) {
+      this.sirenLights = new SirenLights(v.width, ...lightBarSpot(v), SIREN_COLORS[v.spec.siren]);
       v.root.add(this.sirenLights.group);
     }
     const lights = headlightRig(v.length, v.width);
@@ -400,12 +427,18 @@ export class Game {
     }
   }
 
-  /** Police siren + flashing lights on/off; traffic pulls over while it is on. */
+  /** 🏁 Max speed (km/h), or null for no limit (the car's own top speed). */
+  setMaxSpeed(kmh: number | null) {
+    this.maxKmh = kmh;
+    try { if (kmh) localStorage.setItem(MAX_SPEED_KEY, String(kmh)); else localStorage.removeItem(MAX_SPEED_KEY); } catch { /* private mode */ }
+  }
+
+  /** Siren + flashing lights on/off (police, fire truck, ambulance); traffic pulls over while it is on. */
   private setSiren(on: boolean) {
     if (on === this.sirenOn) return;
     this.sirenOn = on;
     if (this.sirenLights) this.sirenLights.on = on;
-    if (on) sounds.sirenOn(); else sounds.sirenOff();
+    if (on) sounds.sirenOn(this.vehicle?.spec.siren); else sounds.sirenOff();
   }
 
   private canEnter() {
@@ -674,8 +707,9 @@ export class Game {
     } else if (!honk && this.honking) sounds.hornStop();
     this.honking = honk;
     // R / 🚨 / controller RB: siren on or off (police car only).
-    if (this.input.takeSiren() && this.mode === 'driving' && !this.paused && v.spec.police) this.setSiren(!this.sirenOn);
+    if (this.input.takeSiren() && this.mode === 'driving' && !this.paused && v.spec.siren) this.setSiren(!this.sirenOn);
     this.sirenLights?.update(dt);
+    v.cap = this.maxKmh ? this.maxKmh / 3.6 : Infinity;
     sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0, !!v.spec.electric);
     if (driving) {
       const before = { x: v.x, z: v.z };
@@ -764,7 +798,9 @@ export class Game {
       context: ctx,
       job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round((this.nav?.remaining || Math.hypot(job.x - pos.x, job.z - pos.z)) / 10) * 10 } : null,
       dest: !job && this.dest ? { meters: Math.round((this.nav?.remaining ?? 0) / 10) * 10 } : null,
-      police: this.mode === 'driving' && !!v.spec.police,
+      topSpeed: v.spec.topSpeed,
+      maxSpeed: this.maxKmh,
+      police: this.mode === 'driving' && !!v.spec.siren,
       siren: this.sirenOn,
     };
     const key = JSON.stringify(state);

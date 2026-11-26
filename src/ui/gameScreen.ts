@@ -35,7 +35,41 @@ export const gameScreen: Screen = (root, nav) => {
   );
   const back = h('button', { class: 'icon-btn back-btn', 'aria-label': t('back'), onclick: () => nav('menu') },
     svgIcon('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>', 24));
-  const money = h('div', { class: 'hud-money' }, svgIcon(icons.coin, 20), h('span', {}, euro(profile.money)));
+  const money = h('div', { class: 'hud-money game-money' }, svgIcon(icons.coin, 20), h('span', {}, euro(profile.money)));
+
+  // 🏁 Max speed: tap to set how fast your car may go (up to its real top speed).
+  const speedBtn = h('button', { class: 'speed-limit-btn', 'aria-label': t('maxSpeed'), title: t('maxSpeed') }, '🏁 ', h('b', {}, 'MAX'));
+  const speedValue = h('b', { class: 'speed-pop-value' }, '');
+  const slider = h('input', { type: 'range', min: '10', step: '5', class: 'speed-slider', 'aria-label': t('maxSpeed') }) as HTMLInputElement;
+  const minus = h('button', { class: 'btn speed-step' }, '−');
+  const plus = h('button', { class: 'btn speed-step' }, '+');
+  const noLimit = h('button', { class: 'btn btn-primary speed-nolimit' }, `🚀 ${t('noLimit')}`);
+  const speedPop = h('div', { class: 'card speed-pop', hidden: true },
+    h('div', { class: 'place-head' }, h('h2', {}, `🏁 ${t('maxSpeed')}`),
+      h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: () => { speedPop.hidden = true; } }, '✕')),
+    speedValue,
+    h('div', { class: 'speed-row' }, minus, slider, plus),
+    noLimit,
+  );
+  /** Shows the limit; a value at (or over) the car's top speed means "no limit". */
+  const setLimit = (kmh: number | null) => {
+    const top = state.topSpeed || 250;
+    const v = kmh && kmh < top ? Math.max(10, Math.round(kmh / 5) * 5) : null;
+    game.setMaxSpeed(v);
+    showLimit(v);
+  };
+  const showLimit = (v: number | null) => {
+    const top = state.topSpeed || 250;
+    slider.max = String(top);
+    slider.value = String(v ?? top);
+    speedValue.textContent = v ? `${v} km/h` : `${t('noLimit')} (${top} km/h)`;
+    speedBtn.lastElementChild!.textContent = v ? String(v) : 'MAX';
+  };
+  slider.addEventListener('input', () => setLimit(Number(slider.value)));
+  minus.addEventListener('click', () => setLimit((state.maxSpeed ?? state.topSpeed) - 10));
+  plus.addEventListener('click', () => setLimit((state.maxSpeed ?? state.topSpeed) + 10));
+  noLimit.addEventListener('click', () => setLimit(null));
+  speedBtn.addEventListener('click', () => { showLimit(state.maxSpeed); speedPop.hidden = !speedPop.hidden; });
 
   const input = new Input();
   const touch = new TouchControls(input);
@@ -107,12 +141,13 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, money, tabletBtn, soundBtn, eveningBtn, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, speedPop, tabletBtn, soundBtn, eveningBtn, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, police: false, siren: false };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, police: false, siren: false };
   const render = () => {
     const driving = state.mode === 'driving';
+    if (!speedPop.hidden) showLimit(state.maxSpeed); else speedBtn.lastElementChild!.textContent = state.maxSpeed && state.maxSpeed < state.topSpeed ? String(state.maxSpeed) : 'MAX';
     root.classList.toggle('tablet', tablet);
     const overlay = !panel.hidden || !mapOverlay.hidden || tutorialOpen;
     root.classList.toggle('panel-open', overlay);

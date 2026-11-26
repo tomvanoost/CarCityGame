@@ -67,8 +67,8 @@ export interface VehicleSpec {
   kind: 'car' | 'motor';
   /** Default paint color. */
   color: string;
-  /** Police car: has a siren (R) with flashing lights; traffic pulls over for it. */
-  police?: boolean;
+  /** Emergency vehicle: has a siren (R) with flashing lights; traffic pulls over for it. */
+  siren?: 'police' | 'fire' | 'ambulance';
   /** Electric car: no engine "vroom", a soft electric whine instead. */
   electric?: boolean;
   /** Real top speed of the car it's modeled on, in km/h (also the in-game top speed). */

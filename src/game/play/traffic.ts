@@ -141,7 +141,7 @@ export class Traffic {
 
   private async build(focus: P) {
     // Traffic uses the realistic (Sketchfab) cars only, so the street looks consistent.
-    const all = VEHICLES.filter((v) => v.kind === 'car' && v.price < 100000 && !v.police);
+    const all = VEHICLES.filter((v) => v.kind === 'car' && v.price < 100000 && !v.siren);
     const real = all.filter((v) => v.id in SKETCHFAB_VEHICLES);
     const cars = real.length >= 4 ? real : all;
     const spec = cars[Math.floor(Math.random() * cars.length)];

@@ -182,10 +182,10 @@ class Sounds {
   private siren: { gain: GainNode; osc: OscillatorNode[]; timer: number } | null = null;
 
   /**
-   * Police siren: the European two-tone "tatu-tata" (two notes taking turns), soft enough for a
-   * kids game. Plays until sirenOff().
+   * Siren: the European two-tone "tatu-tata" (two notes taking turns), soft enough for a kids game.
+   * Police high and quick, ambulance a bit lower, fire truck low and slow. Plays until sirenOff().
    */
-  sirenOn() {
+  sirenOn(kind: 'police' | 'fire' | 'ambulance' = 'police') {
     const ctx = this.ready();
     if (!ctx || this.siren) return;
     const gain = ctx.createGain();
@@ -199,7 +199,7 @@ class Sounds {
     a.type = 'square'; b.type = 'triangle';
     const bGain = ctx.createGain(); bGain.gain.value = 0.6;
     a.connect(filter); b.connect(bGain).connect(filter);
-    const notes = [466, 622];
+    const [notes, every] = kind === 'fire' ? [[370, 494], 700] : kind === 'ambulance' ? [[440, 587], 520] : [[466, 622], 450];
     let i = 0;
     const step = () => {
       const t = ctx.currentTime, f = notes[i++ % 2];
@@ -208,7 +208,7 @@ class Sounds {
     };
     step();
     a.start(); b.start();
-    this.siren = { gain, osc: [a, b], timer: window.setInterval(step, 450) };
+    this.siren = { gain, osc: [a, b], timer: window.setInterval(step, every) };
   }
 
   sirenOff() {
