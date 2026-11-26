@@ -3,18 +3,37 @@ import { loadGltf } from '../../engine/assets';
 import { contactShadow, SEATED_SCALE, type BuiltCar } from './carBuilder';
 import { SKETCHFAB_VEHICLES } from './sketchfabManifest';
 
-/** Height from the hips to the top of the head of a seated character at scale 1 (measured). */
-const HEAD_ABOVE_HIP = 1.23;
+/** Height from the hips to the top of the head (or hat) of a seated character at scale 1 (measured, with room for hats). */
+const HEAD_ABOVE_HIP = 1.3;
+
+/**
+ * The lowest point of the roof right above the driver's head (rays down onto the model; the
+ * car's total height also counts antennas and spoilers). Cached per model file.
+ */
+function roofAboveDriver(model: THREE.Object3D, info: { length: number; width: number; height: number }) {
+  if (model.userData.roofY !== undefined) return model.userData.roofY as number;
+  model.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster();
+  const down = new THREE.Vector3(0, -1, 0);
+  let roof = info.height;
+  for (const dx of [-0.1, 0.1]) for (const dz of [-0.1, 0.1, 0.3]) {
+    ray.set(new THREE.Vector3(info.width * 0.18 + dx, info.height + 1, info.length * 0.01 + dz), down);
+    const hit = ray.intersectObject(model, true).find((h) => h.point.y > info.height * 0.55);
+    if (hit) roof = Math.min(roof, hit.point.y);
+  }
+  model.userData.roofY = roof;
+  return roof;
+}
 
 /**
  * Driver's hips (vehicle-local), from real-car proportions: a driver sits roughly in the
  * middle of the car, on the left (+X), with the hips at about a third of the roof height.
- * In low sports cars the driver sits lower (and, if needed, a bit smaller) so the head
- * always stays under the roof.
+ * Under a low roof the driver sits lower (and, if needed, a bit smaller) so the head
+ * always stays inside the car.
  */
-function seatFor(info: { length: number; width: number; height: number; bike: boolean }) {
+function seatFor(info: { length: number; width: number; height: number; bike: boolean }, roofY: number) {
   if (info.bike) return { seat: new THREE.Vector3(0, info.height * 0.62, -info.length * 0.1), scale: SEATED_SCALE };
-  const roof = info.height - 0.1;
+  const roof = Math.min(info.height - 0.1, roofY - 0.06);
   const hip = Math.max(0.22, Math.min(info.height * 0.32, roof - HEAD_ABOVE_HIP * SEATED_SCALE));
   const scale = Math.min(SEATED_SCALE, (roof - hip) / HEAD_ABOVE_HIP);
   return { seat: new THREE.Vector3(info.width * 0.18, hip, info.length * 0.01), scale };
@@ -151,6 +170,7 @@ export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepres
   const info = SKETCHFAB_VEHICLES[id];
   const gltf = await loadGltf(`/models/vehicles/${id}${lod ? '_lod' : ''}.glb`);
   if (info.wheels) splitWheels(gltf.scene, info.wheels, lod);
+  const seat = seatFor(info, info.bike ? info.height : roofAboveDriver(gltf.scene, info));
   const model = gltf.scene.clone(true);
   const own: THREE.Material[] = [];
   const paint: THREE.MeshStandardMaterial[] = [];
@@ -196,8 +216,8 @@ export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepres
   return {
     root,
     wheels,
-    seat: seatFor(info).seat,
-    seatScale: seatFor(info).scale,
+    seat: seat.seat,
+    seatScale: seat.scale,
     setColor,
     dispose() {
       own.forEach((m) => m.dispose());

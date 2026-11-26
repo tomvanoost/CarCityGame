@@ -4,6 +4,7 @@ import { loadClips, loadGltf } from '../../engine/assets';
 import type { Gender } from '../../services/types';
 import { animsUrl, getClothes, outfitUrl } from './clothes';
 import { faceDetailGeometry, faceDetailMaterial } from './faceDetails';
+import { attachGear } from './gear';
 
 export type AnimName =
   | 'Idle' | 'Walk' | 'Run' | 'Jump' | 'SitDown' | 'StandUp'
@@ -76,6 +77,7 @@ export class Avatar {
 
     const avatar = new Avatar(model, clips);
     avatar.play('Idle');
+    if (item.gear?.length) { avatar.update(0); attachGear(model, item.gear); }
     return avatar;
   }
 
@@ -95,6 +97,11 @@ export class Avatar {
     this.current = next;
   }
 
+  /** Shows or hides tall head gear (helmet bubble, antenna), e.g. hidden while sitting in a car. */
+  setTallGear(visible: boolean) {
+    this.root.traverse((o) => { if (o.userData.tallGear) o.visible = visible; });
+  }
+
   get currentName(): string | undefined {
     return this.current?.getClip().name;
   }
@@ -109,7 +116,11 @@ export class Avatar {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
       // Geometry is shared with the loader cache; only our own geometry and material clones are freed.
-      if (mesh.userData.ownGeometry) { mesh.geometry.dispose(); return; }
+      if (mesh.userData.ownGeometry) {
+        mesh.geometry.dispose();
+        if (mesh.userData.ownMaterial) (mesh.material as THREE.Material).dispose();
+        return;
+      }
       (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((m) => m.dispose());
     });
     this.root.removeFromParent();

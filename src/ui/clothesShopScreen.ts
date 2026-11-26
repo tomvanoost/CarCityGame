@@ -33,10 +33,10 @@ export const clothesShopScreen: Screen = (root, nav) => {
     const lang = getLang();
     grid.replaceChildren(...CLOTHES.map((c) => {
       const owned = p.ownedClothes.includes(c.id);
-      const dot = c.colors?.Shirt ?? c.colors?.Clothes ?? DOT[c.model] ?? '#3d7bd9';
+      const dot = c.colors?.Shirt ?? c.colors?.Main ?? c.colors?.Jacket ?? c.colors?.Clothes ?? DOT[c.model] ?? '#3d7bd9';
       const tile = h('button', { class: `tile clothes-tile ${c.id === trying ? 'active' : ''}` },
         h('span', { class: 'shop-dot big', style: `background:${dot}` }),
-        h('span', {}, c.name[lang]),
+        h('span', {}, c.hero ? `⭐ ${c.name[lang]}` : c.name[lang]),
         h('small', {}, p.equipped.outfit === c.id ? `✓ ${t('wearing')}` : owned ? t('owned') : euro(c.price)),
       );
       tile.addEventListener('click', () => {

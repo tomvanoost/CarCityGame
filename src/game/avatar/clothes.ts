@@ -1,4 +1,5 @@
 import type { Gender } from '../../services/types';
+import type { GearPiece } from './gear';
 
 export type OutfitModel =
   | 'Casual' | 'Casual2' | 'Casual3' | 'Chef' | 'Cowboy' | 'Kimono'
@@ -11,6 +12,10 @@ export interface ClothesItem {
   price: number;
   /** Material name -> color, applied on top of the model's own colors. */
   colors?: Record<string, string>;
+  /** Hero extras attached to the character (cape, helmet, jetpack...). */
+  gear?: GearPiece[];
+  /** Shown with a star in the shop. */
+  hero?: boolean;
 }
 
 /** Every player owns this outfit from the start. */
@@ -33,6 +38,26 @@ export const CLOTHES: ClothesItem[] = [
   { id: 'pirate', model: 'Pirate', name: { nl: 'Piraat', en: 'Pirate' }, price: 1000 },
   { id: 'viking', model: 'Viking', name: { nl: 'Viking', en: 'Viking' }, price: 1100 },
   { id: 'ninja', model: 'Ninja', name: { nl: 'Ninja', en: 'Ninja' }, price: 1200 },
+  // --- hero outfits: bold colors + extras, original designs ---
+  { id: 'hero-skater', model: 'Casual2', hero: true, name: { nl: 'Skater', en: 'Skater' }, price: 1400,
+    colors: { Shirt: '#7ed321', Pants: '#2b2f6b', Belt: '#ffd34d' }, gear: [{ kind: 'capBackwards', color: '#ff4f8b', color2: '#ffffff' }] },
+  { id: 'hero-racer', model: 'Casual', hero: true, name: { nl: 'Coureur', en: 'Racing driver' }, price: 1500,
+    colors: { Shirt: '#e8262b', Pants: '#e8262b', Belt: '#1b1b1b' }, gear: [{ kind: 'cap', color: '#1b1b1b', color2: '#e8262b' }] },
+  { id: 'hero-pilot', model: 'Casual3', hero: true, name: { nl: 'Piloot', en: 'Pilot' }, price: 1600,
+    colors: { Shirt: '#7a5236', Pants: '#3e4a3a', Belt: '#2b1d14' }, gear: [{ kind: 'goggles', color: '#7fd3ff', color2: '#5a3a22' }, { kind: 'backpack', color: '#5a3a22', color2: '#3e4a3a' }] },
+  { id: 'hero-explorer', model: 'Cowboy', hero: true, name: { nl: 'Ontdekkingsreiziger', en: 'Explorer' }, price: 1700,
+    colors: { Jacket: '#b59b62', Top: '#f2e6c8', Scarf: '#2e9b5f', HatBrown: '#c8a46a', HatLightBrown: '#e6cfa0', Pants: '#6b5a3a' },
+    gear: [{ kind: 'backpack', color: '#3f7d4f', color2: '#8a6a3a' }] },
+  { id: 'hero-super', model: 'Casual3', hero: true, name: { nl: 'Superheld', en: 'Superhero' }, price: 1800,
+    colors: { Shirt: '#1f5fe0', Pants: '#1f3fa0', Belt: '#ffd34d' }, gear: [{ kind: 'cape', color: '#e8262b' }] },
+  { id: 'hero-neon-ninja', model: 'Ninja', hero: true, name: { nl: 'Neon-ninja', en: 'Neon ninja' }, price: 1900,
+    colors: { Main: '#14b8a6', Details: '#ffd34d', Grey: '#f2f2f2' }, gear: [{ kind: 'cape', color: '#ffd34d' }] },
+  { id: 'hero-robot', model: 'Suit', hero: true, name: { nl: 'Robotpak', en: 'Robot suit' }, price: 2100,
+    colors: { Black: '#6b7f99', Shirt: '#cfd8e3', Details: '#22c1ff', Belt: '#22c1ff' },
+    gear: [{ kind: 'antenna', color: '#ff4f8b', color2: '#cfd8e3' }, { kind: 'jetpack', color: '#cfd8e3', color2: '#22c1ff' }] },
+  { id: 'hero-astronaut', model: 'Worker', hero: true, name: { nl: 'Astronaut', en: 'Astronaut' }, price: 2400,
+    colors: { Shirt: '#f4f5f7', Vest: '#ff8a2b', Pants: '#f4f5f7', Hat: '#f4f5f7' },
+    gear: [{ kind: 'bubbleHelmet', color: '#d8ecff' }, { kind: 'jetpack', color: '#f4f5f7', color2: '#ff8a2b' }] },
 ];
 
 export const getClothes = (id: string | null | undefined) =>

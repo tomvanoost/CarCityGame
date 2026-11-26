@@ -143,7 +143,7 @@ export class ApartmentRoom {
     this.avatar = avatar;
     avatar.root.position.set(0.4, 0.06, 0.6);
     avatar.root.rotation.y = -0.35;
-    avatar.root.traverse((o) => { o.castShadow = true; });
+    avatar.root.traverse((o) => { o.castShadow = !o.userData.glass; });
     this.scene.add(avatar.root);
     avatar.play('Victory', { once: true });
   }

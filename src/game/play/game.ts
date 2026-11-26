@@ -167,7 +167,7 @@ export class Game {
     this.scene.add(city.group);
     this.world = new CollisionWorld(city.layout.colliders);
     this.player = new Player(avatar);
-    avatar.root.traverse((o) => { o.castShadow = true; });
+    avatar.root.traverse((o) => { o.castShadow = !o.userData.glass; });
 
     const spawn = this.spawnPoint(profile.spawn);
     await this.setVehicle(profile.selectedVehicle, spawn);
@@ -359,6 +359,7 @@ export class Game {
     a.root.position.copy(seatedRootPosition(v.car.seat, scale));
     a.root.rotation.set(0, 0, 0);
     a.root.scale.setScalar(scale);
+    a.setTallGear(false);
     a.play('SitDown', { once: true, fade: 0.2, then: null });
     this.mode = 'driving';
   }
@@ -371,6 +372,7 @@ export class Game {
       const door = v.localToWorld(v.width / 2 + 0.9, v.car.seat.z);
       this.scene.add(a.root);
       a.root.scale.setScalar(1);
+      a.setTallGear(true);
       p.place(door.x, door.z, v.heading + Math.PI / 2);
       a.play('StandUp', { once: true, fade: 0.15, then: 'Idle' });
       this.mode = 'walking';
@@ -568,7 +570,7 @@ export class Game {
     updateProfile({ equipped: { outfit: id } });
     const next = await Avatar.create(p.gender, id);
     if (this.disposed) return next.dispose();
-    next.root.traverse((o) => { o.castShadow = true; });
+    next.root.traverse((o) => { o.castShadow = !o.userData.glass; });
     const old = this.avatar!;
     this.avatar = next;
     const pl = new Player(next);
