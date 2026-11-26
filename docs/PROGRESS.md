@@ -13,6 +13,7 @@ What is finished, the current state and known problems. The newest finished step
   City: CC0 buildings mixed with a few good Sketchfab buildings, CC0 street trees, Sketchfab pines/bushes.
 
 ## Known problems
+- Endless world (countryside + towns) was asked for and then cancelled by the owner: don't build it.
 - kio-ev6 and volvu-xc90 still use the simple built-in car shape (all Sketchfab results tried were broken).
 - Parked cars in the home yard show the factory color, not the paint you picked (their light models have
   the colors baked in); the car you drive does show your paint.
