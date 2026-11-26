@@ -18,9 +18,6 @@ Asset sources: dl.polyhaven.org, api.polyhaven.com and ambientcg.com are blocked
 api.sketchfab.com works (CC0 / CC-BY models and their textures, see `scripts/sketchfab-download.mjs`),
 or generate textures procedurally (canvas / shader noise) at load time.
 
-- [ ] **Grass texture on the ground**: a grass texture (procedural, or CC0 from a Sketchfab download), tiled and
-  blended with the existing noise in `createTerrainMaterial`) for lawns, park and countryside, with
-  distance blending so the tiling never shows; same for the dirt / gravel edges.
 - [ ] **Grass blades near the camera**: one InstancedMesh of small grass tufts (cross-quads, alpha-tested
   texture drawn on a canvas) scattered on lawns and park grass around the player only, swaying in a vertex-shader wind,
   fading out at ~40 m; none on roads and sidewalks; off on the Snel setting.

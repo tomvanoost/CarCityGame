@@ -71,17 +71,109 @@ export function createBatchMaterial() {
   return mat;
 }
 
-/** Ground & block slabs: vertex colors with soft natural variation. */
+/**
+ * A tileable grass texture drawn on a canvas at load time (no download): soft clumps plus thousands
+ * of short blades in lighter and darker, slightly yellow or blue-green tones. It is a multiplier
+ * around mid-grey, so the lawn keeps the color the city gave it.
+ */
+let grassTex: THREE.Texture | null = null;
+let grassMean = 0.5;
+function grassTexture(): THREE.Texture {
+  if (grassTex) return grassTex;
+  const N = 512, c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d')!;
+  let seed = 11;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  g.fillStyle = 'rgb(128,128,128)';
+  g.fillRect(0, 0, N, N);
+  // Draws a shape 9 times (shifted by the tile size) so the texture tiles without seams.
+  const wrap = (draw: (ox: number, oy: number) => void) => { for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) draw(ox, oy); };
+  // Clumps: soft lighter / darker patches.
+  for (let i = 0; i < 70; i++) {
+    const x = rnd() * N, y = rnd() * N, r = 14 + rnd() * 46, v = 80 + rnd() * 95;
+    wrap((ox, oy) => {
+      const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+      gr.addColorStop(0, `rgba(${v},${v + 6},${v - 10},0.8)`);
+      gr.addColorStop(1, `rgba(${v},${v},${v},0)`);
+      g.fillStyle = gr;
+      g.fillRect(x + ox - r, y + oy - r, r * 2, r * 2);
+    });
+  }
+  // Blades: short strokes, seen from above they point every way; dark ones first, light tips on top.
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < 16000; i++) {
+      const x = rnd() * N, y = rnd() * N, len = 3 + rnd() * 7, a = rnd() * Math.PI * 2;
+      const t = rnd();
+      const v = pass === 0 ? 40 + t * 45 : 165 + t * 55;
+      const warm = (rnd() - 0.35) * (pass === 0 ? 18 : 40); // a little yellow (dry) or blue-green
+      g.strokeStyle = `rgba(${Math.round(v + warm)},${Math.round(v + 8)},${Math.round(v - 14 - warm)},${pass === 0 ? 0.85 : 0.7})`;
+      g.lineWidth = pass === 0 ? 2 : 1.3;
+      wrap((ox, oy) => {
+        if (x + ox < -12 || x + ox > N + 12 || y + oy < -12 || y + oy > N + 12) return;
+        g.beginPath();
+        g.moveTo(x + ox, y + oy);
+        g.lineTo(x + ox + Math.cos(a) * len, y + oy + Math.sin(a) * len);
+        g.stroke();
+      });
+    }
+  }
+  // Average brightness, so the shader can keep the lawn's overall color (the texture only adds detail).
+  const px = g.getImageData(0, 0, N, N).data;
+  let sum = 0;
+  for (let i = 0; i < px.length; i += 4) sum += px[i] + px[i + 1] + px[i + 2];
+  grassMean = sum / (px.length / 4) / 3 / 255;
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  tex.colorSpace = THREE.NoColorSpace; // a brightness / tint multiplier, not a color
+  grassTex = tex;
+  return tex;
+}
+
+/**
+ * Ground & block slabs: vertex colors with soft natural variation. Green ground (lawns, park,
+ * countryside) gets the grass texture, mixed at two sizes plus large-scale noise and dry patches so
+ * the tiling never shows; sidewalks and lots keep their plain look.
+ */
 export function createTerrainMaterial() {
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, envMapIntensity: 0.45 });
+  const tex = grassTexture();
   mat.onBeforeCompile = (shader) => {
     withWorldPos(shader);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+    shader.uniforms.uGrass = { value: tex };
+    shader.uniforms.uGrassMean = { value: grassMean };
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D uGrass;\nuniform float uGrassMean;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
       float big = fbm(vWorld.xz * 0.025);
       float fine = vnoise(vWorld.xz * 1.7);
-      diffuseColor.rgb *= 0.86 + 0.22 * big + 0.06 * fine;`);
+      // Grass where the ground is green.
+      vec3 vc = diffuseColor.rgb;
+      float grassM = smoothstep(0.015, 0.06, vc.g - max(vc.r, vc.b));
+      if (grassM > 0.0) {
+        // Two sizes, slightly rotated against each other, so the pattern never lines up.
+        vec2 uv = vWorld.xz;
+        vec3 g1 = texture2D(uGrass, uv / 1.7).rgb;
+        vec3 g2 = texture2D(uGrass, mat2(0.8, -0.6, 0.6, 0.8) * uv / 6.1 + 0.37).rgb;
+        float pick = smoothstep(0.35, 0.65, vnoise(uv * 0.09));
+        vec3 gt = mix(g1, g2, 0.35 + 0.3 * pick) / uGrassMean;
+        // Up close the blades show; far away they average out to a soft lawn.
+        float dist = length(vWorld - cameraPosition);
+        gt = mix(gt, vec3(1.0), smoothstep(60.0, 220.0, dist) * 0.6);
+        vec3 grass = vc * gt;
+        // Large patches: a bit lusher here, drier (yellower) there.
+        float dry = smoothstep(0.55, 0.8, fbm(uv * 0.018 + 3.1));
+        grass = mix(grass, grass * vec3(1.18, 1.05, 0.72), dry * 0.55);
+        grass *= 0.9 + 0.2 * big;
+        // A touch less cartoon-saturated, like real grass.
+        grass = mix(grass, vec3(dot(grass, vec3(0.3, 0.59, 0.11))), 0.12);
+        diffuseColor.rgb = mix(vc * (0.86 + 0.22 * big + 0.06 * fine), grass, grassM);
+      } else {
+        diffuseColor.rgb *= 0.86 + 0.22 * big + 0.06 * fine;
+      }`);
   };
-  mat.customProgramCacheKey = () => 'cityTerrain';
+  mat.customProgramCacheKey = () => 'cityTerrainGrass';
   return mat;
 }
 

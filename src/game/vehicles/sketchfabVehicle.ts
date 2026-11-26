@@ -189,9 +189,10 @@ export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepres
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const next = mats.map((m) => {
       const sm = m as THREE.MeshStandardMaterial;
-      if (lod && !sm.flatShading) {
-        // Shared by all traffic cars of this model: colors are in the vertices, no normals stored.
-        sm.flatShading = true;
+      if (lod && !sm.vertexColors) {
+        // Shared by all traffic cars of this model: colors are in the vertices. Older light models
+        // have no normals stored: shade those flat (newer ones have smooth normals).
+        sm.flatShading = !mesh.geometry.getAttribute('normal');
         sm.vertexColors = true;
         sm.needsUpdate = true;
       }

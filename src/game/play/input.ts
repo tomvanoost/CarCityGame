@@ -5,7 +5,7 @@ import { Gamepads, type PadState } from './gamepad';
  * tablet controls, a game controller or a steering wheel.
  */
 /** Keyboard steering goes up to this share of full lock. */
-const KEY_STEER_MAX = 0.65;
+const KEY_STEER_MAX = 0.85;
 
 export class Input {
   /** Values set by the touch controls (0..1 / -1..1). */
@@ -55,7 +55,7 @@ export class Input {
     // Keyboard steering eases in (a key is all-or-nothing, which made the car twitchy) and is
     // gentler than full lock; letting go straightens out quickly.
     const want = (this.key('KeyD', 'ArrowRight') - this.key('KeyA', 'ArrowLeft')) * KEY_STEER_MAX;
-    const rate = want === 0 || Math.sign(want) !== Math.sign(this.keySteer) ? 5 : 1.5;
+    const rate = want === 0 || Math.sign(want) !== Math.sign(this.keySteer) ? 6 : 3.2;
     this.keySteer += Math.max(-rate * dt, Math.min(rate * dt, want - this.keySteer));
     const p = this.gamepads.poll();
     this.pad = p;

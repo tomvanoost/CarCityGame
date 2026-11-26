@@ -309,7 +309,8 @@ export class Traffic {
       const want = near.includes(c);
       if (want && !c.full && !c.loadingFull) {
         c.loadingFull = true;
-        loadVehicle(c.spec, c.color).then((full) => {
+        // The model's own colors, like the light version (which has its colors baked in): no color jump.
+        loadVehicle(c.spec).then((full) => {
           c.loadingFull = false;
           if (this.disposed || !this.cars.includes(c)) { full.dispose(); return; }
           c.full = full;
