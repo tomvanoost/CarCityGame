@@ -19,7 +19,7 @@ import { Pedestrians } from './pedestrians';
 import { Wildlife } from './wildlife';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Garage, type GarageSpot } from './garage';
-import { DAY, EVENING, headlightRig, loadEvening, saveEvening, SirenLights, StreetLamps } from '../world/evening';
+import { DAY, EVENING, headlightRig, loadEvening, saveEvening, SirenLights, StreetLamps, TurnSignals } from '../world/evening';
 import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
 import type { VehicleSpec } from '../vehicles/types';
 import { awardSticker } from '../../ui/stickers';
@@ -72,6 +72,8 @@ export interface GameState {
   /** The car's real top speed and the player's own max speed (🏁), km/h; null = no limit. */
   topSpeed: number;
   maxSpeed: number | null;
+  /** Turn signal that is blinking right now. */
+  blinker: 'left' | 'right' | null;
   /** Driving an emergency vehicle (shows the 🚨 button), and whether its siren is on. */
   police: boolean;
   siren: boolean;
@@ -164,6 +166,9 @@ export class Game {
   /** Police car: flashing lights on its roof, and whether the siren is on. */
   private sirenLights?: SirenLights;
   private sirenOn = false;
+  /** Turn signals (1 / 2, d-pad left / right); they switch off by themselves after the turn. */
+  private signals?: TurnSignals;
+  private blinkTurned = 0;
   /** The player's max speed (km/h, 🏁 next to the home button), saved on this device; null = the car's top speed. */
   private maxKmh: number | null = loadMaxSpeed();
 
@@ -349,9 +354,14 @@ export class Game {
     if (wasSeated) this.scene.add(this.avatar!.root);
     this.setSiren(false);
     this.sirenLights?.dispose();
+    this.signals?.dispose();
     this.sirenLights = undefined;
+    this.signals?.dispose();
+    this.signals = new TurnSignals(v.length, v.width);
+    this.blinkTurned = 0;
     this.vehicle?.dispose();
     v.place(at.x, at.z, at.rot);
+    v.root.add(this.signals.group);
     if (v.spec.siren) {
       this.sirenLights = new SirenLights(v.width, ...lightBarSpot(v), SIREN_COLORS[v.spec.siren]);
       v.root.add(this.sirenLights.group);
@@ -420,6 +430,7 @@ export class Game {
       a.play('StandUp', { once: true, fade: 0.15, then: 'Idle' });
       this.mode = 'walking';
       this.setSiren(false);
+      if (this.signals) this.signals.side = null;
       sounds.door();
     } else if (this.canEnter()) {
       this.seatAvatar();
@@ -709,11 +720,27 @@ export class Game {
     // R / 🚨 / controller RB: siren on or off (police car only).
     if (this.input.takeSiren() && this.mode === 'driving' && !this.paused && v.spec.siren) this.setSiren(!this.sirenOn);
     this.sirenLights?.update(dt);
+    // Turn signals: same side again = off, other side = switch; off by itself once the turn is made.
+    const blink = this.input.takeBlink();
+    if (this.signals) {
+      if (blink && this.mode === 'driving' && !this.paused) {
+        this.signals.side = this.signals.side === blink ? null : blink;
+        this.blinkTurned = 0;
+        sounds.blinkerTick(true);
+      }
+      if (this.signals.update(dt)) sounds.blinkerTick(this.signals.side !== null && this.signals.group.children.some((c) => c.visible));
+    }
     v.cap = this.maxKmh ? this.maxKmh / 3.6 : Infinity;
     sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0, !!v.spec.electric);
     if (driving) {
       const before = { x: v.x, z: v.z };
+      const h0 = v.heading;
       v.update(dt, driveInput, this.world); // you drive right through people: no stopping, no bump
+      if (this.signals?.side) {
+        // Left turns raise the heading, right turns lower it. Turned ~60° and the wheel is straight again: off.
+        this.blinkTurned += (v.heading - h0) * (this.signals.side === 'left' ? 1 : -1);
+        if (this.blinkTurned > 1.05 && Math.abs(driveInput.steer) < 0.15) this.signals.side = null;
+      }
       const moved = Math.hypot(v.x - before.x, v.z - before.z);
       if (moved > 0) {
         this.meters += moved;
@@ -800,6 +827,7 @@ export class Game {
       dest: !job && this.dest ? { meters: Math.round((this.nav?.remaining ?? 0) / 10) * 10 } : null,
       topSpeed: v.spec.topSpeed,
       maxSpeed: this.maxKmh,
+      blinker: this.mode === 'driving' ? this.signals?.side ?? null : null,
       police: this.mode === 'driving' && !!v.spec.siren,
       siren: this.sirenOn,
     };

@@ -176,3 +176,46 @@ export class SirenLights {
     this.group.removeFromParent();
   }
 }
+
+/**
+ * Turn signals: orange lamps at the front and rear corners (car faces +Z, the driver's left is +X)
+ * that blink on the chosen side. Fake light: 1 small mesh per side, hidden when off.
+ */
+export class TurnSignals {
+  readonly group = new THREE.Group();
+  private sides: Record<'left' | 'right', THREE.Mesh>;
+  private t = 0;
+  side: 'left' | 'right' | null = null;
+
+  constructor(length: number, width: number) {
+    const mat = additive('#ff8400', 1);
+    const make = (sx: number) => {
+      const parts: THREE.BufferGeometry[] = [];
+      // On the body corners (the width counts the mirrors, so a bit inward), front and rear.
+      for (const [z, y] of [[length / 2 - 0.12, 0.72], [-length / 2 + 0.1, 0.9]]) {
+        for (const ry of [0, Math.PI / 2]) parts.push(new THREE.PlaneGeometry(0.36, 0.3).rotateY(ry).translate(sx * width * 0.37, y, z));
+      }
+      const m = new THREE.Mesh(mergeGeos(parts), mat);
+      m.renderOrder = 2; m.frustumCulled = false; m.visible = false;
+      this.group.add(m);
+      return m;
+    };
+    this.sides = { left: make(1), right: make(-1) };
+  }
+
+  /** Every frame; returns true at the moment the lamp switches (for the tick sound). */
+  update(dt: number): boolean {
+    const was = this.side ? this.sides[this.side].visible : false;
+    this.t = this.side ? this.t + dt : 0;
+    const on = !!this.side && this.t % 0.7 < 0.35;
+    this.sides.left.visible = on && this.side === 'left';
+    this.sides.right.visible = on && this.side === 'right';
+    return !!this.side && on !== was;
+  }
+
+  dispose() {
+    this.sides.left.geometry.dispose(); this.sides.right.geometry.dispose();
+    (this.sides.left.material as THREE.Material).dispose();
+    this.group.removeFromParent();
+  }
+}

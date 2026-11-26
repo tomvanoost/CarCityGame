@@ -332,6 +332,11 @@ button, input { font: inherit; color: inherit; }
 .tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; border-radius: 16px; border: 3px solid #e3ebf6; background: #fff; cursor: pointer; font-size: 14px; text-align: center; }
 .tile.active { border-color: var(--blue); background: #e6f1ff; }
 .tile-emoji { font-size: 30px; }
+.dash-row { display: flex; align-items: center; gap: 8px; }
+.blinker-btn { width: 46px; height: 46px; border-radius: 14px; border: 0; background: var(--card); color: #9aa8bd; font-size: 22px; cursor: pointer;
+  box-shadow: var(--shadow); touch-action: none; pointer-events: auto; }
+.blinker-btn.on { color: #fff; animation: blink-arrow .7s steps(1) infinite; }
+@keyframes blink-arrow { 0% { background: #2fbf5b; } 50% { background: var(--card); color: #2fbf5b; } }
 /* 🏁 max speed: a pill right of the home button (money moves a bit to the right in the game). */
 .speed-limit-btn { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 74px; height: 52px; padding: 0 14px; border: 0; border-radius: 16px;
   background: var(--card); color: var(--ink); font: inherit; font-size: 18px; font-weight: 800; box-shadow: var(--shadow); cursor: pointer; z-index: 6; }

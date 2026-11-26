@@ -6,7 +6,8 @@
  *   gas and brake pedals, buttons for getting in/out and the horn.
  *
  * Controller layout (standard):            Wheel:
- *   left stick / d-pad  steer, walk          wheel       steer
+ *   left stick          steer, walk          wheel       steer
+ *   d-pad left / right  turn signals (d-pad up / down: gas / brake)
  *   right trigger / stick forward  gas       gas pedal   gas
  *   left trigger / stick back  brake/reverse brake pedal brake / reverse
  *   right stick         look around          button 1 (✕/A)   get in / out
@@ -33,6 +34,9 @@ export interface PadState {
   interact: boolean;
   jump: boolean;
   horn: boolean;
+  /** Turn signal pressed (d-pad left / right; one-shot). */
+  blinkLeft: boolean;
+  blinkRight: boolean;
   /** Siren on/off (police car): RB / R1, or wheel button R2/L2 (one-shot). */
   siren: boolean;
   /** Horn button held down right now (the horn sounds as long as it is held). */
@@ -70,6 +74,8 @@ export class Gamepads {
   private held = new Map<number, boolean[]>();
   /** Per wheel pedal axis: the value it rests at (+1 or -1, depending on browser), once seen. */
   private rest = new Map<string, number>();
+  /** Per pad: d-pad left/right at the last poll (-1, 0, 1), for the turn-signal presses. */
+  private dpadX = new Map<number, number>();
 
   /** Connected controllers (for the settings screen), with what is pressed right now (for the test). */
   static list(): { index: number; kind: PadKind; name: string; standard: boolean; active: string }[] {
@@ -87,7 +93,7 @@ export class Gamepads {
     let s: PadState | null = null;
     for (const pad of pads) {
       if (!pad || !pad.connected) continue;
-      s ??= { throttle: 0, brake: 0, steer: 0, handbrake: false, moveX: 0, moveY: 0, run: false, lookX: 0, lookY: 0, interact: false, jump: false, horn: false, hornHeld: false, back: false, siren: false };
+      s ??= { throttle: 0, brake: 0, steer: 0, handbrake: false, moveX: 0, moveY: 0, run: false, lookX: 0, lookY: 0, interact: false, jump: false, horn: false, hornHeld: false, back: false, siren: false, blinkLeft: false, blinkRight: false };
       const b = (i: number) => pad.buttons[i]?.pressed ?? false;
       const bv = (i: number) => pad.buttons[i]?.value ?? 0;
       const prev = this.held.get(pad.index) ?? [];
@@ -124,7 +130,12 @@ export class Gamepads {
         if (pad.axes.length >= 6) { lt = this.pedal(pad, 2); rt = this.pedal(pad, 5); rx = pad.axes[3] ?? 0; ry = pad.axes[4] ?? 0; }
         if (pad.axes.length >= 8) { dx = Math.round(pad.axes[6] ?? 0); dy = Math.round(pad.axes[7] ?? 0); }
       }
-      s.steer += lx + dx;
+      // D-pad left / right: turn signals (the "plus" on Xbox, PlayStation and Nintendo controllers).
+      const prevDx = this.dpadX.get(pad.index) ?? 0;
+      this.dpadX.set(pad.index, dx);
+      if (dx !== prevDx && dx < 0) s.blinkLeft = true;
+      if (dx !== prevDx && dx > 0) s.blinkRight = true;
+      s.steer += lx;
       // Gas: right trigger, or push the stick / d-pad forward. Brake (and reverse): left trigger or back.
       s.throttle = Math.max(s.throttle, rt, ly < -0.2 ? -ly : 0, dy < 0 ? 1 : 0);
       s.brake = Math.max(s.brake, lt, ly > 0.2 ? ly : 0, dy > 0 ? 1 : 0);

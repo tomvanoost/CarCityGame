@@ -222,6 +222,13 @@ class Sounds {
     this.siren = null;
   }
 
+  /** Turn signal "tick" (on) and "tock" (off): a short soft click. */
+  blinkerTick(on: boolean) {
+    const ctx = this.ready();
+    if (!ctx) return;
+    this.tone(ctx, 'square', on ? 1400 : 1050, ctx.currentTime, 0.025, 0.035);
+  }
+
   /** Bright coin "ching". */
   coin() {
     const ctx = this.ready();

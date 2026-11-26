@@ -110,7 +110,14 @@ export const gameScreen: Screen = (root, nav) => {
   const fuelFill = h('i', {});
   const fuel = h('div', { class: 'fuel' }, h('span', {}, '⛽'), h('div', { class: 'fuel-bar' }, fuelFill));
   const speed = h('div', { class: 'speed' }, h('b', {}, '0'), h('small', {}, 'km/h'));
-  const dash = h('div', { class: 'dash' }, speed, fuel);
+  // Turn signals: the green arrows next to the speed (tap them, or 1 / 2, or the d-pad).
+  const blinkBtn = (side: 'left' | 'right') => {
+    const b = h('button', { class: `blinker-btn ${side}`, 'aria-label': t(side === 'left' ? 'blinkLeft' : 'blinkRight'), title: t(side === 'left' ? 'blinkLeft' : 'blinkRight') }, side === 'left' ? '◀' : '▶');
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); sounds.unlock(); input.queueBlink(side); });
+    return b;
+  };
+  const blinkL = blinkBtn('left'), blinkR = blinkBtn('right');
+  const dash = h('div', { class: 'dash' }, h('div', { class: 'dash-row' }, blinkL, speed, blinkR), fuel);
   const action = h('button', { class: 'action-btn' });
   const actionLabel = h('span', {});
   const actionKey = h('kbd', {}, 'E');
@@ -144,7 +151,7 @@ export const gameScreen: Screen = (root, nav) => {
   root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, speedPop, tabletBtn, soundBtn, eveningBtn, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, police: false, siren: false };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, police: false, siren: false };
   const render = () => {
     const driving = state.mode === 'driving';
     if (!speedPop.hidden) showLimit(state.maxSpeed); else speedBtn.lastElementChild!.textContent = state.maxSpeed && state.maxSpeed < state.topSpeed ? String(state.maxSpeed) : 'MAX';
@@ -156,6 +163,8 @@ export const gameScreen: Screen = (root, nav) => {
     dash.hidden = !driving;
     hornBtn.hidden = !driving || overlay;
     sirenBtn.hidden = !(driving && state.police) || overlay;
+    blinkL.classList.toggle('on', state.blinker === 'left');
+    blinkR.classList.toggle('on', state.blinker === 'right');
     sirenBtn.classList.toggle('on', state.siren);
     speed.firstElementChild!.textContent = String(state.kmh);
     fuelFill.style.width = `${Math.max(3, state.fuel * 100)}%`;
