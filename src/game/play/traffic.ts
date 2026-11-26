@@ -126,7 +126,8 @@ export class Traffic {
       if (dist < 50 || dist > 180) continue;
       if (this.cars.some((c) => c !== car && Math.hypot(c.x - p.x, c.z - p.z) < 16)) continue;
       if (car.holds >= 0 && this.owners.get(car.holds) === car) this.owners.delete(car.holds);
-      Object.assign(car, { from, to, seg, d, speed: CRUISE * 0.6, x: p.x, z: p.z, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1 });
+      // nextNode must be cleared: a turn planned on the car's old road would send it across the blocks.
+      Object.assign(car, { from, to, seg, d, speed: CRUISE * 0.6, x: p.x, z: p.z, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined });
       return true;
     }
     return false;
@@ -267,6 +268,8 @@ export class Traffic {
 
   /** The node after `to` (chosen once per intersection). */
   private peekNext(car: Car) {
+    // Safety net: only ever turn onto a road that really leaves the crossing the car drives to.
+    if (car.nextNode !== undefined && !this.graph.adj[car.to].includes(car.nextNode)) car.nextNode = undefined;
     if (car.nextNode === undefined) car.nextNode = this.pickNext(car);
     return car.nextNode;
   }

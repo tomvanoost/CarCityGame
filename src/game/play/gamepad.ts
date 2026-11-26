@@ -32,6 +32,8 @@ export interface PadState {
   interact: boolean;
   jump: boolean;
   horn: boolean;
+  /** Horn button held down right now (the horn sounds as long as it is held). */
+  hornHeld: boolean;
   /** "Back" (B / ○, or wheel button 4): closes an open panel. */
   back: boolean;
 }
@@ -82,7 +84,7 @@ export class Gamepads {
     let s: PadState | null = null;
     for (const pad of pads) {
       if (!pad || !pad.connected) continue;
-      s ??= { throttle: 0, brake: 0, steer: 0, handbrake: false, moveX: 0, moveY: 0, run: false, lookX: 0, lookY: 0, interact: false, jump: false, horn: false, back: false };
+      s ??= { throttle: 0, brake: 0, steer: 0, handbrake: false, moveX: 0, moveY: 0, run: false, lookX: 0, lookY: 0, interact: false, jump: false, horn: false, hornHeld: false, back: false };
       const b = (i: number) => pad.buttons[i]?.pressed ?? false;
       const bv = (i: number) => pad.buttons[i]?.value ?? 0;
       const prev = this.held.get(pad.index) ?? [];
@@ -99,6 +101,7 @@ export class Gamepads {
         s.brake = Math.max(s.brake, this.pedal(pad, brake));
         s.interact ||= tap(0);
         s.horn ||= tap(2) || tap(4) || tap(5);
+        s.hornHeld ||= b(2) || b(4) || b(5);
         s.handbrake ||= b(1);
         s.back ||= tap(3);
         continue;
@@ -130,6 +133,7 @@ export class Gamepads {
       s.interact ||= tap(3);
       s.jump ||= tap(0);
       s.horn ||= tap(2);
+      s.hornHeld ||= b(2);
       s.back ||= tap(1);
     }
     if (s) s.steer = Math.max(-1, Math.min(1, s.steer));

@@ -6,7 +6,7 @@ import { Gamepads, type PadState } from './gamepad';
  */
 export class Input {
   /** Values set by the touch controls (0..1 / -1..1). */
-  touch = { throttle: 0, brake: 0, steer: 0, moveX: 0, moveY: 0, run: false };
+  touch = { throttle: 0, brake: 0, steer: 0, moveX: 0, moveY: 0, run: false, horn: false };
   private keys = new Set<string>();
   private jumpQueued = false;
   private interactQueued = false;
@@ -83,6 +83,13 @@ export class Input {
   takeJump() { const j = this.jumpQueued; this.jumpQueued = false; return j; }
   takeInteract() { const i = this.interactQueued; this.interactQueued = false; return i; }
   takeHorn() { const h = this.hornQueued; this.hornQueued = false; return h; }
+  /**
+   * Is the horn held right now (H key, 📯 button, controller / wheel button)? A press that was
+   * already released before this frame still counts once, so a very quick tap gives a short toot.
+   */
+  hornHeld() {
+    return this.takeHorn() || this.keys.has('KeyH') || this.touch.horn || !!this.pad?.hornHeld;
+  }
   takeLook() { const l = { dx: this.lookDX, dy: this.lookDY }; this.lookDX = this.lookDY = 0; return l; }
 
   dispose() {

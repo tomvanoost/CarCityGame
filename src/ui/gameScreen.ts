@@ -63,7 +63,13 @@ export const gameScreen: Screen = (root, nav) => {
   // Horn: a friendly toot; people nearby wave back.
   const hornBtn = h('button', { class: 'horn-btn', title: t('honk'), 'aria-label': t('honk') });
   hornBtn.textContent = '📯';
-  hornBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); sounds.unlock(); input.queueHorn(); });
+  // Hold to honk: the horn sounds while the button is held down.
+  hornBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation(); sounds.unlock();
+    hornBtn.setPointerCapture?.(e.pointerId);
+    input.queueHorn(); input.touch.horn = true;
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) hornBtn.addEventListener(ev, () => { input.touch.horn = false; });
   const fuelFill = h('i', {});
   const fuel = h('div', { class: 'fuel' }, h('span', {}, '⛽'), h('div', { class: 'fuel-bar' }, fuelFill));
   const speed = h('div', { class: 'speed' }, h('b', {}, '0'), h('small', {}, 'km/h'));

@@ -1,7 +1,8 @@
 /**
  * Friendly game sounds, synthesized with WebAudio (no audio files to download).
  * - engine: a soft hum whose pitch follows the speed (electric cars: a quiet rising whine)
- * - horn: a real car honk (public/sounds/horn.mp3); a synthesized two-tone toot until it has loaded
+ * - horn: a real car honk (public/sounds/horn.mp3) that sounds as long as the horn is held
+ *   (repeating); a synthesized two-tone horn until the file has loaded
  * - coin: a bright "ching" when you earn money
  * - door: a soft "clunk" when you get in or out
  * Browsers only allow audio after a tap or key press, so the AudioContext is
@@ -128,42 +129,54 @@ class Sounds {
     return o;
   }
 
+  /** Cuts the horn off with a very short fade (no click). */
+  hornStop() {
+    const ctx = this.ctx, old = this.hornBus;
+    if (!ctx || !old) return;
+    const t = ctx.currentTime;
+    old.gain.gain.cancelScheduledValues(t);
+    old.gain.gain.setValueAtTime(old.gain.gain.value, t);
+    old.gain.gain.linearRampToValueAtTime(0, t + 0.03);
+    for (const o of old.oscs) { try { o.stop(t + 0.04); } catch { /* already stopped */ } }
+    this.hornBus = null;
+  }
+
   /**
-   * Cheerful two-tone toot toot. Tapping again cuts the old toot off (quick
-   * fade, no click) and starts a new one from the beginning.
+   * Starts the horn; it keeps sounding (the honk repeats) until hornStop(). A short tap gives a
+   * short toot, holding gives the whole honk and more. Uses the recorded honk once it has loaded,
+   * a synthesized two-tone horn before that.
    */
-  horn() {
+  hornStart() {
     const ctx = this.ready();
     if (!ctx) return;
+    this.hornStop();
     const t = ctx.currentTime;
-    const old = this.hornBus;
-    if (old) {
-      old.gain.gain.cancelScheduledValues(t);
-      old.gain.gain.setValueAtTime(old.gain.gain.value, t);
-      old.gain.gain.linearRampToValueAtTime(0, t + 0.015);
-      for (const o of old.oscs) { try { o.stop(t + 0.02); } catch { /* already stopped */ } }
-    }
     const gain = ctx.createGain();
     gain.connect(this.master!);
     const oscs: AudioScheduledSourceNode[] = [];
-    const start = t + 0.005;
     if (this.hornBuffer) {
-      // The real honk (it is recorded loud: play it at about half volume).
+      // The real honk (it is recorded loud: play it at about half volume), looped while held.
       const src = ctx.createBufferSource();
       src.buffer = this.hornBuffer;
-      gain.gain.value = 0.55;
+      src.loop = true;
       src.connect(gain);
-      src.start(start);
       oscs.push(src);
+      gain.gain.value = 0.55;
     } else {
-      for (const [s, f] of [[0, 440], [0.18, 554]] as const) {
-        oscs.push(this.tone(ctx, 'square', f, start + s, 0.16, 0.06, undefined, gain));
-        oscs.push(this.tone(ctx, 'triangle', f * 1.5, start + s, 0.16, 0.05, undefined, gain));
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.07, t + 0.012);
+      for (const [type, f] of [['square', 440], ['triangle', 554]] as const) {
+        const o = ctx.createOscillator();
+        o.type = type;
+        o.frequency.value = f;
+        o.connect(gain);
+        oscs.push(o);
       }
     }
+    for (const o of oscs) o.start(t + 0.005);
     const bus = { gain, oscs };
     this.hornBus = bus;
-    oscs[oscs.length - 1].onended = () => { gain.disconnect(); if (this.hornBus === bus) this.hornBus = null; };
+    oscs[0].onended = () => { gain.disconnect(); if (this.hornBus === bus) this.hornBus = null; };
   }
 
   /** Bright coin "ching". */

@@ -130,6 +130,7 @@ export class Game {
   private fuelBill = 0;
   private pendingCar = false;
   private pendingContext = false;
+  private honking = false;
 
   constructor(canvas: HTMLCanvasElement, private input: Input, profile: PlayerProfile, private events: GameEvents) {
     const q = pickQuality();
@@ -640,11 +641,14 @@ export class Game {
 
     const driveInput = this.input.drive();
     const driving = this.mode === 'driving' && !this.paused;
-    if (this.input.takeHorn() && this.mode === 'driving' && !this.paused) {
-      sounds.horn();
+    // Hold to honk: the sound plays (and repeats) while the horn is held, and stops when released.
+    const honk = this.input.hornHeld() && this.mode === 'driving' && !this.paused;
+    if (honk && !this.honking) {
+      sounds.hornStart();
       this.people?.honk(v.x, v.z);
       awardSticker('honk');
-    }
+    } else if (!honk && this.honking) sounds.hornStop();
+    this.honking = honk;
     sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0, !!v.spec.electric);
     if (driving) {
       const before = { x: v.x, z: v.z };
