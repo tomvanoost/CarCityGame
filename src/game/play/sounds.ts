@@ -1,7 +1,7 @@
 /**
  * Friendly game sounds, synthesized with WebAudio (no audio files to download).
  * - engine: a soft hum whose pitch follows the speed (electric cars: a quiet rising whine)
- * - horn: a cheerful two-tone "toot toot"
+ * - horn: a real car honk (public/sounds/horn.mp3); a synthesized two-tone toot until it has loaded
  * - coin: a bright "ching" when you earn money
  * - door: a soft "clunk" when you get in or out
  * Browsers only allow audio after a tap or key press, so the AudioContext is
@@ -22,7 +22,10 @@ class Sounds {
   private whineOsc: OscillatorNode[] = [];
   private muted = loadMuted();
   /** The toot that is playing now (its own volume node), so a new tap can cut it off. */
-  private hornBus: { gain: GainNode; oscs: OscillatorNode[] } | null = null;
+  private hornBus: { gain: GainNode; oscs: AudioScheduledSourceNode[] } | null = null;
+  /** The recorded honk, loaded once audio is unlocked. */
+  private hornBuffer: AudioBuffer | null = null;
+  private hornLoading = false;
 
   get isMuted() { return this.muted; }
 
@@ -43,7 +46,19 @@ class Sounds {
       this.master.connect(this.ctx.destination);
     }
     if (this.ctx.state === 'suspended' && !document.hidden) void this.ctx.resume().catch(() => {});
+    this.loadHorn();
   };
+
+  private loadHorn() {
+    if (this.hornLoading || !this.ctx) return;
+    this.hornLoading = true;
+    const ctx = this.ctx;
+    fetch('/sounds/horn.mp3')
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((data) => ctx.decodeAudioData(data))
+      .then((buf) => { this.hornBuffer = buf; })
+      .catch(() => { this.hornLoading = false; }); // try again on the next tap
+  }
 
   private ready() { return this.ctx && this.master && this.ctx.state === 'running' && !this.muted ? this.ctx : null; }
 
@@ -130,11 +145,21 @@ class Sounds {
     }
     const gain = ctx.createGain();
     gain.connect(this.master!);
-    const oscs: OscillatorNode[] = [];
+    const oscs: AudioScheduledSourceNode[] = [];
     const start = t + 0.005;
-    for (const [s, f] of [[0, 440], [0.18, 554]] as const) {
-      oscs.push(this.tone(ctx, 'square', f, start + s, 0.16, 0.06, undefined, gain));
-      oscs.push(this.tone(ctx, 'triangle', f * 1.5, start + s, 0.16, 0.05, undefined, gain));
+    if (this.hornBuffer) {
+      // The real honk (it is recorded loud: play it at about half volume).
+      const src = ctx.createBufferSource();
+      src.buffer = this.hornBuffer;
+      gain.gain.value = 0.55;
+      src.connect(gain);
+      src.start(start);
+      oscs.push(src);
+    } else {
+      for (const [s, f] of [[0, 440], [0.18, 554]] as const) {
+        oscs.push(this.tone(ctx, 'square', f, start + s, 0.16, 0.06, undefined, gain));
+        oscs.push(this.tone(ctx, 'triangle', f * 1.5, start + s, 0.16, 0.05, undefined, gain));
+      }
     }
     const bus = { gain, oscs };
     this.hornBus = bus;

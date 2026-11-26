@@ -15,6 +15,11 @@
 - **Vehicles**: Sketchfab models, see the table below. The built-in procedural models in
   `src/game/vehicles/` are only a fallback if a model fails to load.
 
+## Sounds
+- **Car horn** (`public/sounds/horn.mp3`): "Car Honk" by Dragon Studio (Pixabay sound 386166, supplied by
+  the project owner), Pixabay Content License (free to use, no attribution required; credited anyway).
+  Trimmed and made mono with ffmpeg. All other sounds are synthesized in `src/game/play/sounds.ts`.
+
 <!-- sketchfab-vehicles:start -->
 ## Vehicles (Sketchfab)
 All vehicle models come from [Sketchfab](https://sketchfab.com) (downloadable models). They were
