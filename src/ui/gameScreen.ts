@@ -7,6 +7,7 @@ import { getLang, t } from '../i18n';
 import { getProfile, onProfileChange, updateProfile } from '../services/session';
 import { createTutorial } from './tutorial';
 import { ApartmentRoom } from '../game/apartmentRoom';
+import { euro } from './money';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
@@ -19,7 +20,6 @@ const loadTablet = () => {
   try { const v = localStorage.getItem(TABLET_KEY); if (v !== null) return v === '1'; } catch { /* ignore */ }
   return isTouch;
 };
-const euro = (n: number) => `€ ${Math.round(n).toLocaleString('nl-NL')}`;
 
 /** The game: drive, walk, earn money. Simple HUD, big buttons. */
 export const gameScreen: Screen = (root, nav) => {

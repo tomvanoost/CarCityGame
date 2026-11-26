@@ -2,11 +2,11 @@ import { AvatarView } from '../game/avatar/avatarView';
 import { CLOTHES, getClothes } from '../game/avatar/clothes';
 import { getLang, t } from '../i18n';
 import { getProfile, onProfileChange, updateProfile } from '../services/session';
+import { euro } from './money';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
 
-const euro = (n: number) => `€ ${Math.round(n).toLocaleString('nl-NL')}`;
 /** A representative color per outfit, for the little dot on each tile. */
 const DOT: Record<string, string> = { Worker: '#e0a526', Chef: '#f2f2f2', Cowboy: '#8a4b22', OldClassy: '#5a4a3a', Suit: '#1c1d20', Pirate: '#2b2f4a', Viking: '#7a5a3a', Ninja: '#1a1a1a', Kimono: '#e8e2d5' };
 

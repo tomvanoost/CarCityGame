@@ -3,6 +3,7 @@ import { Showroom } from '../game/showroom';
 import { getVehicle, vehicleName } from '../game/vehicles/catalog';
 import { t } from '../i18n';
 import { getBackend, getProfile, onProfileChange, setProfile, updateProfile } from '../services/session';
+import { euro } from './money';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { openStickerBook } from './stickers';
@@ -23,7 +24,7 @@ export const menuScreen: Screen = (root, nav) => {
   avatarView.show(p.gender, p.equipped.outfit);
 
   // --- avatar card ---
-  const money = h('div', { class: 'money-chip' }, svgIcon(icons.coin, 20), h('span', {}, `€ ${p.money.toLocaleString('nl-NL')}`));
+  const money = h('div', { class: 'money-chip' }, svgIcon(icons.coin, 20), h('span', {}, euro(p.money)));
   const stickerCount = h('span', {});
   const stickerBtn = h('button', { class: 'sticker-btn', onclick: () => openStickerBook() }, '⭐ ', h('span', {}, t('stickers')), ' ', stickerCount);
   const renderStickers = () => { stickerCount.textContent = `${getProfile()?.stickers.length ?? 0}/${STICKERS.length}`; };
@@ -88,7 +89,7 @@ export const menuScreen: Screen = (root, nav) => {
   );
 
   const offProfile = onProfileChange((np) => {
-    money.lastElementChild!.textContent = `€ ${np.money.toLocaleString('nl-NL')}`;
+    money.lastElementChild!.textContent = euro(np.money);
     renderStickers();
   });
 

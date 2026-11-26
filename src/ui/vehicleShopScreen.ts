@@ -5,11 +5,11 @@ import { PAINT_COLORS, VEHICLES, getVehicle, vehicleName } from '../game/vehicle
 import type { VehicleSpec } from '../game/vehicles/types';
 import { t } from '../i18n';
 import { getProfile, onProfileChange, updateProfile } from '../services/session';
+import { euro } from './money';
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
 
-const euro = (n: number) => `€ ${Math.round(n).toLocaleString('nl-NL')}`;
 
 /** Vehicle shop: pick a car or motorbike, see it on the turntable, choose a color, buy. */
 export const vehicleShopScreen: Screen = (root, nav) => {
