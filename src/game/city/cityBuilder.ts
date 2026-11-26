@@ -227,9 +227,16 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
     roofParts.push(coloredBox(0.4, 0.9, d, color, x - w / 2, y, z));
     roofParts.push(coloredBox(0.4, 0.9, d, color, x + w / 2, y, z));
   };
-  for (const t of layout.towers) {
+  const tallest = Math.max(...layout.towers.map((t) => t.h));
+  layout.towers.forEach((t, ti) => {
     const podiumH = 7.2;
     boxes.push({ x: t.x, z: t.z, w: t.w + 2, d: t.d + 2, y: top, h: podiumH, color: '#8f969e' });
+    // Entrance canopies over the doors in the middle of each podium side (the doors are in the shader).
+    const pw = (t.w + 2) / 2, pd = (t.d + 2) / 2;
+    roofParts.push(
+      coloredBox(4.4, 0.25, 1.8, '#2f3a46', t.x, top + 3.15, t.z + pd + 0.9), coloredBox(4.4, 0.25, 1.8, '#2f3a46', t.x, top + 3.15, t.z - pd - 0.9),
+      coloredBox(1.8, 0.25, 4.4, '#2f3a46', t.x + pw + 0.9, top + 3.15, t.z), coloredBox(1.8, 0.25, 4.4, '#2f3a46', t.x - pw - 0.9, top + 3.15, t.z),
+    );
     const tall = t.h > 45;
     const shaftH = tall ? Math.round((t.h * 0.7) / 3.6) * 3.6 : t.h;
     boxes.push({ x: t.x, z: t.z, w: t.w, d: t.d, y: top, h: shaftH, color: t.color });
@@ -247,7 +254,25 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
     roofParts.push(coloredBox(tw * 0.35, 3.2, td * 0.3, '#9aa1a8', t.x + tw * 0.15, topY, t.z - td * 0.12));
     roofParts.push(coloredBox(3, 1.6, 2, '#b8bec4', t.x - tw * 0.25, topY, t.z + td * 0.25));
     if (tall) roofParts.push(coloredBox(0.3, 9, 0.3, '#c8ccd0', t.x + tw * 0.2, topY + 3.2, t.z - td * 0.12)); // antenna
-  }
+    // A different rooftop on every tower: helipad on the tallest, else a water tank, a garden or cooling units.
+    const rx = t.x - tw * 0.2, rz = t.z - td * 0.2;
+    if (t.h === tallest) {
+      const r = Math.min(tw, td) * 0.22;
+      roofParts.push(coloredCylinder(r + 0.4, 0.2, '#f2f2f2', rx, topY, rz, 32), coloredCylinder(r, 0.24, '#3a4250', rx, topY, rz, 32));
+      roofParts.push(coloredBox(r * 0.18, 0.26, r * 1.1, '#f2f2f2', rx - r * 0.35, topY, rz), coloredBox(r * 0.18, 0.26, r * 1.1, '#f2f2f2', rx + r * 0.35, topY, rz), coloredBox(r * 0.7, 0.26, r * 0.18, '#f2f2f2', rx, topY, rz));
+    } else if (ti % 3 === 0) {
+      for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) roofParts.push(coloredBox(0.22, 1.8, 0.22, '#6e5a44', rx + dx * 1.1, topY, rz + dz * 1.1));
+      roofParts.push(coloredCylinder(1.6, 2.6, '#a8835a', rx, topY + 1.8, rz, 20), coloredCylinder(1.75, 0.5, '#7a6045', rx, topY + 4.4, rz, 20));
+    } else if (ti % 3 === 1) {
+      roofParts.push(coloredBox(tw * 0.45, 0.35, td * 0.4, '#6fae4f', rx, topY, rz));
+      for (const [dx, dz] of [[-0.12, -0.1], [0.1, 0.08], [-0.05, 0.12]]) roofParts.push(coloredCylinder(0.8, 1.4, '#4f9a3c', rx + dx * tw, topY + 0.35, rz + dz * td, 8));
+    } else {
+      for (let k = 0; k < 3; k++) {
+        roofParts.push(coloredBox(2.2, 1.3, 2.2, '#c4c9ce', rx + (k - 1) * 2.8, topY, rz));
+        roofParts.push(coloredCylinder(0.8, 0.12, '#59616b', rx + (k - 1) * 2.8, topY + 1.3, rz, 16));
+      }
+    }
+  });
   const towerGeo = track(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0));
   const towers = new THREE.InstancedMesh(towerGeo, track(createTowerMaterial()), boxes.length);
   const m4 = new THREE.Matrix4();

@@ -150,22 +150,48 @@ export function createTowerMaterial() {
           float floorH = 3.6;
           float colW = style > 0.5 ? 3.0 : 2.2;
           float fu = fract(u / colW), fv = fract(v / floorH);
+          // Window opening (slightly larger than the glass): the rim around the glass is the frame.
+          float open = 0.0, frame = 0.0;
           if (style > 0.75) {
-            // horizontal ribbon windows
-            glass = step(0.28, fv) * step(fv, 0.88);
+            // horizontal ribbon windows with thin mullions
+            open = step(0.26, fv) * step(fv, 0.9);
+            glass = step(0.29, fv) * step(fv, 0.87) * (1.0 - step(abs(fu - 0.5), 0.02));
           } else {
-            glass = step(0.12, fu) * step(fu, 0.88) * step(0.26, fv) * step(fv, 0.86);
+            open = step(0.1, fu) * step(fu, 0.9) * step(0.24, fv) * step(fv, 0.88);
+            glass = step(0.13, fu) * step(fu, 0.87) * step(0.27, fv) * step(fv, 0.85);
+            // A divider in the middle of each window (two panes).
+            glass *= 1.0 - step(abs(fu - 0.5), 0.018);
           }
-          if (v < 4.4) glass = step(0.08, fu) * step(fu, 0.92) * step(v, 3.6); // lobby
-          // vertical fins every other column and a thin floor line
+          frame = open * (1.0 - glass);
+          float sill = step(0.19, fv) * step(fv, 0.24) * (style > 0.75 ? 1.0 : step(0.1, fu) * step(fu, 0.9));
+          bool lobby = v < 4.4;
+          if (lobby) {
+            open = step(0.06, fu) * step(fu, 0.94) * step(v, 3.75);
+            glass = step(0.08, fu) * step(fu, 0.92) * step(v, 3.6);
+            frame = open * (1.0 - glass);
+            sill = 0.0;
+          }
+          // Entrance: a dark double door with a light frame in the middle of each side.
+          float along = abs(vWN.x) > 0.5 ? vTower.z : vTower.x;
+          float du = abs(u - along);
+          float door = lobby ? step(du, 1.5) * step(v, 3.0) : 0.0;
+          float doorFrame = lobby ? (step(du, 1.65) * step(v, 3.15)) * (1.0 - door) + door * step(abs(du - 0.0), 0.05) : 0.0;
+          // vertical fins every other column, a floor slab line and a darker band between floors
           float fin = step(0.9, fract(u / (colW * 2.0)));
           float slab = 1.0 - step(0.07, fv);
-          diffuseColor.rgb *= 1.0 + fin * 0.18 * (1.0 - glass);
+          float spandrel = lobby ? 0.0 : step(0.07, fv) * step(fv, 0.24) * (1.0 - sill);
+          diffuseColor.rgb *= 1.0 + fin * 0.18 * (1.0 - open);
           diffuseColor.rgb *= 1.0 - slab * 0.18;
+          diffuseColor.rgb *= 1.0 - spandrel * 0.08;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.87, 0.88), frame * 0.85); // light window frames
+          diffuseColor.rgb *= 1.0 - sill * 0.35; // shadow under the window: depth
           float tint = hash21(floor(vec2(u / colW, v / floorH) + 0.001) * 0.37 + towerId * 0.011);
           vec3 glassCol = mix(vec3(0.08, 0.13, 0.2), vec3(0.18, 0.24, 0.3), tint * 0.6);
           if (tint > 0.93) glassCol = vec3(0.55, 0.5, 0.42); // a few open curtains
           diffuseColor.rgb = mix(diffuseColor.rgb, glassCol, glass);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.07, 0.1), door);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.8, 0.82, 0.85), clamp(doorFrame, 0.0, 1.0));
+          glass = max(glass, door);
         } else {
           diffuseColor.rgb *= 0.55; // roof
         }`)

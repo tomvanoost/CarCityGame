@@ -10,5 +10,5 @@ earn money with simple jobs, buy cars and clothes, collect stickers. Looks good,
 tablets, Dutch first with English. Overview and history: `docs/PLAN.md`.
 
 ## Next steps
-- [ ] **Nicer downtown towers**: more facade detail (window frames, entrances, rooftop details) on the
-      procedural towers, without extra draw calls.
+
+(No steps left: add new ideas here, in order, for the next runs.)

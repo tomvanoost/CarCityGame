@@ -16,7 +16,7 @@ What is finished, the current state and known problems. The newest finished step
 - kio-ev6 and volvu-xc90 still use the simple built-in car shape (all Sketchfab results tried were broken).
 - Parked cars in the home yard show the factory color, not the paint you picked (their light models have
   the colors baked in); the car you drive does show your paint.
-- Downtown office towers are plain up close; the vespo scooter looks old and rusty.
+- The vespo scooter looks old and rusty.
 - In the headless test browser the game runs at ~1–3 FPS (software rendering): CSS popups and animations
   barely play there; use `animations: 'disabled'` screenshots or check them in the menu.
 
@@ -30,6 +30,7 @@ What is finished, the current state and known problems. The newest finished step
   `scripts/flip-vehicles.mjs` and `scripts/vehicle-wheels.mjs`.
 
 ## Done
+- [x] **Nicer downtown towers**: window frames with a center divider, sill shadows and darker floor bands, framed lobby glass, an entrance double door with a canopy on every podium side, and a different rooftop per tower (helipad on the tallest, water tank, roof garden or cooling units); shader + merged roof mesh, no extra draw calls.
 - [x] **Better replacement cars**: 5 of the 7 broken cars got good Sketchfab models after close-up checks (teslo-modelo3, oudi-a4, beemer-3 M3 E30, mersedez-c C63, modelo-y); kio-ev6 and volvu-xc90 keep the built-in shape (no usable model among the results).
 - [x] **Apartment view**: going inside your apartment shows a cozy 3D living room at the top of the panel (sofa, rug, table, lamp, open bookshelf, window, plant, picture, TV) with your avatar; tap to cheer, gentle camera sway, follows outfit changes; one merged mesh (`game/apartmentRoom.ts`).
 - [x] **Evening light**: 🌙/☀️ button in the game (remembered per device): peach sunset sky, low warm sun, softer light, re-baked reflections; glowing street lamps with light pools, headlights with a beam on every car; all fake light (2 draw calls for lamps, 1 per car), nothing extra by day (`world/evening.ts`).
