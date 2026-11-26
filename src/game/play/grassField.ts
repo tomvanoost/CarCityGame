@@ -1,0 +1,157 @@
+import * as THREE from 'three';
+import { BLOCK_SPACING, HALF_CITY, ROAD_WIDTH, isOnRoad, type CityLayout, type District, type Rect } from '../city/layout';
+import { groundHeight } from './collision';
+
+/** Lawns of these districts are grass (downtown and midrise lots are paved). */
+const GREEN: Partial<Record<District, true>> = { shops: true, townhouses: true, apartments: true, residential: true, park: true, gas: true };
+
+const inRect = (r: Rect, x: number, z: number, m = 0) => x > r.x0 + m && x < r.x1 - m && z > r.z0 + m && z < r.z1 - m;
+
+/** Small seeded hash per grid cell (the same tuft always grows in the same spot). */
+function hash(i: number, j: number, k: number) {
+  let h = (i * 374761393 + j * 668265263 + k * 2147483647) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/** One tuft: a handful of thin blade triangles fanning out a little. aH: 0 at the root, 1 at the tip. */
+function tuftGeometry(): THREE.BufferGeometry {
+  const pos: number[] = [], h: number[] = [];
+  const BLADES = 9;
+  for (let b = 0; b < BLADES; b++) {
+    const a = (b / BLADES) * Math.PI * 2 + b * 0.7;
+    const r = 0.02 + (b % 3) * 0.03, height = 0.13 + ((b * 37) % 10) / 10 * 0.12, w = 0.014;
+    const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
+    const lean = 0.03 + ((b * 13) % 5) * 0.015; // blades lean outward
+    const px = -Math.sin(a) * w, pz = Math.cos(a) * w; // blade width across
+    pos.push(cx - px, 0, cz - pz, cx + px, 0, cz + pz, cx + Math.cos(a) * lean, height, cz + Math.sin(a) * lean);
+    h.push(0, 0, 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('aH', new THREE.Float32BufferAttribute(h, 1));
+  // Normals straight up: blades are lit like the lawn they grow on (no dark backsides).
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(pos.length / 3).fill(0).flatMap(() => [0, 1, 0]), 3));
+  return g;
+}
+
+/**
+ * Grass blades around the player: one InstancedMesh (one draw call) of small tufts on a fixed world
+ * grid, only on lawns, park grass and the countryside (never on roads, sidewalks, paths or under
+ * buildings). They sway in a gentle wind (vertex shader) and shrink away towards the edge, so you
+ * never see where they stop. Rebuilt only when you've moved a few meters. Off on the "Snel" setting.
+ */
+export class GrassField {
+  readonly mesh: THREE.InstancedMesh;
+  private time = { value: 0 };
+  private center = { value: new THREE.Vector2() };
+  private cx = 1e9;
+  private cz = 1e9;
+  private blocks = new Map<number, { lot: Rect; slab: Rect; green: boolean }>();
+  private tmp = new THREE.Matrix4();
+  private q = new THREE.Quaternion();
+  private s = new THREE.Vector3();
+  private p = new THREE.Vector3();
+  private col = new THREE.Color();
+  private up = new THREE.Vector3(0, 1, 0);
+
+  /** radius: how far the grass reaches (m); cell: grid spacing (m). */
+  constructor(private layout: CityLayout, private blocked: (x: number, z: number) => boolean, private radius = 26, private cell = 0.42) {
+    // Grid cell -> block (park blocks cover 2 x 2 cells).
+    const ci = (v: number) => Math.floor((v + HALF_CITY) / BLOCK_SPACING);
+    for (const b of layout.blocks) {
+      const e = { lot: b.lot, slab: b.slab, green: !!GREEN[b.district] };
+      for (let i = ci(b.slab.x0); i <= ci(b.slab.x1); i++) for (let j = ci(b.slab.z0); j <= ci(b.slab.z1); j++) this.blocks.set(i * 1000 + j, e);
+    }
+    const max = Math.ceil(Math.PI * (radius / cell) ** 2 * 1.05);
+    const mat = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, side: THREE.DoubleSide, vertexColors: false });
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = this.time;
+      shader.uniforms.uCenter = this.center;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+          attribute float aH;
+          uniform float uTime;
+          uniform vec2 uCenter;
+          varying float vH;`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          vH = aH;
+          vec3 base = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+          // Shrink towards the edge of the patch.
+          float edge = 1.0 - smoothstep(${(radius * 0.6).toFixed(1)}, ${(radius * 0.97).toFixed(1)}, distance(base.xz, uCenter));
+          transformed *= edge;
+          // Wind: slow waves rolling over the grass plus a little flutter; only the tips move.
+          float wave = sin(uTime * 1.6 + base.x * 0.35 + base.z * 0.22) * 0.6 + sin(uTime * 3.7 + base.x * 1.3 - base.z * 0.9) * 0.25;
+          transformed.x += wave * 0.05 * aH * aH;
+          transformed.z += wave * 0.03 * aH * aH;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vH;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          // Darker near the ground, lighter towards the tip.
+          diffuseColor.rgb *= mix(0.72, 1.12, vH);`);
+    };
+    mat.customProgramCacheKey = () => 'grassBlades';
+    this.mesh = new THREE.InstancedMesh(tuftGeometry(), mat, max);
+    this.mesh.count = 0;
+    this.mesh.frustumCulled = false;
+    this.mesh.castShadow = false;
+    this.mesh.receiveShadow = true;
+    // Instance colors need an initial buffer.
+    this.mesh.setColorAt(0, this.col.set('#ffffff'));
+  }
+
+  /** Is there grass at (x, z)? */
+  isGrass(x: number, z: number): boolean {
+    const edge = HALF_CITY + ROAD_WIDTH / 2;
+    if (Math.abs(x) > edge || Math.abs(z) > edge) return !this.blocked(x, z) && Math.max(Math.abs(x), Math.abs(z)) < 900; // countryside
+    if (isOnRoad(x, z)) return false;
+    const L = this.layout;
+    const b = this.blocks.get(Math.floor((x + HALF_CITY) / BLOCK_SPACING) * 1000 + Math.floor((z + HALF_CITY) / BLOCK_SPACING));
+    if (!b || !inRect(b.slab, x, z)) return false;
+    if (!b.green || !inRect(b.lot, x, z, 0.25)) return false; // paved lot or sidewalk
+    for (const p of L.paths) if (inRect(p, x, z, -0.3)) return false;
+    if (inRect(L.gas.rect, x, z, -0.5)) return false;
+    return !this.blocked(x, z);
+  }
+
+  /** Every frame: wind time; replant around the player when they've moved a few meters. */
+  update(dt: number, focus: { x: number; z: number }) {
+    this.time.value += dt;
+    this.center.value.set(focus.x, focus.z);
+    if (Math.hypot(focus.x - this.cx, focus.z - this.cz) < 3) return;
+    this.cx = focus.x; this.cz = focus.z;
+    const c = this.cell, R = this.radius, r2 = R * R;
+    const i0 = Math.floor((focus.x - R) / c), i1 = Math.ceil((focus.x + R) / c);
+    const j0 = Math.floor((focus.z - R) / c), j1 = Math.ceil((focus.z + R) / c);
+    let n = 0;
+    const max = this.mesh.instanceMatrix.count;
+    for (let i = i0; i <= i1 && n < max; i++) {
+      for (let j = j0; j <= j1 && n < max; j++) {
+        const x = (i + hash(i, j, 1)) * c, z = (j + hash(i, j, 2)) * c;
+        const dx = x - focus.x, dz = z - focus.z;
+        if (dx * dx + dz * dz > r2) continue;
+        if (hash(i, j, 3) < 0.06) continue; // a few bare spots
+        if (!this.isGrass(x, z)) continue;
+        const sc = 0.75 + hash(i, j, 4) * 0.6;
+        this.p.set(x, groundHeight(x, z) - 0.02, z);
+        this.q.setFromAxisAngle(this.up, hash(i, j, 5) * Math.PI * 2);
+        this.s.set(sc, sc * (0.8 + hash(i, j, 6) * 0.5), sc);
+        this.mesh.setMatrixAt(n, this.tmp.compose(this.p, this.q, this.s));
+        // Lawn green with a little variety (some yellower, some deeper).
+        const t = hash(i, j, 7);
+        this.col.setRGB(0.25 + t * 0.09, 0.45 + t * 0.06, 0.11 + (1 - t) * 0.03);
+        this.mesh.setColorAt(n, this.col);
+        n++;
+      }
+    }
+    this.mesh.count = n;
+    this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+  }
+
+  dispose() {
+    this.mesh.geometry.dispose();
+    (this.mesh.material as THREE.Material).dispose();
+    this.mesh.removeFromParent();
+  }
+}

@@ -29,6 +29,7 @@ import { RoadGraph, type P } from './roads';
 import { Traffic } from './traffic';
 import { Player } from './player';
 import { Vehicle } from './vehicle';
+import { GrassField } from './grassField';
 import { sounds } from './sounds';
 
 export type Mode = 'driving' | 'walking';
@@ -145,6 +146,9 @@ export class Game {
   private trafficCount = 8;
   /** Nearby traffic cars that may use the detailed model. */
   private trafficDetail = 2;
+  /** Grass blades around the player (m); 0 = off (Snel). */
+  private grassRadius = 26;
+  private grass?: GrassField;
   player?: Player;
   avatar?: Avatar;
   mode: Mode = 'driving';
@@ -195,6 +199,7 @@ export class Game {
     this.peopleCount = q.people;
     this.trafficCount = q.traffic;
     this.trafficDetail = q.name === 'fast' ? 0 : q.name === 'low' ? 1 : 2;
+    this.grassRadius = q.name === 'fast' ? 0 : q.name === 'low' ? 16 : 26;
     this.renderer = createRenderer(canvas, { shadows: q.shadowMap > 0, antialias: q.antialias });
     this.scaler = new ResolutionScaler(this.renderer, q.maxPixelRatio, q.minPixelRatio);
     this.scene.fog = new THREE.Fog(SKY.horizon, q.fogNear, q.fogFar);
@@ -263,6 +268,10 @@ export class Game {
     this.people.load();
     this.wildlife = new Wildlife(city.layout);
     this.scene.add(this.wildlife.group);
+    if (this.grassRadius > 0) {
+      this.grass = new GrassField(city.layout, (x, z) => this.world!.pointBlocked(x, z), this.grassRadius);
+      this.scene.add(this.grass.mesh);
+    }
     this.carWash = new CarWash(city.layout);
     this.scene.add(this.carWash.group);
     this.lamps = new StreetLamps(city.layout);
@@ -944,6 +953,7 @@ export class Game {
     this.remote?.update(dt);
     this.city.update(this.camera.position, dt);
     this.wildlife?.update(dt, this.camera.position, this.focus);
+    this.grass?.update(dt, this.focus);
     this.carWash?.update(dt, this.camera.position, this.washTimer, v);
     this.scaler.update(dt);
     this.renderer.render(this.scene, this.camera);
@@ -1040,6 +1050,7 @@ export class Game {
     this.nav?.dispose();
     this.people?.dispose();
     this.wildlife?.dispose();
+    this.grass?.dispose();
     this.carWash?.dispose();
     this.garage?.dispose();
     this.lamps?.dispose();

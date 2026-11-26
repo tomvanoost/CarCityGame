@@ -18,9 +18,6 @@ Asset sources: dl.polyhaven.org, api.polyhaven.com and ambientcg.com are blocked
 api.sketchfab.com works (CC0 / CC-BY models and their textures, see `scripts/sketchfab-download.mjs`),
 or generate textures procedurally (canvas / shader noise) at load time.
 
-- [ ] **Grass blades near the camera**: one InstancedMesh of small grass tufts (cross-quads, alpha-tested
-  texture drawn on a canvas) scattered on lawns and park grass around the player only, swaying in a vertex-shader wind,
-  fading out at ~40 m; none on roads and sidewalks; off on the Snel setting.
 - [ ] **Flowers and clover in the grass**: a few colored flower / clover patches in the same instancing
   system (parks, front gardens, roadsides), so lawns aren't one flat green.
 - [ ] **Better trees**: realistic CC0 / CC-BY trees from Sketchfab with leaf textures instead of
