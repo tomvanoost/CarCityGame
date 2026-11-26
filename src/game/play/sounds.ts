@@ -1,6 +1,8 @@
+import { renderEngineLoop } from './engineSound';
 /**
  * Friendly game sounds, synthesized with WebAudio (no audio files to download).
- * - engine: a soft hum whose pitch follows the speed (electric cars: a quiet rising whine)
+ * - engine: a rendered loop of a running 4-cylinder (engineSound.ts) pitched with the revs and a
+ *   6-gear gearbox (electric cars: a quiet rising whine)
  * - horn: a real car honk (public/sounds/horn.mp3) that sounds as long as the horn is held
  *   (repeating); a synthesized two-tone horn until the file has loaded
  * - coin: a bright "ching" when you earn money
@@ -15,7 +17,8 @@ class Sounds {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private engineGain: GainNode | null = null;
-  private engineOsc: OscillatorNode[] = [];
+  /** Low-revs and high-revs engine loops (crossfaded) and their volumes. */
+  private engineLoops: { src: AudioBufferSourceNode; gain: GainNode; rpm: number }[] = [];
   private engineFilter: BiquadFilterNode | null = null;
   /** Combustion part (rumble) and electric part (whine) of the engine sound. */
   private rumbleGain: GainNode | null = null;
@@ -67,31 +70,28 @@ class Sounds {
     this.engineGain = ctx.createGain();
     this.engineGain.gain.value = 0;
     this.engineGain.connect(this.master!);
-    // Combustion ("vroom"): the firing note (sawtooth), a deep rumble an octave below (square) and a
-    // slightly detuned layer an octave up, through a soft-clip for growl and a lowpass that opens
-    // with the revs and the gas.
+    // Combustion ("vroom"): two loops of a real-sounding engine (low and high revs) that are
+    // crossfaded and sped up / slowed down with the revs, through a lowpass that opens with the gas.
     this.rumbleGain = ctx.createGain();
     this.rumbleGain.connect(this.engineGain);
     this.engineFilter = ctx.createBiquadFilter();
     this.engineFilter.type = 'lowpass';
-    this.engineFilter.frequency.value = 300;
-    this.engineFilter.Q.value = 1.4;
-    const shaper = ctx.createWaveShaper();
-    const curve = new Float32Array(256);
-    for (let i = 0; i < 256; i++) { const x = i / 128 - 1; curve[i] = Math.tanh(x * 2.2); }
-    shaper.curve = curve;
-    shaper.connect(this.engineFilter);
+    this.engineFilter.frequency.value = 1200;
+    this.engineFilter.Q.value = 0.8;
     this.engineFilter.connect(this.rumbleGain);
-    const note = ctx.createOscillator(); note.type = 'sawtooth';
-    const sub = ctx.createOscillator(); sub.type = 'square';
-    const high = ctx.createOscillator(); high.type = 'sawtooth'; high.detune.value = 8;
-    const subGain = ctx.createGain(); subGain.gain.value = 0.55;
-    const highGain = ctx.createGain(); highGain.gain.value = 0.22;
-    note.connect(shaper);
-    sub.connect(subGain).connect(shaper);
-    high.connect(highGain).connect(shaper);
-    note.start(); sub.start(); high.start();
-    this.engineOsc = [note, sub, high];
+    this.engineLoops = ([[1100, 0], [3600, 1]] as const).map(([rpm, bright]) => {
+      const data = renderEngineLoop(ctx.sampleRate, rpm, bright);
+      const buf = ctx.createBuffer(1, data.length, ctx.sampleRate);
+      buf.getChannelData(0).set(data);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      src.connect(gain).connect(this.engineFilter!);
+      src.start();
+      return { src, gain, rpm };
+    });
     // Electric: two soft sines a fifth apart, the futuristic whine of an electric motor.
     this.whineGain = ctx.createGain();
     this.whineGain.gain.value = 0;
@@ -130,17 +130,20 @@ class Sounds {
     if (Math.abs(kmh) < 2) rpm = IDLE + throttle * 1800; // standing still: blip the throttle
     const shifted = g !== this.gear && on && !electric && Math.abs(kmh) > 2;
     this.gear = g;
-    const f = (rpm / 60) * 2; // a four-cylinder fires twice per turn: ~28 Hz idle .. ~207 Hz
-    this.engineOsc[0].frequency.setTargetAtTime(f, t, 0.05);
-    this.engineOsc[1].frequency.setTargetAtTime(f / 2, t, 0.05);
-    this.engineOsc[2].frequency.setTargetAtTime(f * 2, t, 0.05);
-    this.engineFilter!.frequency.setTargetAtTime(220 + rpm * 0.13 + throttle * 900, t, 0.06);
+    // Each loop plays faster or slower to match the revs; low revs use the deep loop, high revs the raspy one.
+    const high = Math.min(1, Math.max(0, (rpm - 1700) / 1700));
+    this.engineLoops.forEach((l, i) => {
+      l.src.playbackRate.setTargetAtTime(rpm / l.rpm, t, 0.05);
+      l.gain.gain.setTargetAtTime(i === 0 ? Math.cos(high * Math.PI / 2) : Math.sin(high * Math.PI / 2), t, 0.05);
+    });
+    // Off the gas the engine sounds muffled; on the gas it opens up.
+    this.engineFilter!.frequency.setTargetAtTime(500 + rpm * 0.35 + throttle * 2600, t, 0.08);
     const whine = 260 + Math.min(1, kmh / 200) * 900;
     this.whineOsc[0].frequency.setTargetAtTime(whine, t, 0.1);
     this.whineOsc[1].frequency.setTargetAtTime(whine * 1.5, t, 0.1);
     this.rumbleGain!.gain.setTargetAtTime(electric ? 0 : 1, t, 0.05);
-    this.whineGain!.gain.setTargetAtTime(electric ? 0.12 + k * 0.25 + throttle * 0.12 : 0, t, 0.05);
-    const vol = on ? 0.045 + (rpm / HIGH) * 0.05 + throttle * 0.035 : 0;
+    this.whineGain!.gain.setTargetAtTime(electric ? 0.06 + k * 0.13 + throttle * 0.06 : 0, t, 0.05);
+    const vol = on ? 0.09 + (rpm / HIGH) * 0.08 + throttle * 0.07 : 0;
     const eg = this.engineGain!.gain;
     if (shifted) {
       // Clutch: quieter for a moment while the revs drop, then back.
