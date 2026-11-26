@@ -29,6 +29,7 @@ import { RoadGraph, type P } from './roads';
 import { Traffic } from './traffic';
 import { Player } from './player';
 import { Vehicle } from './vehicle';
+import { cleanText } from '../../services/textFilter';
 import { GrassField } from './grassField';
 import { sounds } from './sounds';
 
@@ -94,6 +95,10 @@ export interface MapState {
   path: P[];
   job: P | null;
   dest: P | null;
+  /** Other players in the multiplayer server (empty when playing alone). */
+  players: { id: string; name: string; x: number; z: number }[];
+  /** The player we're navigating to, if any. */
+  following: string | null;
 }
 
 export interface GameEvents {
@@ -107,6 +112,8 @@ export interface GameEvents {
   onPlace(place: 'home' | 'apartment'): void;
   /** Short message (i18n key + optional number). */
   onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed', n?: number): void;
+  /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
+  onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
 }
 
 const ENTER_DISTANCE = 4;
@@ -296,7 +303,21 @@ export class Game {
   }
 
   /** Pick a destination (from the big map), or null to stop navigating. */
-  setDestination(p: P | null) { this.dest = p; }
+  setDestination(p: P | null) { this.dest = p; this.followId = null; }
+
+  /** Navigate to another player in the server (the route follows them). Returns their name. */
+  navigateToPlayer(id: string): string | null {
+    const p = this.remote?.positions().find((q) => q.id === id);
+    if (!p) return null;
+    this.dest = { x: p.x, z: p.z };
+    this.followId = id;
+    this.followTimer = 0;
+    return p.name;
+  }
+  private followId: string | null = null;
+  /** Multiplayer: everyone we've seen, and since when they're missing (0 = here). */
+  private knownPlayers = new Map<string, { name: string; goneAt: number }>();
+  private followTimer = 0;
 
   mapState(): MapState | null {
     if (!this.vehicle || !this.player) return null;
@@ -309,6 +330,8 @@ export class Game {
       path: this.nav?.remainingPath() ?? [],
       job: job ? { x: job.x, z: job.z } : null,
       dest: this.dest,
+      players: this.remote?.positions() ?? [],
+      following: this.followId,
     };
   }
 
@@ -343,7 +366,23 @@ export class Game {
   /** Decide where to navigate: a job first, then your map destination, then fuel. */
   private updateNav(dt: number, pos: P) {
     if (!this.nav) return;
-    if (this.dest && Math.hypot(pos.x - this.dest.x, pos.z - this.dest.z) < 14) {
+    // Following another player: move the destination with them (not every frame: re-routing costs).
+    if (this.followId) {
+      const p = this.remote?.positions().find((q) => q.id === this.followId);
+      if (!p) { this.followId = null; this.dest = null; }
+      else {
+        this.followTimer -= dt;
+        if (Math.hypot(pos.x - p.x, pos.z - p.z) < 10) {
+          this.followId = null;
+          this.dest = null;
+          this.events.onPlayer?.('found', p.name);
+        } else if (this.followTimer <= 0 && this.dest && Math.hypot(p.x - this.dest.x, p.z - this.dest.z) > 8) {
+          this.dest = { x: p.x, z: p.z };
+          this.followTimer = 1;
+        }
+      }
+    }
+    if (this.dest && !this.followId && Math.hypot(pos.x - this.dest.x, pos.z - this.dest.z) < 14) {
       this.dest = null;
       this.events.onMessage('arrived');
     }
@@ -418,6 +457,9 @@ export class Game {
     setTimeout(() => this.addMoney(DAILY_BONUS, 'daily'), 1200);
   }
 
+  /** Save right now (before the page reloads for an update). */
+  saveNow() { this.save(true); }
+
   /** Saves money/fuel/km at most every few seconds (and on exit). */
   private save(force = false) {
     if (!this.dirty) return;
@@ -470,7 +512,20 @@ export class Game {
     this.mp = session;
     this.remote = new RemotePlayers();
     this.scene.add(this.remote.group);
-    this.offPlayers = session.onPlayers((players) => this.remote?.sync(players));
+    // "<name> joined the server" (not for the players who were already there when we joined).
+    // Someone only counts as gone after missing for a few seconds, so a short connection hiccup
+    // doesn't show "left" + "joined" again.
+    const since = Date.now();
+    this.offPlayers = session.onPlayers((players) => {
+      this.remote?.sync(players);
+      for (const [id, p] of players) {
+        const k = this.knownPlayers.get(id);
+        if (k) { k.goneAt = 0; k.name = p.name; continue; }
+        this.knownPlayers.set(id, { name: p.name, goneAt: 0 });
+        if (Date.now() - since > 4000) this.events.onPlayer?.('joined', cleanText(p.name, 20) || '?');
+      }
+      for (const [id, k] of this.knownPlayers) if (!players.has(id) && !k.goneAt) k.goneAt = Date.now();
+    });
   }
 
   /**
@@ -951,6 +1006,9 @@ export class Game {
     this.sun.follow(this.focus);
     this.shareState();
     this.remote?.update(dt);
+    for (const [id, k] of this.knownPlayers) {
+      if (k.goneAt && Date.now() - k.goneAt > 6000) { this.knownPlayers.delete(id); this.events.onPlayer?.('left', cleanText(k.name, 20) || '?'); }
+    }
     this.city.update(this.camera.position, dt);
     this.wildlife?.update(dt, this.camera.position, this.focus);
     this.grass?.update(dt, this.focus);

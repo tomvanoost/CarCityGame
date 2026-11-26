@@ -28,8 +28,22 @@ function modelVersions(): Plugin {
   };
 }
 
+/**
+ * A unique id per build, baked into the game (`__BUILD_ID__`) and written to `/version.json`. The
+ * running game checks that file now and then: a different id means a new version was deployed.
+ */
+const BUILD_ID = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+function versionFile(): Plugin {
+  return {
+    name: 'version-file',
+    apply: 'build',
+    generateBundle() { this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ id: BUILD_ID }) }); },
+  };
+}
+
 export default defineConfig({
-  plugins: [modelVersions()],
+  plugins: [modelVersions(), versionFile()],
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1500,

@@ -417,6 +417,7 @@ button, input { font: inherit; color: inherit; }
 .minimap-wrap { position: absolute; right: 12px; top: calc(max(12px, env(safe-area-inset-top)) + 100px); width: 150px; height: 150px; z-index: 6; }
 .minimap { width: 100%; height: 100%; border-radius: 50%; display: block; cursor: pointer; box-shadow: var(--shadow); }
 .minimap:active { transform: scale(.96); }
+.minimap-tip { position: absolute; transform: translate(-50%, calc(-100% - 10px)); padding: 4px 10px; border-radius: 999px; background: #fff; color: #1d2b44; font-weight: 800; font-size: 13px; white-space: nowrap; box-shadow: var(--shadow); pointer-events: none; z-index: 7; }
 .bigmap { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 12px; background: rgba(20, 40, 70, .4); }
 .bigmap-card { width: min(820px, 100%); height: min(760px, 100%); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; animation: pop .3s cubic-bezier(.2, 1.4, .4, 1); }
 .bigmap-holder { flex: 1; min-height: 0; border-radius: 16px; overflow: hidden; }
@@ -478,3 +479,6 @@ button, input { font: inherit; color: inherit; }
 .mirror-frame { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); width: min(34vw, 420px); aspect-ratio: 10 / 3;
   border: 5px solid #1b1d22; border-radius: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.15); pointer-events: none; z-index: 4; }
 .mirror-frame[hidden] { display: none; }
+
+/* New version deployed: countdown before the page reloads. */
+.update-banner { position: fixed; top: calc(max(12px, env(safe-area-inset-top)) + 64px); left: 50%; transform: translateX(-50%); z-index: 100; padding: 10px 20px; border-radius: 999px; background: #1d2b44; color: #fff; font-weight: 800; font-size: 16px; box-shadow: var(--shadow); white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }

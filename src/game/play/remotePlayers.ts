@@ -62,6 +62,11 @@ export class RemotePlayers {
 
   get count() { return this.entries.size; }
 
+  /** Where everyone is now (smoothed), with their cleaned name: for the minimap and navigation. */
+  positions(): { id: string; name: string; x: number; z: number }[] {
+    return [...this.entries].map(([id, e]) => ({ id, name: cleanText(e.target.name, 20) || '?', x: e.x, z: e.z }));
+  }
+
   sync(players: Map<string, RemotePlayer>) {
     for (const [id, p] of players) {
       const e = this.entries.get(id);

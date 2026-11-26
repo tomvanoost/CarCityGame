@@ -92,13 +92,42 @@ export interface MapPlaces { home: P; apartment: P; gas: P }
 /** Small round map in the corner. It turns with you: forward is always up. */
 export class Minimap {
   readonly el: HTMLCanvasElement;
+  /** Name label shown when you hover over another player's dot. */
+  readonly tip: HTMLDivElement;
   private size = 0;
+  /** Other players' dots as drawn last time (CSS pixels), for hover and click. */
+  private dots: { id: string; name: string; x: number; y: number }[] = [];
 
-  constructor(private base: HTMLCanvasElement, private places: MapPlaces, onOpen: () => void) {
+  /** onPlayer: a player's dot was clicked / tapped (navigate there). */
+  constructor(private base: HTMLCanvasElement, private places: MapPlaces, onOpen: () => void, onPlayer?: (id: string) => void) {
     this.el = document.createElement('canvas');
     this.el.className = 'minimap';
     this.el.setAttribute('aria-label', 'map');
-    this.el.addEventListener('click', onOpen);
+    this.tip = document.createElement('div');
+    this.tip.className = 'minimap-tip';
+    this.tip.hidden = true;
+    const hit = (e: MouseEvent) => {
+      const r = this.el.getBoundingClientRect();
+      const x = e.clientX - r.left, y = e.clientY - r.top;
+      let best: (typeof this.dots)[number] | null = null, bd = 13; // forgiving for fingers
+      for (const d of this.dots) { const dd = Math.hypot(d.x - x, d.y - y); if (dd < bd) { bd = dd; best = d; } }
+      return best;
+    };
+    this.el.addEventListener('click', (e) => {
+      const d = onPlayer && hit(e);
+      if (d) { onPlayer!(d.id); this.tip.hidden = true; } else onOpen();
+    });
+    this.el.addEventListener('pointermove', (e) => {
+      const d = e.pointerType === 'mouse' ? hit(e) : null;
+      this.tip.hidden = !d;
+      this.el.style.cursor = d ? 'pointer' : '';
+      if (d) {
+        this.tip.textContent = d.name;
+        this.tip.style.left = `${d.x}px`;
+        this.tip.style.top = `${d.y}px`;
+      }
+    });
+    this.el.addEventListener('pointerleave', () => { this.tip.hidden = true; });
   }
 
   draw(s: MapState) {
@@ -143,6 +172,24 @@ export class Minimap {
     icon(this.places.home, '🏠', '#ff8a2b');
     icon(s.dest, '📍', '#16b862');
     icon(s.job, '⭐', '#16b862');
+    // Other players: small yellow dots (on the edge when they're out of range).
+    this.dots = [];
+    const c = Math.cos(rot), sn = Math.sin(rot);
+    for (const p of s.players) {
+      let dx = (p.x - s.x) * K * zoom, dy = (p.z - s.z) * K * zoom;
+      [dx, dy] = [dx * c - dy * sn, dx * sn + dy * c];
+      const d = Math.hypot(dx, dy), max = R - 12 * dpr;
+      if (d > max) { dx *= max / d; dy *= max / d; }
+      const followed = s.following === p.id;
+      g.beginPath();
+      g.arc(R + dx, R + dy, (followed ? 6 : 4.5) * dpr, 0, Math.PI * 2);
+      g.fillStyle = '#ffd21f';
+      g.fill();
+      g.lineWidth = (followed ? 2.5 : 1.5) * dpr;
+      g.strokeStyle = followed ? '#16b862' : '#1d2b44';
+      g.stroke();
+      this.dots.push({ id: p.id, name: p.name, x: (R + dx) / dpr, y: (R + dy) / dpr });
+    }
     playerArrow(g, R, R, 0, 9 * dpr);
     // Ring + "N" marker.
     g.lineWidth = 4 * dpr; g.strokeStyle = '#ffffff';

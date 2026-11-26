@@ -2,6 +2,7 @@ import './ui/styles.css';
 import { onLangChange } from './i18n';
 import { getBackend, setProfile } from './services/session';
 import { startFpsMeter } from './ui/fps';
+import { watchForUpdates } from './services/updateCheck';
 import { watchStickers } from './ui/stickers';
 import { langToggle } from './ui/langToggle';
 import { loginScreen } from './ui/loginScreen';
@@ -39,6 +40,7 @@ function navigate(to: ScreenName) {
 
 async function boot() {
   startFpsMeter();
+  watchForUpdates();
   watchStickers();
   app.innerHTML = '<div class="boot">🚗</div>';
   try {

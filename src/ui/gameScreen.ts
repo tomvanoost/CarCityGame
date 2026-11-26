@@ -248,6 +248,7 @@ export const gameScreen: Screen = (root, nav) => {
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : t('pickedPassenger')),
     onPlace: (place) => openPanel(place),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
+    onPlayer: (kind, name) => toast(t(kind === 'joined' ? 'mpJoined' : kind === 'left' ? 'mpLeft' : 'mpFound').replace('{name}', name)),
   });
 
   let chatCleanup = () => {};
@@ -337,8 +338,11 @@ export const gameScreen: Screen = (root, nav) => {
       const L = game.city.layout;
       const base = renderBaseMap(L, game.roads);
       places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation };
-      minimap = new Minimap(base, places, openMap);
-      mapWrap.append(minimap.el);
+      minimap = new Minimap(base, places, openMap, (id) => {
+        const name = game.navigateToPlayer(id);
+        if (name) toast(t('mpNavTo').replace('{name}', name));
+      });
+      mapWrap.append(minimap.el, minimap.tip);
       bigMap = new BigMap(base, places, (p) => { game.setDestination(p); toast(t('destSet')); closeMap(); });
       bigHolder.append(bigMap.canvas);
     }
@@ -425,8 +429,12 @@ export const gameScreen: Screen = (root, nav) => {
   window.addEventListener('keydown', onBack);
 
   if (import.meta.env.DEV) Object.assign(window, { carcityDebug: { game, input } });
+  // A new version is about to load: save money / fuel / km first.
+  const onUpdateSave = () => game.saveNow();
+  window.addEventListener('carcity-save', onUpdateSave);
 
   return () => {
+    window.removeEventListener('carcity-save', onUpdateSave);
     chatCleanup();
     window.removeEventListener('carcity-back', onBack);
     window.removeEventListener('keydown', onBack);
