@@ -82,6 +82,8 @@ export const gameScreen: Screen = (root, nav) => {
   const speakerOff = '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/>';
   const soundBtn = h('button', { class: 'icon-btn sound-btn', title: t('soundOnOff'), 'aria-label': t('soundOnOff') });
   // 🎥 Dashboard view on/off (also F2, or View / Create / Capture on a controller).
+  // The rear-view mirror's frame (the game draws the view behind the car inside it, dashboard view only).
+  const mirrorFrame = h('div', { class: 'mirror-frame', hidden: true });
   const viewBtn = h('button', { class: 'icon-btn view-btn', title: `${t('dashView')} (F2)`, 'aria-label': t('dashView') }, '🎥');
   viewBtn.addEventListener('click', () => input.queueView());
   const renderSound = () => {
@@ -152,10 +154,10 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, mirrorFrame, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, mp: null, police: false, siren: false };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false };
   const render = () => {
     const driving = state.mode === 'driving';
     if (!speedPop.hidden) showLimit(state.maxSpeed); else speedBtn.lastElementChild!.textContent = state.maxSpeed && state.maxSpeed < state.topSpeed ? String(state.maxSpeed) : 'MAX';
@@ -168,6 +170,7 @@ export const gameScreen: Screen = (root, nav) => {
     hornBtn.hidden = !driving || overlay;
     sirenBtn.hidden = !(driving && state.police) || overlay;
     viewBtn.hidden = !driving;
+    mirrorFrame.hidden = !state.cockpit;
     if (state.mp) mpPill.textContent = `🌐 ${state.mp.room} · 👥 ${state.mp.others + 1}`;
     blinkL.classList.toggle('on', state.blinker === 'left');
     blinkR.classList.toggle('on', state.blinker === 'right');

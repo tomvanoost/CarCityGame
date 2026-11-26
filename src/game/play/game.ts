@@ -76,6 +76,8 @@ export interface GameState {
   maxSpeed: number | null;
   /** Multiplayer: server name and how many other players are there (null when playing alone). */
   mp: { room: string; others: number } | null;
+  /** Dashboard view is on (the HUD shows the mirror frame). */
+  cockpit: boolean;
   /** Turn signal that is blinking right now. */
   blinker: 'left' | 'right' | null;
   /** Driving an emergency vehicle (shows the 🚨 button), and whether its siren is on. */
@@ -177,6 +179,8 @@ export class Game {
   private cockpit = false;
   private cockpitYaw = 0;
   private cockpitPitch = 0;
+  /** The rear-view mirror in the dashboard view: a small second view, looking back from the car's rear. */
+  private mirrorCam = new THREE.PerspectiveCamera(48, 3.3, 0.3, 300);
   /** Multiplayer server we're on (if any), and the other players there. */
   private mp: MpSession | null = null;
   private remote?: RemotePlayers;
@@ -457,13 +461,94 @@ export class Game {
     this.offPlayers = session.onPlayers((players) => this.remote?.sync(players));
   }
 
+  /**
+   * The camera's near/far range. Normally near = 0.5 m (good depth precision for the whole city), but
+   * in the dashboard view the steering wheel and gauges are closer than that and would be cut away.
+   */
+  private setCameraRange(cockpit: boolean) {
+    const near = cockpit ? 0.05 : 0.5, far = cockpit ? 2500 : 6000;
+    if (this.camera.near === near) return;
+    this.camera.near = near;
+    this.camera.far = far;
+    this.camera.updateProjectionMatrix();
+  }
+
+  /**
+   * How far along the car the driver's eyes are (car-local z). As far back as 30 cm behind the hips,
+   * but never behind a wall (the partition behind a van's cab, a supercar's rear bulkhead): it tries
+   * spots from back to front and takes the first one with nothing right in front of it. Cached per car.
+   */
+  private cockpitEyeZ(v: Vehicle): number {
+    const car = v.car;
+    if (car.root.userData.eyeZ !== undefined) return car.root.userData.eyeZ as number;
+    const scale = car.seatScale ?? 0.74;
+    // Ray in the car's own space (car root without its world transform).
+    const holder = new THREE.Group();
+    const parent = car.root.parent;
+    const saved = car.root.matrix.clone();
+    holder.add(car.root);
+    car.root.position.set(0, 0, 0); car.root.rotation.set(0, 0, 0); car.root.scale.setScalar(1);
+    holder.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster();
+    const dir = new THREE.Vector3(0, Math.sin(-0.12), Math.cos(-0.12));
+    let eyeZ = car.seat.z + 0.1;
+    for (const dz of [-0.3, -0.2, -0.1, 0, 0.1]) {
+      ray.set(new THREE.Vector3(car.seat.x, car.seat.y + 1.0 * scale, car.seat.z + dz), dir);
+      ray.far = 0.35;
+      // Ignore your own driver (sitting right there, hidden in this view).
+      const avatarRoot = this.avatar?.root;
+      const isAvatar = (o: THREE.Object3D | null) => { for (; o; o = o.parent) if (o === avatarRoot) return true; return false; };
+      const hit = ray.intersectObject(car.root, true).find((h) => !isAvatar(h.object));
+      if (!hit) { eyeZ = car.seat.z + dz; break; }
+    }
+    // Put the car back where it was.
+    parent?.add(car.root);
+    saved.decompose(car.root.position, car.root.quaternion, car.root.scale);
+    car.root.userData.eyeZ = eyeZ;
+    return eyeZ;
+  }
+
+  /**
+   * Rear-view mirror (dashboard view only): the view behind the car, drawn into a strip at the top
+   * of the screen. Same size formula as the frame in the HUD (.mirror-frame): width min(34vw, 420px),
+   * height 30% of that, 70px from the top, centered.
+   */
+  private renderMirror(v: Vehicle) {
+    const r = this.renderer, canvas = r.domElement;
+    const cssW = canvas.clientWidth, cssH = canvas.clientHeight;
+    if (!cssW || !cssH) return;
+    const w = Math.min(cssW * 0.34, 420), h = w * 0.3, left = (cssW - w) / 2, top = 70;
+    const sf = SKETCHFAB_VEHICLES[v.spec.id];
+    const back = new THREE.Vector3(0, (sf?.height ?? 1.4) * 0.85, -v.length / 2 - 0.1);
+    v.car.root.updateWorldMatrix(true, false);
+    const from = back.clone().applyMatrix4(v.car.root.matrixWorld);
+    const yaw = v.heading + Math.PI;
+    this.mirrorCam.aspect = w / h;
+    this.mirrorCam.updateProjectionMatrix();
+    this.mirrorCam.position.copy(from);
+    this.mirrorCam.lookAt(from.x + Math.sin(yaw) * 10, from.y - 0.9, from.z + Math.cos(yaw) * 10);
+    r.setScissorTest(true);
+    r.setScissor(left, cssH - top - h, w, h);
+    r.setViewport(left, cssH - top - h, w, h);
+    r.autoClear = false;
+    r.clear(true, true, false);
+    r.render(this.scene, this.mirrorCam);
+    r.autoClear = true;
+    r.setScissorTest(false);
+    r.setViewport(0, 0, cssW, cssH);
+  }
+
   /** Dashboard view: the camera at the driver's eyes, looking out of the windscreen. */
   private placeCockpitCamera(v: Vehicle) {
+    this.setCameraRange(true);
     const car = v.car, scale = car.seatScale ?? 0.74;
-    car.root.updateMatrixWorld(true);
-    // Eyes: above the hips by ~85% of the seated height, a little forward of them.
-    const eye = new THREE.Vector3(car.seat.x, car.seat.y + 0.98 * scale, car.seat.z + 0.12).applyMatrix4(car.root.matrixWorld);
-    const yaw = v.heading + this.cockpitYaw, pitch = -0.08 + this.cockpitPitch;
+    // Update from the top (the car's root moved this frame), or the camera lags a frame behind.
+    car.root.updateWorldMatrix(true, false);
+    // Eyes: above the hips, and a bit behind them (you lean back in the seat), so the steering
+    // wheel and the gauges are in front of you instead of right under your nose.
+    const eyeZ = this.cockpitEyeZ(v);
+    const eye = new THREE.Vector3(car.seat.x, car.seat.y + 1.0 * scale, eyeZ).applyMatrix4(car.root.matrixWorld);
+    const yaw = v.heading + this.cockpitYaw, pitch = -0.12 + this.cockpitPitch;
     const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
     this.camera.position.copy(eye);
     this.camera.lookAt(eye.clone().add(dir));
@@ -786,7 +871,7 @@ export class Game {
       if (this.signals.update(dt)) sounds.blinkerTick(this.signals.side !== null && this.signals.group.children.some((c) => c.visible));
     }
     v.cap = this.maxKmh ? this.maxKmh / 3.6 : Infinity;
-    sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0, !!v.spec.electric);
+    sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0, !!v.spec.electric, v.spec.topSpeed);
     if (driving) {
       const before = { x: v.x, z: v.z };
       const h0 = v.heading;
@@ -808,9 +893,10 @@ export class Game {
       this.focus.set(v.x, v.root.position.y + 1.3, v.z);
       if (v.bumped > 0.25) this.shake = 0.25;
       if (this.cockpit) this.placeCockpitCamera(v);
-      else this.follow.update(dt, this.focus, {
+      else this.setCameraRange(false);
+      if (!this.cockpit) this.follow.update(dt, this.focus, {
         behindYaw: Math.abs(v.speed) > 0.5 ? v.heading + Math.PI + (v.speed < -0.5 ? Math.PI : 0) : null,
-        distance: 7.5 + Math.min(v.kmh, 160) * 0.03,
+        distance: 7.5 + Math.min(v.kmh, 120) * 0.012, // only a little further back when fast
         pitch: 0.26,
         blocked: this.blocked,
       });
@@ -818,6 +904,7 @@ export class Game {
       v.update(dt, null, this.world);
       if (!this.paused) this.player.update(dt, this.input.walk(), jump, this.follow.yaw, this.world);
       this.focus.set(this.player.x, this.player.y + 1.4, this.player.z);
+      this.setCameraRange(false);
       this.follow.update(dt, this.focus, { behindYaw: null, distance: 5.5, pitch: 0.32, blocked: this.blocked });
     }
     this.refuel(dt, ctx);
@@ -850,6 +937,7 @@ export class Game {
     this.carWash?.update(dt, this.camera.position, this.washTimer, v);
     this.scaler.update(dt);
     this.renderer.render(this.scene, this.camera);
+    if (this.cockpit && this.mode === 'driving') this.renderMirror(v);
     this.emitState(ctx);
   };
 
@@ -888,6 +976,7 @@ export class Game {
       topSpeed: v.spec.topSpeed,
       maxSpeed: this.maxKmh,
       blinker: this.mode === 'driving' ? this.signals?.side ?? null : null,
+      cockpit: this.cockpit && this.mode === 'driving',
       mp: this.mp ? { room: this.mp.roomName, others: this.remote?.count ?? 0 } : null,
       police: this.mode === 'driving' && !!v.spec.siren,
       siren: this.sirenOn,

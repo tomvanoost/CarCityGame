@@ -67,20 +67,31 @@ class Sounds {
     this.engineGain = ctx.createGain();
     this.engineGain.gain.value = 0;
     this.engineGain.connect(this.master!);
-    // Combustion: a filtered sawtooth with a sine below it ("vroom").
+    // Combustion ("vroom"): the firing note (sawtooth), a deep rumble an octave below (square) and a
+    // slightly detuned layer an octave up, through a soft-clip for growl and a lowpass that opens
+    // with the revs and the gas.
     this.rumbleGain = ctx.createGain();
     this.rumbleGain.connect(this.engineGain);
     this.engineFilter = ctx.createBiquadFilter();
     this.engineFilter.type = 'lowpass';
     this.engineFilter.frequency.value = 300;
+    this.engineFilter.Q.value = 1.4;
+    const shaper = ctx.createWaveShaper();
+    const curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) { const x = i / 128 - 1; curve[i] = Math.tanh(x * 2.2); }
+    shaper.curve = curve;
+    shaper.connect(this.engineFilter);
     this.engineFilter.connect(this.rumbleGain);
-    const saw = ctx.createOscillator(); saw.type = 'sawtooth';
-    const sub = ctx.createOscillator(); sub.type = 'sine';
-    const subGain = ctx.createGain(); subGain.gain.value = 0.8;
-    saw.connect(this.engineFilter);
-    sub.connect(subGain).connect(this.rumbleGain);
-    saw.start(); sub.start();
-    this.engineOsc = [saw, sub];
+    const note = ctx.createOscillator(); note.type = 'sawtooth';
+    const sub = ctx.createOscillator(); sub.type = 'square';
+    const high = ctx.createOscillator(); high.type = 'sawtooth'; high.detune.value = 8;
+    const subGain = ctx.createGain(); subGain.gain.value = 0.55;
+    const highGain = ctx.createGain(); highGain.gain.value = 0.22;
+    note.connect(shaper);
+    sub.connect(subGain).connect(shaper);
+    high.connect(highGain).connect(shaper);
+    note.start(); sub.start(); high.start();
+    this.engineOsc = [note, sub, high];
     // Electric: two soft sines a fifth apart, the futuristic whine of an electric motor.
     this.whineGain = ctx.createGain();
     this.whineGain.gain.value = 0;
@@ -94,26 +105,55 @@ class Sounds {
     this.whineOsc = [w1, w2];
   }
 
+  /** Gearbox for the engine sound: current gear, and the speed share of the top speed where each gear ends. */
+  private gear = 0;
+  private static readonly GEAR_TOPS = [0.12, 0.24, 0.38, 0.55, 0.75, 1.0];
+
   /**
-   * Every frame: engine on while driving; pitch follows the speed, a bit louder on the gas.
-   * Electric cars don't go "vroom": they make a quiet whine that rises with the speed.
+   * Every frame: the engine while driving. Combustion cars go through 6 gears: in each gear the revs
+   * climb (low - mid - high), then a short "clutch" dip and the revs drop for the next gear; slowing
+   * down shifts back down. Electric cars don't go "vroom": a quiet whine that rises with the speed.
    */
-  engine(on: boolean, kmh: number, throttle: number, electric = false) {
+  engine(on: boolean, kmh: number, throttle: number, electric = false, topSpeed = 200) {
     const ctx = this.ready();
     if (!ctx) return;
     if (!this.engineGain) { if (!on) return; this.startEngine(ctx); }
     const t = ctx.currentTime, k = Math.min(1, kmh / 120);
-    const base = 42 + k * 70 + throttle * 8;
-    this.engineOsc[0].frequency.setTargetAtTime(base, t, 0.12);
-    this.engineOsc[1].frequency.setTargetAtTime(base / 2, t, 0.12);
-    this.engineFilter!.frequency.setTargetAtTime(240 + k * 600 + throttle * 150, t, 0.12);
+    // Gear and revs from the speed (share of the car's real top speed).
+    const share = Math.min(1, Math.abs(kmh) / Math.max(60, topSpeed));
+    const tops = Sounds.GEAR_TOPS;
+    let g = tops.findIndex((top) => share <= top);
+    if (g < 0) g = tops.length - 1;
+    const lo = g === 0 ? 0 : tops[g - 1], within = (share - lo) / (tops[g] - lo);
+    const IDLE = 850, LOW = 2600, HIGH = 6200;
+    let rpm = g === 0 ? IDLE + within * (HIGH - IDLE) : LOW + within * (HIGH - LOW);
+    if (Math.abs(kmh) < 2) rpm = IDLE + throttle * 1800; // standing still: blip the throttle
+    const shifted = g !== this.gear && on && !electric && Math.abs(kmh) > 2;
+    this.gear = g;
+    const f = (rpm / 60) * 2; // a four-cylinder fires twice per turn: ~28 Hz idle .. ~207 Hz
+    this.engineOsc[0].frequency.setTargetAtTime(f, t, 0.05);
+    this.engineOsc[1].frequency.setTargetAtTime(f / 2, t, 0.05);
+    this.engineOsc[2].frequency.setTargetAtTime(f * 2, t, 0.05);
+    this.engineFilter!.frequency.setTargetAtTime(220 + rpm * 0.13 + throttle * 900, t, 0.06);
     const whine = 260 + Math.min(1, kmh / 200) * 900;
     this.whineOsc[0].frequency.setTargetAtTime(whine, t, 0.1);
     this.whineOsc[1].frequency.setTargetAtTime(whine * 1.5, t, 0.1);
     this.rumbleGain!.gain.setTargetAtTime(electric ? 0 : 1, t, 0.05);
     this.whineGain!.gain.setTargetAtTime(electric ? 0.12 + k * 0.25 + throttle * 0.12 : 0, t, 0.05);
-    this.engineGain!.gain.setTargetAtTime(on ? 0.05 + k * 0.05 + throttle * 0.03 : 0, t, on ? 0.15 : 0.08);
+    const vol = on ? 0.045 + (rpm / HIGH) * 0.05 + throttle * 0.035 : 0;
+    const eg = this.engineGain!.gain;
+    if (shifted) {
+      // Clutch: quieter for a moment while the revs drop, then back.
+      eg.cancelScheduledValues(t);
+      eg.setValueAtTime(eg.value, t);
+      eg.linearRampToValueAtTime(vol * 0.35, t + 0.05);
+      eg.linearRampToValueAtTime(vol, t + 0.2);
+    } else if (!this.shiftUntil || t > this.shiftUntil) {
+      eg.setTargetAtTime(vol, t, on ? 0.12 : 0.08);
+    }
+    if (shifted) this.shiftUntil = t + 0.2;
   }
+  private shiftUntil = 0;
 
   private tone(ctx: AudioContext, type: OscillatorType, freq: number, start: number, dur: number, vol: number, endFreq?: number, out?: AudioNode) {
     const o = ctx.createOscillator(), g = ctx.createGain();

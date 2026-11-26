@@ -36,7 +36,12 @@ export class FollowCamera {
     }
     this.distance += (opts.distance - this.distance) * Math.min(1, dt * 3);
     if (opts.snap) this.target.copy(focus);
-    else this.target.lerp(focus, Math.min(1, dt * 10));
+    else {
+      this.target.lerp(focus, Math.min(1, dt * 10));
+      // Smooth, but never trailing behind: at high speed the lerp alone fell metres behind the car.
+      const lag = this.target.distanceTo(focus);
+      if (lag > 0.5) this.target.lerp(focus, 1 - 0.5 / lag);
+    }
     const cp = Math.cos(this.pitch);
     // Pull the camera in if a building is between it and the player.
     let dist = this.distance;
