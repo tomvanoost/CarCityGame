@@ -4,6 +4,9 @@ import { Gamepads, type PadState } from './gamepad';
  * All controls end up in one place, whether they come from the keyboard, the on-screen
  * tablet controls, a game controller or a steering wheel.
  */
+/** Keyboard steering goes up to this share of full lock. */
+const KEY_STEER_MAX = 0.65;
+
 export class Input {
   /** Values set by the touch controls (0..1 / -1..1). */
   touch = { throttle: 0, brake: 0, steer: 0, moveX: 0, moveY: 0, run: false, horn: false };
@@ -42,10 +45,18 @@ export class Input {
   };
   private onBlur = () => this.keys.clear();
 
+  /** Smoothed keyboard steering (-KEY_STEER_MAX..KEY_STEER_MAX). */
+  private keySteer = 0;
+
   private key(...codes: string[]) { return codes.some((c) => this.keys.has(c)) ? 1 : 0; }
 
   /** Once per frame: read the game controllers / steering wheel. */
   poll(dt: number) {
+    // Keyboard steering eases in (a key is all-or-nothing, which made the car twitchy) and is
+    // gentler than full lock; letting go straightens out quickly.
+    const want = (this.key('KeyD', 'ArrowRight') - this.key('KeyA', 'ArrowLeft')) * KEY_STEER_MAX;
+    const rate = want === 0 || Math.sign(want) !== Math.sign(this.keySteer) ? 5 : 1.5;
+    this.keySteer += Math.max(-rate * dt, Math.min(rate * dt, want - this.keySteer));
     const p = this.gamepads.poll();
     this.pad = p;
     if (!p) return;
@@ -65,7 +76,7 @@ export class Input {
   /** Car controls. Steer: +1 = right. */
   drive() {
     const fwd = this.key('KeyW', 'ArrowUp'), back = this.key('KeyS', 'ArrowDown');
-    const steer = this.key('KeyD', 'ArrowRight') - this.key('KeyA', 'ArrowLeft');
+    const steer = this.keySteer;
     const pad = this.pad;
     return {
       throttle: Math.max(fwd, this.touch.throttle, pad?.throttle ?? 0),
