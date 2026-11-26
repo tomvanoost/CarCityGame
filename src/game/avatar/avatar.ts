@@ -102,12 +102,51 @@ export class Avatar {
     this.root.traverse((o) => { if (o.userData.tallGear) o.visible = visible; });
   }
 
+  private held: THREE.Mesh | null = null;
+
+  /**
+   * Holds something in the right hand (e.g. an ice cream cone), or nothing (null). The geometry is
+   * built standing up and stays upright; every frame it moves along with the right fist.
+   */
+  holdItem(geo: THREE.BufferGeometry | null) {
+    if (this.held) {
+      this.held.geometry.dispose();
+      (this.held.material as THREE.Material).dispose();
+      this.held.removeFromParent();
+      this.held = null;
+    }
+    // (three.js drops the dot from bone names when loading: "Fist.R" becomes "FistR".)
+    this.fist = this.root.getObjectByName('FistR') ?? this.root.getObjectByName('Fist.R') ?? null;
+    if (!geo || !this.fist) { geo?.dispose(); return; }
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0 }));
+    mesh.castShadow = true;
+    mesh.frustumCulled = false;
+    mesh.userData.ownGeometry = true;
+    mesh.userData.ownMaterial = true;
+    // A child of the avatar (upright, real size); update() keeps it at the hand.
+    this.root.add(mesh);
+    this.held = mesh;
+    this.placeHeld();
+  }
+  private fist: THREE.Object3D | null = null;
+  private tmpV = new THREE.Vector3();
+
+  /** Moves the held item to the right fist (in avatar space), held a little up and forward. */
+  private placeHeld() {
+    if (!this.held || !this.fist) return;
+    this.root.updateMatrixWorld(true);
+    this.fist.getWorldPosition(this.tmpV);
+    this.root.worldToLocal(this.tmpV);
+    this.held.position.set(this.tmpV.x, this.tmpV.y - 0.02, this.tmpV.z + 0.05);
+  }
+
   get currentName(): string | undefined {
     return this.current?.getClip().name;
   }
 
   update(dt: number) {
     this.mixer.update(dt);
+    this.placeHeld();
   }
 
   dispose() {

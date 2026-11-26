@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Ice cream shop**: an ice cream stand in the park (marker on the map); walk up, pick one of 4
-  flavors with big buttons (€5); your avatar holds the ice cream for a while; a sticker for the first one.
 - [ ] **Pet shop**: buy a dog or a cat (a few colors); the pet follows you when you walk and sits in the
   car with you; pick / swap pets at home.
 - [ ] **Car paint & wheels shop**: a garage where you repaint your own cars (any color you own) and pick

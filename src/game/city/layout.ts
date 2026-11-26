@@ -67,7 +67,6 @@ export interface CityLayout {
   colliders: Collider[];
   park: { rect: Rect; pond: { x: number; z: number; r: number }; fountain: { x: number; z: number } };
   gas: { rect: Rect; canopy: Rect; pumps: { x: number; z: number }[]; shop: Placement; /** Drive-through car wash (inside, along X). */ wash: Rect };
-  /** Important places for gameplay. */
   /** Desert decorations (cacti and rocks), outside the city. */
   desert: { cacti: { x: number; z: number; s: number; rot: number }[]; rocks: { x: number; z: number; s: number; rot: number }[] };
   pois: {
@@ -75,6 +74,8 @@ export interface CityLayout {
     gasStation: { x: number; z: number };
     home: { x: number; z: number; door: { x: number; z: number } };
     apartment: { x: number; z: number; door: { x: number; z: number } };
+    /** Ice cream stand in the park: where it stands, and the spot in front of its counter (+Z side). */
+    iceCream: { x: number; z: number; front: { x: number; z: number } };
   };
   /** Paths inside the park (thin paved rectangles). */
   paths: Rect[];
@@ -401,6 +402,14 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   L.colliders.push({ x0: STREAM.x0, z0: STREAM.z0, x1: STREAM.x1, z1: FOOTBRIDGE.z - gapHalf, water: true });
   L.colliders.push({ x0: STREAM.x0, z0: FOOTBRIDGE.z + gapHalf, x1: STREAM.x1, z1: STREAM.z1, water: true });
 
+  // ---------- ice cream stand in the park, next to the fountain (on the grass, beside the paths) ----------
+  const ic = { x: L.park.fountain.x + 10, z: L.park.fountain.z - 9 };
+  // No trees or bushes inside or right next to the stand.
+  const clear = (x: number, z: number) => Math.abs(x - ic.x) < 4.5 && Math.abs(z - ic.z) < 4.5;
+  L.nature = L.nature.filter((n) => !clear(n.x, n.z));
+  L.colliders = L.colliders.filter((c) => !(c.knock && clear((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2)));
+  L.colliders.push({ x0: ic.x - 1.5, z0: ic.z - 1.1, x1: ic.x + 1.5, z1: ic.z + 1.1 });
+
   // ---------- points of interest ----------
   const gasC = { x: (L.gas.canopy.x0 + L.gas.canopy.x1) / 2, z: (L.gas.canopy.z0 + L.gas.canopy.z1) / 2 };
   L.pois = {
@@ -409,6 +418,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     gasStation: gasC,
     home: homeLot!,
     apartment: apartment!,
+    iceCream: { x: ic.x, z: ic.z, front: { x: ic.x, z: ic.z + 2.4 } },
   };
   return L;
 }

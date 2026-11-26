@@ -1,3 +1,4 @@
+import { FLAVORS, ICE_CREAM_PRICE } from '../game/play/iceCream';
 import { isTouch } from '../engine/renderer';
 import { getClothes } from '../game/avatar/clothes';
 import { Game, type GameState } from '../game/play/game';
@@ -192,6 +193,7 @@ export const gameScreen: Screen = (root, nav) => {
       ctxBtn.textContent = c.kind === 'refuel' ? (state.refueling ? `⛽ ${t('refueling')}` : `⛽ ${t('refuel')}`)
         : c.kind === 'wash' ? (state.washing ? `🫧 ${t('washing')}` : `🫧 ${t('wash')} ${euro(c.price)}`)
         : c.kind === 'takeCar' ? `🔑 ${t('takeCar')}: ${vehicleName(getVehicle(c.id))}`
+        : c.kind === 'iceCream' ? `🍦 ${t('buyIceCream')} ${euro(c.price)}`
         : c.kind === 'buyApartment' ? `🏢 ${t('buyApartment')} ${euro(c.price)}` : `🏠 ${t('goInside')}`;
       ctxBtn.classList.toggle('busy', state.refueling || state.washing);
     }
@@ -244,9 +246,9 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : t('pickedPassenger')),
-    onPlace: (place) => openPanel(place),
+    onPlace: (place) => (place === 'iceCream' ? openIceCream() : openPanel(place)),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
     onPlayer: (kind, name) => toast(t(kind === 'joined' ? 'mpJoined' : kind === 'left' ? 'mpLeft' : 'mpFound').replace('{name}', name)),
   });
@@ -337,7 +339,7 @@ export const gameScreen: Screen = (root, nav) => {
     if (!minimap && game.roads && game.city) {
       const L = game.city.layout;
       const base = renderBaseMap(L, game.roads);
-      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation };
+      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front };
       minimap = new Minimap(base, places, openMap, (id) => {
         const name = game.navigateToPlayer(id);
         if (name) toast(t('mpNavTo').replace('{name}', name));
@@ -358,6 +360,29 @@ export const gameScreen: Screen = (root, nav) => {
   let room: ApartmentRoom | null = null;
   let roomCanvas: HTMLCanvasElement | null = null;
   const closeRoom = () => { room?.dispose(); room = null; roomCanvas = null; };
+  /** The ice cream stand: four flavors as big buttons. */
+  function openIceCream() {
+    touch.reset();
+    const close = () => { panel.hidden = true; game.resume(); render(); };
+    panel.replaceChildren(h('div', { class: 'card place-card' },
+      h('div', { class: 'place-head' },
+        h('h2', {}, `🍦 ${t('iceCreamShop')}`),
+        h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
+      ),
+      h('h3', {}, `${t('pickFlavor')} (${euro(ICE_CREAM_PRICE)})`),
+      h('div', { class: 'tiles' }, ...FLAVORS.map((f) => {
+        const b = h('button', { class: 'tile flavor-tile' },
+          h('span', { class: 'tile-emoji flavor-scoop', style: `background:${f.color}` }, f.emoji),
+          h('span', {}, t(`fl_${f.id}`)));
+        b.addEventListener('click', () => { if (game.buyIceCream(f.id)) { close(); toast(t('yum')); } });
+        return b;
+      })),
+      h('button', { class: 'btn btn-primary btn-big', onclick: close }, t('continuePlaying')),
+    ));
+    panel.hidden = false;
+    render();
+  }
+
   function openPanel(place: 'home' | 'apartment') {
     const p = getProfile()!;
     touch.reset();

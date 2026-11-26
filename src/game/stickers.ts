@@ -12,7 +12,7 @@ export interface Sticker {
 }
 
 export type StickerId = 'firstDrive' | 'honk' | 'firstDelivery' | 'firstTaxi' | 'jobs10' | 'km10' | 'km50'
-  | 'newCar' | 'newClothes' | 'apartment' | 'saver' | 'carWash';
+  | 'newCar' | 'newClothes' | 'apartment' | 'saver' | 'carWash' | 'iceCream';
 
 const jobs = (p: PlayerProfile) => p.deliveries + p.taxiRides;
 
@@ -29,6 +29,7 @@ export const STICKERS: Sticker[] = [
   { id: 'apartment', emoji: '🏢', check: (p) => p.ownsApartment },
   { id: 'saver', emoji: '💰', check: (p) => p.money >= 10000 },
   { id: 'carWash', emoji: '🫧' },
+  { id: 'iceCream', emoji: '🍦' },
 ];
 
 export const getSticker = (id: string) => STICKERS.find((s) => s.id === id);
