@@ -19,6 +19,7 @@ import { Pedestrians } from './pedestrians';
 import { Wildlife } from './wildlife';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Pet, PetShopBuilding, getPet } from './pets';
+import { FURNITURE } from '../furniture';
 import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
 import { applyRims, applyStripe } from '../vehicles/carStyle';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
@@ -111,7 +112,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture'): void;
   onJobStart(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop'): void;
@@ -546,6 +547,20 @@ export class Game {
     if (!v) return null;
     const id = v.spec.id;
     return { color: p.vehicleColors[id] ?? v.spec.color, stripe: p.vehicleStripes[id] ?? '', rims: p.vehicleRims[id] ?? '', paintable: SKETCHFAB_VEHICLES[id]?.paintable ?? true, bike: v.isBike };
+  }
+
+  /** Buy a piece of furniture for the apartment. False if there isn't enough money. */
+  buyFurniture(id: string): boolean {
+    const item = FURNITURE.find((f) => f.id === id), p = this.profile;
+    if (!item || p.furniture.includes(id)) return false;
+    if (p.money < item.price) { this.events.onMessage('needMoney', item.price - p.money); return false; }
+    const furniture = [...p.furniture, id];
+    setProfile({ ...p, money: p.money - item.price, furniture });
+    void updateProfile({ money: p.money - item.price, furniture });
+    this.events.onMoney(-item.price, 'furniture');
+    sounds.coin();
+    awardSticker('furniture');
+    return true;
   }
 
   /** Buy a pet in the pet shop (it comes along right away). False if there isn't enough money. */

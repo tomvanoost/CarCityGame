@@ -37,6 +37,8 @@ export interface PlayerProfile {
   /** Pets you bought (ids from game/play/pets.ts) and the one that comes along ('' = none). */
   pets: string[];
   activePet: string;
+  /** Furniture in your apartment (ids from game/furniture.ts). */
+  furniture: string[];
 }
 
 /** Error codes the UI turns into friendly translated messages. */

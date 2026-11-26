@@ -1,6 +1,7 @@
 import { DEFAULT_VEHICLE, START_MONEY } from '../config';
 import { DEFAULT_OUTFIT } from '../game/avatar/clothes';
 import type { Gender, PlayerProfile } from './types';
+import { CLASSIC_FURNITURE, STARTER_FURNITURE } from '../game/furniture';
 
 export function newProfile(username: string, gender: Gender): PlayerProfile {
   return {
@@ -26,6 +27,7 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     taxiRides: 0,
     pets: [],
     activePet: '',
+    furniture: [...STARTER_FURNITURE],
   };
 }
 
@@ -53,6 +55,8 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   p.taxiRides = typeof p.taxiRides === 'number' ? p.taxiRides : 0;
   p.pets = toArray(raw.pets, []);
   p.activePet = typeof p.activePet === 'string' && p.pets.includes(p.activePet) ? p.activePet : '';
+  // Before the furniture shop every apartment came fully furnished: keep that for existing players.
+  p.furniture = raw.furniture === undefined && raw.ownsApartment ? [...CLASSIC_FURNITURE] : toArray(raw.furniture, STARTER_FURNITURE);
   return p;
 }
 

@@ -1,6 +1,7 @@
 import { FLAVORS, ICE_CREAM_PRICE } from '../game/play/iceCream';
 import { SNACKS } from '../game/play/supermarket';
 import { PETS, getPet } from '../game/play/pets';
+import { FURNITURE } from '../game/furniture';
 import { EXTRA_PRICE, PAINT_PRICE } from '../game/play/paintShop';
 import { PAINT_COLORS } from '../game/vehicles/catalog';
 import { EXTRA_PAINT, RIM_COLORS, STRIPE_COLORS } from '../game/vehicles/carStyle';
@@ -254,7 +255,7 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : t('pickedPassenger')),
     onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : place === 'paintShop' ? openPaintShop() : openPanel(place)),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
@@ -484,7 +485,7 @@ export const gameScreen: Screen = (root, nav) => {
     const close = () => { panel.hidden = true; closeRoom(); game.resume(); render(); };
     if (place === 'apartment' && !room) {
       roomCanvas = h('canvas', { class: 'room-canvas', title: '🙂' }) as HTMLCanvasElement;
-      room = new ApartmentRoom(roomCanvas);
+      room = new ApartmentRoom(roomCanvas, p.furniture);
     }
     if (place === 'apartment') void room!.show(p.gender, p.equipped.outfit);
     const tiles = (items: { id: string; label: string; emoji: string; active: boolean; onPick: () => void }[]) =>
@@ -500,6 +501,14 @@ export const gameScreen: Screen = (root, nav) => {
         h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
       ),
       place === 'apartment' ? roomCanvas : null,
+      place === 'apartment' ? h('h3', {}, `🛋️ ${t('furnitureShop')}`) : null,
+      place === 'apartment' ? h('div', { class: 'tiles' }, ...FURNITURE.filter((f) => f.price > 0 || p.furniture.includes(f.id)).map((f) => {
+        const owned = p.furniture.includes(f.id);
+        const b = h('button', { class: `tile furniture-tile ${owned ? 'active' : ''}` },
+          h('span', { class: 'tile-emoji' }, f.emoji), h('b', {}, t(`fu_${f.id}` as TKey)), h('small', {}, owned ? `✓ ${t('inYourRoom')}` : euro(f.price)));
+        if (!owned) b.addEventListener('click', () => { if (game.buyFurniture(f.id)) { room?.setFurniture(getProfile()!.furniture); openPanel(place); } });
+        return b;
+      })) : null,
       h('h3', {}, t('myVehicles')),
       tiles(p.ownedVehicles.map((id) => ({
         id, emoji: getVehicle(id).kind === 'motor' ? '🏍️' : '🚗', label: vehicleName(getVehicle(id)), active: id === p.selectedVehicle,
