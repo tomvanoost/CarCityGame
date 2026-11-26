@@ -1,0 +1,19 @@
+# Deploys the game to fly.io every time the deploy branch gets new commits.
+# Needs the repository secret FLY_API_TOKEN (create it with: fly tokens create deploy -a carcitygame).
+name: Deploy to fly.io
+on:
+  push:
+    branches: [claude/stoic-shannon-4k32uu]
+  workflow_dispatch:
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

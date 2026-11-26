@@ -25,6 +25,8 @@ What is finished, the current state and known problems. The newest finished step
   (`sketchfab-prod-media.s3.amazonaws.com`) and the API work. Judge models by rendering them (`/?sflab=…`).
 - `carcitygame.fly.dev` cannot be reached from the cloud environment (connection fails): the live site
   can't be checked from here.
+- The Fly MCP cannot build or deploy images (only manage machines/secrets); deploys run through the GitHub
+  Action `.github/workflows/fly-deploy.yml`, which needs the repo secret `FLY_API_TOKEN`.
 - No Docker daemon in the cloud environment (nginx config was checked with a locally installed nginx).
 - Raw Sketchfab downloads (`assets-src/`) are not in the repo; processed models are fixed in place with
   `scripts/flip-vehicles.mjs` and `scripts/vehicle-wheels.mjs`.

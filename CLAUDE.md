@@ -56,6 +56,9 @@ npm run smoke               # browser smoke test (register, shops, city, drive, 
    `git push origin claude/hourly-upgrades:claude/stoic-shannon-4k32uu`. If that is rejected because the deploy
    branch has new commits: fetch, merge them, verify again, push both. Never force-push, never push other
    branches, never open or merge pull requests.
+   **Deploy:** the push to the deploy branch starts `.github/workflows/fly-deploy.yml` (flyctl deploy to fly.io).
+   After ~5 minutes check with the Fly MCP (`list_machines` / `list_machine_versions`, app `carcitygame`) that the
+   machine runs a new image version; mention the result (or a failed deploy) in the report.
 7. **Can't finish?** Don't push broken code: revert, add a short note under the step in `docs/ROADMAP.md`
    (what blocked it), commit and push that note as in step 6. If the roadmap has no unchecked step, do nothing.
 8. **Report:** send a short push notification (in English): the step you did, test results (build, smoke),
