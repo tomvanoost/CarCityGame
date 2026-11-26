@@ -31,6 +31,9 @@ export interface PlayerProfile {
   /** Finished jobs (for stickers). */
   deliveries: number;
   taxiRides: number;
+  /** Pets you bought (ids from game/play/pets.ts) and the one that comes along ('' = none). */
+  pets: string[];
+  activePet: string;
 }
 
 /** Error codes the UI turns into friendly translated messages. */

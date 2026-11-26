@@ -81,6 +81,8 @@ export interface CityLayout {
     iceCream: { x: number; z: number; front: { x: number; z: number } };
     /** Supermarket on a shops block near home: building middle, its entrance (+Z side), the parking lot. */
     supermarket: { x: number; z: number; w: number; d: number; front: { x: number; z: number }; parking: Rect };
+    /** Pet shop next to the supermarket (front = +Z). */
+    petShop: { x: number; z: number; front: { x: number; z: number } };
   };
   /** Paths inside the park (thin paved rectangles). */
   paths: Rect[];
@@ -439,6 +441,10 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   L.colliders = L.colliders.filter((c) => !inLot((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2));
   const smW = 34, smD = 24, smX = (lot.x0 + lot.x1) / 2, smZ = lot.z0 + 6 + smD / 2;
   L.colliders.push({ x0: smX - smW / 2, z0: smZ - smD / 2, x1: smX + smW / 2, z1: smZ + smD / 2 });
+  // Pet shop in the free corner left of the supermarket.
+  const psX = lot.x0 + 10, psZ = smZ + smD / 2 - 6;
+  L.colliders.push({ x0: psX - 6, z0: psZ - 5, x1: psX + 6, z1: psZ + 5 });
+  const petShop = { x: psX, z: psZ, front: { x: psX, z: psZ + 7 } };
   const supermarket = { x: smX, z: smZ, w: smW, d: smD, front: { x: smX, z: smZ + smD / 2 + 2 }, parking: { x0: lot.x0 + 4, z0: smZ + smD / 2 + 4, x1: lot.x1 - 4, z1: lot.z1 - 2 } };
 
   // ---------- points of interest ----------
@@ -451,6 +457,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     apartment: apartment!,
     iceCream: { x: ic.x, z: ic.z, front: { x: ic.x, z: ic.z + 2.4 } },
     supermarket,
+    petShop,
   };
   return L;
 }

@@ -1,5 +1,6 @@
 import { FLAVORS, ICE_CREAM_PRICE } from '../game/play/iceCream';
 import { SNACKS } from '../game/play/supermarket';
+import { PETS, getPet } from '../game/play/pets';
 import { isTouch } from '../engine/renderer';
 import { getClothes } from '../game/avatar/clothes';
 import { Game, type GameState } from '../game/play/game';
@@ -196,6 +197,7 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'takeCar' ? `🔑 ${t('takeCar')}: ${vehicleName(getVehicle(c.id))}`
         : c.kind === 'iceCream' ? `🍦 ${t('buyIceCream')} ${euro(c.price)}`
         : c.kind === 'supermarket' ? `🛒 ${t('goShopping')}`
+        : c.kind === 'petShop' ? `🐾 ${t('visitPetShop')}`
         : c.kind === 'buyApartment' ? `🏢 ${t('buyApartment')} ${euro(c.price)}` : `🏠 ${t('goInside')}`;
       ctxBtn.classList.toggle('busy', state.refueling || state.washing);
     }
@@ -248,9 +250,9 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : t('pickedPassenger')),
-    onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : openPanel(place)),
+    onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : openPanel(place)),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
     onPlayer: (kind, name) => toast(t(kind === 'joined' ? 'mpJoined' : kind === 'left' ? 'mpLeft' : 'mpFound').replace('{name}', name)),
   });
@@ -341,7 +343,7 @@ export const gameScreen: Screen = (root, nav) => {
     if (!minimap && game.roads && game.city) {
       const L = game.city.layout;
       const base = renderBaseMap(L, game.roads);
-      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front };
+      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front };
       minimap = new Minimap(base, places, openMap, (id) => {
         const name = game.navigateToPlayer(id);
         if (name) toast(t('mpNavTo').replace('{name}', name));
@@ -409,6 +411,40 @@ export const gameScreen: Screen = (root, nav) => {
     render();
   }
 
+  type TKey = Parameters<typeof t>[0];
+  /** A pet tile: the animal emoji on its own color, the name, and the price or "with you". */
+  const petTile = (id: string, extra: string, active: boolean, onPick: () => void) => {
+    const spec = getPet(id)!;
+    const b = h('button', { class: `tile pet-tile ${active ? 'active' : ''}` },
+      h('span', { class: 'tile-emoji pet-dot', style: `background:${spec.color}` }, spec.kind === 'dog' ? '🐶' : '🐱'),
+      h('b', {}, t(`pet_${id}` as TKey)), h('small', {}, extra));
+    b.addEventListener('click', onPick);
+    return b;
+  };
+
+  /** The pet shop: every dog and cat; owned ones can be chosen, others bought. */
+  function openPetShop() {
+    touch.reset();
+    const close = () => { panel.hidden = true; game.resume(); render(); };
+    const p = getProfile()!;
+    panel.replaceChildren(h('div', { class: 'card place-card' },
+      h('div', { class: 'place-head' },
+        h('h2', {}, `🐾 ${t('petShop')}`),
+        h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
+      ),
+      h('h3', {}, t('pickPet')),
+      h('div', { class: 'tiles' }, ...PETS.map((pt) => {
+        const owned = p.pets.includes(pt.id), active = p.activePet === pt.id;
+        return petTile(pt.id, active ? t('petWithYou') : owned ? t('petOwned') : euro(pt.price), active, () => {
+          if (game.buyPet(pt.id)) { close(); toast(t('petComes').replace('{name}', t(`pet_${pt.id}` as TKey))); }
+        });
+      })),
+      h('button', { class: 'btn btn-primary btn-big', onclick: close }, t('continuePlaying')),
+    ));
+    panel.hidden = false;
+    render();
+  }
+
   function openPanel(place: 'home' | 'apartment') {
     const p = getProfile()!;
     touch.reset();
@@ -436,6 +472,11 @@ export const gameScreen: Screen = (root, nav) => {
         id, emoji: getVehicle(id).kind === 'motor' ? '🏍️' : '🚗', label: vehicleName(getVehicle(id)), active: id === p.selectedVehicle,
         onPick: () => game.swapVehicle(id, place),
       }))),
+      p.pets.length ? h('h3', {}, `🐾 ${t('myPets')}`) : null,
+      p.pets.length ? h('div', { class: 'tiles' },
+        ...p.pets.map((id) => petTile(id, p.activePet === id ? t('petWithYou') : '', p.activePet === id, () => { game.choosePet(id); openPanel(place); })),
+        (() => { const b = h('button', { class: `tile ${p.activePet ? '' : 'active'}` }, h('span', { class: 'tile-emoji' }, '🚫'), h('span', {}, t('noPet'))); b.addEventListener('click', () => { game.choosePet(''); openPanel(place); }); return b; })(),
+      ) : null,
       h('h3', {}, t('myClothes')),
       tiles(p.ownedClothes.map((id) => ({
         id, emoji: '👕', label: getClothes(id).name[lang], active: id === p.equipped.outfit,

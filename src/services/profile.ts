@@ -22,6 +22,8 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     stickers: [],
     deliveries: 0,
     taxiRides: 0,
+    pets: [],
+    activePet: '',
   };
 }
 
@@ -45,6 +47,8 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   p.stickers = toArray(raw.stickers, []);
   p.deliveries = typeof p.deliveries === 'number' ? p.deliveries : 0;
   p.taxiRides = typeof p.taxiRides === 'number' ? p.taxiRides : 0;
+  p.pets = toArray(raw.pets, []);
+  p.activePet = typeof p.activePet === 'string' && p.pets.includes(p.activePet) ? p.activePet : '';
   return p;
 }
 

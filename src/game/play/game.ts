@@ -18,6 +18,7 @@ import { Navigator } from './navigation';
 import { Pedestrians } from './pedestrians';
 import { Wildlife } from './wildlife';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
+import { Pet, PetShopBuilding, getPet } from './pets';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
 import { FLAVORS, ICE_CREAM_PRICE, ICE_CREAM_TIME, IceCreamStand, coneGeometry, type Flavor } from './iceCream';
 import { Garage, type GarageSpot } from './garage';
@@ -38,7 +39,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
+export type ContextAction = { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -108,10 +109,10 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop'): void;
   onJobStart(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
-  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket'): void;
+  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop'): void;
   /** Short message (i18n key + optional number). */
   onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
@@ -144,6 +145,9 @@ export class Game {
   carWash?: CarWash;
   private iceStand?: IceCreamStand;
   private supermarket?: SupermarketBuilding;
+  private petShop?: PetShopBuilding;
+  /** Your pet that comes along (follows you on foot, sits next to you in the car). */
+  private pet?: Pet;
   /** Seconds left holding an ice cream (0 = none). */
   private iceCreamTimer = 0;
   garage?: Garage;
@@ -291,6 +295,9 @@ export class Game {
     this.scene.add(this.iceStand.group);
     this.supermarket = new SupermarketBuilding(city.layout);
     this.scene.add(this.supermarket.group);
+    this.petShop = new PetShopBuilding(city.layout);
+    this.scene.add(this.petShop.group);
+    this.setPet(this.profile.activePet);
     this.lamps = new StreetLamps(city.layout);
     this.scene.add(this.lamps.group);
     if (this.evening) this.applyLight();
@@ -496,6 +503,66 @@ export class Game {
     sounds.coin();
     awardSticker('supermarket');
     return true;
+  }
+
+  /** Buy a pet in the pet shop (it comes along right away). False if there isn't enough money. */
+  buyPet(id: string): boolean {
+    const spec = getPet(id), p = this.profile;
+    if (!spec) return false;
+    if (p.pets.includes(id)) { this.choosePet(id); return true; }
+    if (p.money < spec.price) { this.events.onMessage('needMoney', spec.price - p.money); return false; }
+    const pets = [...p.pets, id];
+    setProfile({ ...p, money: p.money - spec.price, pets, activePet: id });
+    void updateProfile({ money: p.money - spec.price, pets, activePet: id });
+    this.events.onMoney(-spec.price, 'petShop');
+    this.setPet(id);
+    sounds.coin();
+    return true;
+  }
+
+  /** Pick which of your pets comes along ('' = none). */
+  choosePet(id: string) {
+    const p = this.profile;
+    if (id && !p.pets.includes(id)) return;
+    setProfile({ ...p, activePet: id });
+    void updateProfile({ activePet: id });
+    this.setPet(id);
+  }
+
+  private setPet(id: string) {
+    if (this.pet?.spec.id === id) return;
+    this.pet?.dispose();
+    this.pet = undefined;
+    const spec = getPet(id);
+    if (!spec || !this.player) return;
+    this.pet = new Pet(spec);
+    const pl = this.player;
+    this.pet.place(pl.x - Math.sin(pl.heading) * 1.5, pl.z - Math.cos(pl.heading) * 1.5, pl.heading);
+    this.scene.add(this.pet.root);
+  }
+
+  /** On foot: the pet trots after you (a bit behind, to the side). In the car: on the passenger seat. */
+  private updatePet(dt: number) {
+    const pet = this.pet, v = this.vehicle, pl = this.player;
+    if (!pet || !v || !pl) return;
+    if (this.mode === 'driving') {
+      if (pet.root.parent !== v.car.root) {
+        v.car.root.add(pet.root);
+        const s = v.car.seat;
+        pet.root.position.set(-s.x, s.y - 0.32, s.z);
+        pet.root.rotation.set(0, 0, 0);
+        pet.root.scale.setScalar(0.85);
+      }
+      pet.animate(dt);
+      return;
+    }
+    if (pet.root.parent !== this.scene) {
+      this.scene.add(pet.root);
+      pet.root.scale.setScalar(1);
+      pet.place(pl.x - Math.sin(pl.heading) * 1.2 + Math.cos(pl.heading) * 0.8, pl.z - Math.cos(pl.heading) * 1.2 - Math.sin(pl.heading) * 0.8, pl.heading);
+    }
+    const back = 1.3, side = 0.6;
+    pet.follow(dt, { x: pl.x - Math.sin(pl.heading) * back + Math.cos(pl.heading) * side, z: pl.z - Math.cos(pl.heading) * back - Math.sin(pl.heading) * side }, pl.speed);
   }
 
   /** Save right now (before the page reloads for an update). */
@@ -715,6 +782,7 @@ export class Game {
     if (near(L.pois.home.door)) return { kind: 'home' };
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
     if (Math.hypot(p.x - L.pois.supermarket.front.x, p.z - L.pois.supermarket.front.z) < 4) return { kind: 'supermarket' };
+    if (near(L.pois.petShop.front)) return { kind: 'petShop' };
     const parked = this.garage?.near(p.x, p.z);
     if (parked) return { kind: 'takeCar', id: parked.id };
     if (near(L.pois.apartment.door)) return this.profile.ownsApartment ? { kind: 'apartment' } : { kind: 'buyApartment', price: APARTMENT_PRICE };
@@ -745,6 +813,7 @@ export class Game {
       case 'apartment':
       case 'iceCream':
       case 'supermarket':
+      case 'petShop':
         this.paused = true;
         this.events.onPlace(c.kind);
         break;
@@ -1048,6 +1117,7 @@ export class Game {
     // In the dashboard view your own driver is hidden, so you look over the real dashboard.
     this.avatar.root.visible = !(this.cockpit && this.mode === 'driving');
     this.avatar.update(dt);
+    this.updatePet(dt);
     this.sun.follow(this.focus);
     this.shareState();
     this.remote?.update(dt);
@@ -1161,6 +1231,8 @@ export class Game {
     this.carWash?.dispose();
     this.iceStand?.dispose();
     this.supermarket?.dispose();
+    this.petShop?.dispose();
+    this.pet?.dispose();
     this.garage?.dispose();
     this.lamps?.dispose();
     // The sky colors are shared (also used by the menu backdrop): put the day colors back.
