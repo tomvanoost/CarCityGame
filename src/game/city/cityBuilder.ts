@@ -5,6 +5,7 @@ import { createBatchMaterial, createRoadMaterial, createTerrainMaterial, createT
 import { ALL_CITY_MODELS, isSketchfabCity, loadCityModels, type CityModel } from './models';
 import { SKETCHFAB_CITY } from './sketchfabCity';
 import { SfInstances } from './sfInstances';
+import { buildOutskirts } from './outskirtsBuilder';
 import { Knockables, type KnockTarget } from './knockables';
 
 export interface CityQuality {
@@ -32,7 +33,6 @@ const LOT_COLORS: Record<District, string> = {
   apartments: '#82b55e', residential: '#7db35a', park: '#79b458', gas: '#7fb25b',
 };
 const SIDEWALK_COLOR = '#b9b5ad';
-const GRASS = '#74ad52';
 
 // ---------- small geometry helpers (vertex-colored) ----------
 class GeoBuilder {
@@ -160,12 +160,6 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
 
   // ---------- ground, roads, block slabs ----------
   const terrainMat = track(createTerrainMaterial());
-  const groundGeo = new GeoBuilder();
-  // Slightly below the roads (y = 0.02) so the two never z-fight, even on
-  // devices with a low-precision depth buffer.
-  groundGeo.quad(-1600, -1600, 1600, 1600, -0.05, GRASS);
-  const ground = new THREE.Mesh(track(groundGeo.build()), terrainMat);
-  ground.receiveShadow = true;
 
   const roadSize = (HALF_CITY + ROAD_WIDTH / 2) * 2;
   const road = new THREE.Mesh(track(new THREE.PlaneGeometry(roadSize, roadSize).rotateX(-Math.PI / 2)), track(createRoadMaterial()));
@@ -190,7 +184,7 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   slabs.quad(g.rect.x0, g.rect.z0, g.rect.x1, g.rect.z1, top + 0.01, '#55595e');
   const slabMesh = new THREE.Mesh(track(slabs.build()), terrainMat);
   slabMesh.receiveShadow = true;
-  group.add(ground, road, slabMesh);
+  group.add(road, slabMesh);
 
   // ---------- batched buildings, trees and props ----------
   const batchMat = track(createBatchMaterial());
@@ -305,6 +299,9 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   const fountainWater = new THREE.Mesh(track(new THREE.CircleGeometry(3.4, 32).rotateX(-Math.PI / 2)), water.mat);
   fountainWater.position.set(fx, top + 0.55, fz);
   group.add(pond, fountainWater);
+  // Everything outside the city: ground (grass, desert dunes), roads out, the lake with its bridges.
+  // (The ground sits slightly below the roads at y = 0.02, so the two never z-fight.)
+  group.add(buildOutskirts(layout, terrainMat, water.mat, track));
 
   const parts: THREE.BufferGeometry[] = [...roofParts];
   // pond rim stones
@@ -405,7 +402,7 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
 
 /** A ring of soft low-poly hills far outside the city, so the horizon isn't empty. */
 function createHills(track: <T extends { dispose(): void }>(x: T) => T): THREE.Mesh {
-  const seg = 96, rings = 6, r0 = 820, r1 = 1500;
+  const seg = 96, rings = 6, r0 = 1500, r1 = 2300; // beyond the desert and the lake
   const pos: number[] = [], col: number[] = [];
   const h = (a: number, r: number) => {
     const t = (r - r0) / (r1 - r0);

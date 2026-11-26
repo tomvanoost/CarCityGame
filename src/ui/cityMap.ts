@@ -1,9 +1,14 @@
 import type { CityLayout, District } from '../game/city/layout';
 import type { MapState } from '../game/play/game';
 import type { P, RoadGraph } from '../game/play/roads';
+import { BRIDGE, DESERT, FOOTBRIDGE, LAKE, PATH, STREAM } from '../game/city/outskirts';
 
-/** World extent shown on the maps: -E..E meters on both axes. */
-const E = 560;
+/** World extent shown on the maps: -E..E meters on both axes (city, desert, lake, countryside). */
+const E = 1450;
+/** What the big map shows: the city plus the desert (east) and the lake (south). */
+const VIEW = { x0: -560, x1: 1440, z0: -560, z1: 1400 };
+/** Places outside the city, with an icon on both maps. */
+const OUT_PLACES: [P, string, string][] = [[{ x: 1080, z: 0 }, '🌵', '#d9a441'], [{ x: LAKE.x, z: LAKE.z }, '🌉', '#2f8bff']];
 /** Base map resolution: pixels per meter. */
 const K = 1;
 
@@ -18,9 +23,23 @@ export function renderBaseMap(layout: CityLayout, roads: RoadGraph): HTMLCanvasE
   c.width = c.height = E * 2 * K;
   const g = c.getContext('2d')!;
   const X = (x: number) => (x + E) * K;
-  // Forest ring around the city.
-  g.fillStyle = '#7fb865';
+  // Meadows, the forest ring around the city, the city ground.
+  g.fillStyle = '#a6d486';
   g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#7fb865';
+  g.fillRect(X(-760), X(-760), 1520 * K, 1520 * K);
+  // Desert (sand, soft edge).
+  for (let i = 0; i < 6; i++) {
+    const m = 15 * i;
+    g.fillStyle = `rgba(236, 216, 164, ${0.25 + i * 0.15})`;
+    g.fillRect(X(DESERT.x0 + m), X(DESERT.z0 + m), (DESERT.x1 - DESERT.x0 - 2 * m) * K, (DESERT.z1 - DESERT.z0 - 2 * m) * K);
+  }
+  // Lake with a beach, and the stream.
+  g.fillStyle = '#efe2bd';
+  g.beginPath(); g.ellipse(X(LAKE.x), X(LAKE.z), (LAKE.rx + 10) * K, (LAKE.rz + 10) * K, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#6fb6ea';
+  g.beginPath(); g.ellipse(X(LAKE.x), X(LAKE.z), LAKE.rx * K, LAKE.rz * K, 0, 0, Math.PI * 2); g.fill();
+  g.fillRect(X(STREAM.x0), X(STREAM.z0), (STREAM.x1 - STREAM.x0) * K, (STREAM.z1 - STREAM.z0) * K);
   g.fillStyle = '#9fcf7f';
   g.fillRect(X(-520), X(-520), 1040 * K, 1040 * K);
   for (const b of layout.blocks) {
@@ -34,7 +53,7 @@ export function renderBaseMap(layout: CityLayout, roads: RoadGraph): HTMLCanvasE
   g.fillStyle = '#c3b9a8';
   for (const b of layout.colliders) {
     if (b.x1 - b.x0 < 3 && b.z1 - b.z0 < 3) continue;
-    if (Math.max(Math.abs(b.x0), Math.abs(b.z0)) > 520) continue;
+    if (Math.max(Math.abs(b.x0), Math.abs(b.z0)) > 520 || b.water) continue;
     g.fillRect(X(b.x0), X(b.z0), (b.x1 - b.x0) * K, (b.z1 - b.z0) * K);
   }
   const gas = layout.gas.rect;
@@ -46,12 +65,22 @@ export function renderBaseMap(layout: CityLayout, roads: RoadGraph): HTMLCanvasE
     g.strokeStyle = col;
     g.lineWidth = w * K;
     g.beginPath();
-    for (const [a, b] of roads.edges) {
+    for (const [a, b] of roads.navEdges) {
       g.moveTo(X(roads.nodes[a].x), X(roads.nodes[a].z));
       g.lineTo(X(roads.nodes[b].x), X(roads.nodes[b].z));
     }
     g.stroke();
   }
+  // The car bridge (grey edges over the water), the gravel path and the wooden footbridge.
+  g.strokeStyle = '#7d8086'; g.lineWidth = 3 * K;
+  for (const side of [-1, 1]) {
+    g.beginPath(); g.moveTo(X(BRIDGE.x + side * 6.5), X(BRIDGE.z0 + 40)); g.lineTo(X(BRIDGE.x + side * 6.5), X(BRIDGE.z1 - 40)); g.stroke();
+  }
+  g.lineCap = 'butt';
+  g.strokeStyle = '#e2d6bd'; g.lineWidth = 3 * K;
+  g.beginPath(); g.moveTo(X(PATH.x0), X(PATH.z)); g.lineTo(X(PATH.x1), X(PATH.z)); g.stroke();
+  g.strokeStyle = '#9a6a3c'; g.lineWidth = 4 * K;
+  g.beginPath(); g.moveTo(X(FOOTBRIDGE.x0), X(FOOTBRIDGE.z)); g.lineTo(X(FOOTBRIDGE.x1), X(FOOTBRIDGE.z)); g.stroke();
   return c;
 }
 
@@ -167,6 +196,7 @@ export class Minimap {
       badge(g, emoji, R + dx, R + dy, (far ? 7.5 : 10) * dpr, ring);
       g.globalAlpha = 1;
     };
+    for (const [p, emoji, ring] of OUT_PLACES) icon(p, emoji, ring);
     icon(this.places.gas, '⛽', '#e5484d');
     icon(this.places.apartment, '🏢', '#8e5bd9');
     icon(this.places.home, '🏠', '#ff8a2b');
@@ -226,9 +256,11 @@ export class BigMap {
     const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
     if (this.canvas.width !== W || this.canvas.height !== H) { this.canvas.width = W; this.canvas.height = H; }
     const g = this.canvas.getContext('2d')!;
-    // Show the city part (-520..520) as large as possible.
-    const scale = Math.min(W, H) / (1060 * K);
-    this.view = { scale, ox: W / 2 - E * K * scale, oy: H / 2 - E * K * scale };
+    // Show the city, the desert and the lake as large as possible.
+    const vw = VIEW.x1 - VIEW.x0, vh = VIEW.z1 - VIEW.z0;
+    const scale = Math.min(W / (vw * K), H / (vh * K));
+    const cx = (VIEW.x0 + VIEW.x1) / 2, cz = (VIEW.z0 + VIEW.z1) / 2;
+    this.view = { scale, ox: W / 2 - (cx + E) * K * scale, oy: H / 2 - (cz + E) * K * scale };
     g.fillStyle = '#7fb865';
     g.fillRect(0, 0, W, H);
     g.save();
@@ -239,6 +271,7 @@ export class BigMap {
     g.restore();
     const at = (p: P): [number, number] => [this.view.ox + (p.x + E) * K * scale, this.view.oy + (p.z + E) * K * scale];
     const big = 16 * dpr;
+    for (const [p, emoji, ring] of OUT_PLACES) badge(g, emoji, ...at(p), big, ring);
     badge(g, '⛽', ...at(this.places.gas), big, '#e5484d');
     badge(g, '🏢', ...at(this.places.apartment), big, '#8e5bd9');
     badge(g, '🏠', ...at(this.places.home), big, '#ff8a2b');

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BLOCK_SPACING, HALF_CITY, ROAD_WIDTH, isOnRoad, type CityLayout, type District, type Rect } from '../city/layout';
 import { groundHeight } from './collision';
+import { isMeadow } from '../city/outskirts';
 
 /** Lawns of these districts are grass (downtown and midrise lots are paved). */
 const GREEN: Partial<Record<District, true>> = { shops: true, townhouses: true, apartments: true, residential: true, park: true, gas: true };
@@ -159,7 +160,7 @@ export class GrassField {
   /** Is there grass at (x, z)? */
   isGrass(x: number, z: number): boolean {
     const edge = HALF_CITY + ROAD_WIDTH / 2;
-    if (Math.abs(x) > edge || Math.abs(z) > edge) return !this.blocked(x, z) && Math.max(Math.abs(x), Math.abs(z)) < 900; // countryside
+    if (Math.abs(x) > edge || Math.abs(z) > edge) return isMeadow(x, z) && !this.blocked(x, z); // countryside (not desert, water, roads)
     if (isOnRoad(x, z)) return false;
     const L = this.layout;
     const b = this.blocks.get(Math.floor((x + HALF_CITY) / BLOCK_SPACING) * 1000 + Math.floor((z + HALF_CITY) / BLOCK_SPACING));

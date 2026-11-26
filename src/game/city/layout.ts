@@ -1,5 +1,6 @@
 import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
+import { BRIDGE, DESERT, FOOTBRIDGE, LAKE, STREAM, WORLD_EDGE, desertAmount, noTrees, onOutRoad } from './outskirts';
 
 /**
  * The city plan, as plain data. Deterministic: the same seed always gives the
@@ -53,6 +54,8 @@ export interface Collider {
   knock?: 'tree' | 'metal';
   /** Knocked over right now: no collision until it's back up. */
   off?: boolean;
+  /** Lake / stream: blocks cars and people, but not the camera. */
+  water?: boolean;
 }
 
 export interface CityLayout {
@@ -65,6 +68,8 @@ export interface CityLayout {
   park: { rect: Rect; pond: { x: number; z: number; r: number }; fountain: { x: number; z: number } };
   gas: { rect: Rect; canopy: Rect; pumps: { x: number; z: number }[]; shop: Placement; /** Drive-through car wash (inside, along X). */ wash: Rect };
   /** Important places for gameplay. */
+  /** Desert decorations (cacti and rocks), outside the city. */
+  desert: { cacti: { x: number; z: number; s: number; rot: number }[]; rocks: { x: number; z: number; s: number; rot: number }[] };
   pois: {
     spawn: { x: number; z: number; rot: number };
     gasStation: { x: number; z: number };
@@ -91,7 +96,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   const rng = new Rng(seed);
   const L: CityLayout = {
     blocks: [], buildings: [], towers: [], nature: [], props: [], colliders: [], paths: [],
-    park: null!, gas: null!, pois: null!,
+    park: null!, gas: null!, pois: null!, desert: { cacti: [], rocks: [] },
   };
   const inset = ROAD_WIDTH / 2;
 
@@ -331,20 +336,70 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     }
   }
 
-  // ---------- forest ring outside the city ----------
+  // ---------- forest ring outside the city (kept off the roads out, the lake and the desert) ----------
   const inner = HALF_CITY + ROAD_WIDTH / 2 + 18, outer = 760;
+  const tree = (px: number, pz: number, scale: number) => {
+    L.nature.push({ model: rng.chance(0.45) ? rng.pick(PINES) : rng.pick(TREES), x: px, z: pz, rot: rng.range(0, 6.28), scale });
+    L.colliders.push({ x0: px - 0.5, z0: pz - 0.5, x1: px + 0.5, z1: pz + 0.5, knock: 'tree' });
+  };
   for (let x = -outer; x <= outer; x += 20) {
     for (let z = -outer; z <= outer; z += 20) {
       if (Math.max(Math.abs(x), Math.abs(z)) < inner) continue;
       if (!rng.chance(0.55)) continue;
       const px = x + rng.range(-8, 8), pz = z + rng.range(-8, 8);
-      if (rng.chance(0.12)) addSmall(px, pz, rng.chance(0.5) ? rng.pick(BUSHES) : rng.pick(['Rock_Moss_1', 'Rock_Moss_2']), 2);
-      else {
-        L.nature.push({ model: rng.chance(0.45) ? rng.pick(PINES) : rng.pick(TREES), x: px, z: pz, rot: rng.range(0, 6.28), scale: rng.range(1, 1.5) });
-        L.colliders.push({ x0: px - 0.5, z0: pz - 0.5, x1: px + 0.5, z1: pz + 0.5, knock: 'tree' });
-      }
+      const small = rng.chance(0.12);
+      if (noTrees(px, pz)) continue;
+      if (small) addSmall(px, pz, rng.chance(0.5) ? rng.pick(BUSHES) : rng.pick(['Rock_Moss_1', 'Rock_Moss_2']), 2);
+      else tree(px, pz, rng.range(1, 1.5));
     }
   }
+  // Countryside further out: open meadows with a tree here and there.
+  for (let x = -WORLD_EDGE; x <= WORLD_EDGE; x += 30) {
+    for (let z = -WORLD_EDGE; z <= WORLD_EDGE; z += 30) {
+      if (Math.max(Math.abs(x), Math.abs(z)) <= outer + 10) continue;
+      if (!rng.chance(0.22)) continue;
+      const px = x + rng.range(-12, 12), pz = z + rng.range(-12, 12);
+      if (noTrees(px, pz) || Math.max(Math.abs(px), Math.abs(pz)) > WORLD_EDGE - 10) continue;
+      tree(px, pz, rng.range(1, 1.5));
+    }
+  }
+
+  // ---------- desert: cacti and rocks (not on the road) ----------
+  for (let i = 0; i < 260; i++) {
+    const x = rng.range(DESERT.x0 + 60, DESERT.x1 - 20), z = rng.range(DESERT.z0 + 30, DESERT.z1 - 30);
+    if (onOutRoad(x, z, 8) || desertAmount(x, z) < 0.6) continue;
+    if (rng.chance(0.55)) {
+      const s2 = rng.range(0.8, 1.4);
+      L.desert.cacti.push({ x, z, s: s2, rot: rng.range(0, 6.28) });
+      L.colliders.push({ x0: x - 0.45 * s2, z0: z - 0.45 * s2, x1: x + 0.45 * s2, z1: z + 0.45 * s2 });
+    } else {
+      const s2 = rng.range(0.6, 2.6);
+      L.desert.rocks.push({ x, z, s: s2, rot: rng.range(0, 6.28) });
+      if (s2 > 1.1) L.colliders.push({ x0: x - 0.8 * s2, z0: z - 0.8 * s2, x1: x + 0.8 * s2, z1: z + 0.8 * s2 });
+    }
+  }
+
+  // ---------- water: the lake (in bands, with a gap for the bridge) and the stream ----------
+  for (let z = LAKE.z - LAKE.rz; z < LAKE.z + LAKE.rz; z += 6) {
+    // Widest point of this band (the band's edge nearest the middle).
+    const dz = Math.max(0, Math.min(Math.abs(z - LAKE.z), Math.abs(z + 6 - LAKE.z)) - 0.01);
+    const w = LAKE.rx * Math.sqrt(Math.max(0, 1 - (dz / LAKE.rz) ** 2)) - 1.5;
+    if (w <= 0) continue;
+    const gap = BRIDGE.half + 0.5;
+    if (w > gap) {
+      L.colliders.push({ x0: LAKE.x - w, z0: z, x1: LAKE.x - gap, z1: z + 6, water: true });
+      L.colliders.push({ x0: LAKE.x + gap, z0: z, x1: LAKE.x + w, z1: z + 6, water: true });
+    }
+  }
+  // Bridge railings (you can't drive off the bridge).
+  for (const side of [-1, 1]) {
+    const x = BRIDGE.x + side * (BRIDGE.half + 0.2);
+    L.colliders.push({ x0: x - 0.25, z0: BRIDGE.z0 + 12, x1: x + 0.25, z1: BRIDGE.z1 - 12 });
+  }
+  // Stream, with a narrow gap at the footbridge: people fit through, cars don't.
+  const gapHalf = 0.8;
+  L.colliders.push({ x0: STREAM.x0, z0: STREAM.z0, x1: STREAM.x1, z1: FOOTBRIDGE.z - gapHalf, water: true });
+  L.colliders.push({ x0: STREAM.x0, z0: FOOTBRIDGE.z + gapHalf, x1: STREAM.x1, z1: STREAM.z1, water: true });
 
   // ---------- points of interest ----------
   const gasC = { x: (L.gas.canopy.x0 + L.gas.canopy.x1) / 2, z: (L.gas.canopy.z0 + L.gas.canopy.z1) / 2 };

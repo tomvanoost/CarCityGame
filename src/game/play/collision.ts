@@ -1,7 +1,8 @@
 import { CURB_HEIGHT, HALF_CITY, ROAD_WIDTH, isOnRoad, type Collider } from '../city/layout';
+import { WORLD_EDGE, outskirtsHeight } from '../city/outskirts';
 
-/** Edge of the playable world (just inside the forest ring). */
-export const WORLD_LIMIT = HALF_CITY + 45;
+/** Edge of the playable world (the city, the desert, the lake and the countryside around them). */
+export const WORLD_LIMIT = WORLD_EDGE;
 
 /**
  * Spatial hash of axis-aligned boxes. Lets us test a circle against only the few
@@ -32,7 +33,7 @@ export class CollisionWorld {
     if (!list) return false;
     for (const i of list) {
       const b = this.boxes[i];
-      if (b.off) continue;
+      if (b.off || b.water) continue;
       // Ignore thin things (trees, lamps): only buildings block the camera.
       if (b.x1 - b.x0 < 2 && b.z1 - b.z0 < 2) continue;
       if (x > b.x0 - 0.3 && x < b.x1 + 0.3 && z > b.z0 - 0.3 && z < b.z1 + 0.3) return true;
@@ -108,6 +109,6 @@ export class CollisionWorld {
 /** Height of the walkable/drivable surface: roads at 0, block slabs (sidewalks, lots) at the curb height. */
 export function groundHeight(x: number, z: number): number {
   const edge = HALF_CITY + ROAD_WIDTH / 2;
-  if (Math.abs(x) > edge || Math.abs(z) > edge) return 0;
+  if (Math.abs(x) > edge || Math.abs(z) > edge) return outskirtsHeight(x, z);
   return isOnRoad(x, z) ? 0 : CURB_HEIGHT;
 }

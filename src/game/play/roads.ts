@@ -1,4 +1,5 @@
 import { GRID_BLOCKS, LINES, type CityLayout } from '../city/layout';
+import { EAST_ROAD, SOUTH_ROAD } from '../city/outskirts';
 
 export interface P { x: number; z: number }
 
@@ -14,6 +15,12 @@ export class RoadGraph {
   /** Neighbor node ids per node. */
   readonly adj: number[][] = [];
   readonly edges: [number, number][] = [];
+  /**
+   * For navigation and the maps: the city grid plus the roads out of the city (east to the desert,
+   * south over the lake). Traffic only uses the grid (`adj` / `edges`): the roads out are dead ends.
+   */
+  readonly navEdges: [number, number][] = [];
+  readonly navAdj: number[][] = [];
   private valid: boolean[] = [];
 
   constructor(layout: CityLayout) {
@@ -40,12 +47,26 @@ export class RoadGraph {
         if (i + 1 < n) link(i * n + j, (i + 1) * n + j);
         if (j + 1 < n) link(i * n + j, i * n + j + 1);
       }
+    this.navEdges.push(...this.edges);
+    this.adj.forEach((a, i) => { this.navAdj[i] = [...a]; });
+    // Roads out of the city: from the grid crossing on the city edge to the road's end.
+    const nearestNode = (x: number, z: number) => this.nodes.reduce((best, p, i) => (Math.hypot(p.x - x, p.z - z) < Math.hypot(this.nodes[best].x - x, this.nodes[best].z - z) ? i : best), 0);
+    const addOut = (from: { x: number; z: number }, end: { x: number; z: number }) => {
+      const a = nearestNode(from.x, from.z), b = this.nodes.length;
+      this.nodes.push(end);
+      this.adj[b] = [];
+      this.navAdj[b] = [a];
+      this.navAdj[a].push(b);
+      this.navEdges.push([a, b]);
+    };
+    addOut({ x: EAST_ROAD.x0, z: EAST_ROAD.z }, { x: EAST_ROAD.x1, z: EAST_ROAD.z });
+    addOut({ x: SOUTH_ROAD.x, z: SOUTH_ROAD.z0 }, { x: SOUTH_ROAD.x, z: SOUTH_ROAD.z1 });
   }
 
   /** Closest point on any road center line. */
   nearestOnRoad(p: P) {
     let best = { edge: 0, t: 0, d: Infinity, x: 0, z: 0 };
-    this.edges.forEach(([a, b], e) => {
+    this.navEdges.forEach(([a, b], e) => {
       const A = this.nodes[a], B = this.nodes[b];
       const dx = B.x - A.x, dz = B.z - A.z, len2 = dx * dx + dz * dz;
       const t = Math.max(0, Math.min(1, ((p.x - A.x) * dx + (p.z - A.z) * dz) / len2));
@@ -68,7 +89,7 @@ export class RoadGraph {
     if (s.edge === g.edge) return [from, sp, gp, to];
     const N = this.nodes.length;
     const dist = new Array(N).fill(Infinity), prev = new Array<number>(N).fill(-1), done = new Array(N).fill(false);
-    const [sa, sb] = this.edges[s.edge], [ga, gb] = this.edges[g.edge];
+    const [sa, sb] = this.navEdges[s.edge], [ga, gb] = this.navEdges[g.edge];
     const d = (a: P, b: P) => Math.hypot(a.x - b.x, a.z - b.z);
     // Turning around costs extra: prefer to keep driving the way you are facing.
     const turnCost = (node: number) => {
@@ -83,7 +104,7 @@ export class RoadGraph {
       for (let i = 0; i < N; i++) if (!done[i] && dist[i] < Infinity && (u < 0 || dist[i] < dist[u])) u = i;
       if (u < 0) break;
       done[u] = true;
-      for (const v of this.adj[u]) {
+      for (const v of this.navAdj[u]) {
         const nd = dist[u] + d(this.nodes[u], this.nodes[v]);
         if (nd < dist[v]) { dist[v] = nd; prev[v] = u; }
       }
