@@ -179,6 +179,49 @@ class Sounds {
     oscs[0].onended = () => { gain.disconnect(); if (this.hornBus === bus) this.hornBus = null; };
   }
 
+  private siren: { gain: GainNode; osc: OscillatorNode[]; timer: number } | null = null;
+
+  /**
+   * Police siren: the European two-tone "tatu-tata" (two notes taking turns), soft enough for a
+   * kids game. Plays until sirenOff().
+   */
+  sirenOn() {
+    const ctx = this.ready();
+    if (!ctx || this.siren) return;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.gain.setTargetAtTime(0.09, ctx.currentTime, 0.05);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 2400;
+    filter.connect(gain).connect(this.master!);
+    const a = ctx.createOscillator(), b = ctx.createOscillator();
+    a.type = 'square'; b.type = 'triangle';
+    const bGain = ctx.createGain(); bGain.gain.value = 0.6;
+    a.connect(filter); b.connect(bGain).connect(filter);
+    const notes = [466, 622];
+    let i = 0;
+    const step = () => {
+      const t = ctx.currentTime, f = notes[i++ % 2];
+      a.frequency.setTargetAtTime(f, t, 0.01);
+      b.frequency.setTargetAtTime(f * 2, t, 0.01);
+    };
+    step();
+    a.start(); b.start();
+    this.siren = { gain, osc: [a, b], timer: window.setInterval(step, 450) };
+  }
+
+  sirenOff() {
+    const s = this.siren, ctx = this.ctx;
+    if (!s || !ctx) return;
+    clearInterval(s.timer);
+    const t = ctx.currentTime;
+    s.gain.gain.setTargetAtTime(0, t, 0.04);
+    for (const o of s.osc) { try { o.stop(t + 0.25); } catch { /* already stopped */ } }
+    s.osc[0].onended = () => s.gain.disconnect();
+    this.siren = null;
+  }
+
   /** Bright coin "ching". */
   coin() {
     const ctx = this.ready();

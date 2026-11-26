@@ -20,6 +20,10 @@ const CRUISE = 9.5; // m/s (~34 km/h)
 const TURN = 5;
 const DECEL = 7;
 const INSET = 7; // where the turn curve starts/ends, from the intersection center
+/** Police siren: cars this close pull over this far toward their curb (half onto the sidewalk) and crawl. */
+const SIREN_RANGE = 55;
+const PULL_OVER = 2.1; // car edge ~0.6 m over the curb, clear of the trees and lamps 1.3 m from it
+const PULL_SPEED = 2.5;
 
 type Seg =
   | { kind: 'line'; a: P; b: P; len: number }
@@ -43,6 +47,8 @@ interface Car {
   holds: number;
   hasDriver: boolean;
   spin: number;
+  /** 0..1: how far the car has pulled over to the curb for a police siren. */
+  pull: number;
   /** Node after `to`, chosen once when approaching the intersection. */
   nextNode?: number;
 }
@@ -127,7 +133,7 @@ export class Traffic {
       if (this.cars.some((c) => c !== car && Math.hypot(c.x - p.x, c.z - p.z) < 16)) continue;
       if (car.holds >= 0 && this.owners.get(car.holds) === car) this.owners.delete(car.holds);
       // nextNode must be cleared: a turn planned on the car's old road would send it across the blocks.
-      Object.assign(car, { from, to, seg, d, speed: CRUISE * 0.6, x: p.x, z: p.z, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined });
+      Object.assign(car, { from, to, seg, d, speed: CRUISE * 0.6, x: p.x, z: p.z, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined, pull: 0 });
       return true;
     }
     return false;
@@ -135,7 +141,7 @@ export class Traffic {
 
   private async build(focus: P) {
     // Traffic uses the realistic (Sketchfab) cars only, so the street looks consistent.
-    const all = VEHICLES.filter((v) => v.kind === 'car' && v.price < 100000);
+    const all = VEHICLES.filter((v) => v.kind === 'car' && v.price < 100000 && !v.police);
     const real = all.filter((v) => v.id in SKETCHFAB_VEHICLES);
     const cars = real.length >= 4 ? real : all;
     const spec = cars[Math.floor(Math.random() * cars.length)];
@@ -150,7 +156,7 @@ export class Traffic {
     const car: Car = {
       spec, built, root, half: dims.length / 2, radius: dims.width / 2,
       from: 0, to: 0, seg: this.lineSeg(...this.graph.edges[0]), d: 0, speed: 0, x: 0, z: 0, heading: 0,
-      waited: 0, holds: -1, hasDriver: false, spin: 0,
+      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0,
     };
     this.cars.push(car);
     this.group.add(root);
@@ -174,7 +180,8 @@ export class Traffic {
     return out;
   }
 
-  update(dt: number, focus: P, player: Vehicle, walker: P | null, people: Pedestrians | undefined) {
+  /** siren: the player's police car has its siren on; nearby cars pull over to let it pass. */
+  update(dt: number, focus: P, player: Vehicle, walker: P | null, people: Pedestrians | undefined, siren = false) {
     // Build the pool gradually (one car per frame) so loading never stutters.
     if (this.pending > 0 && !this.building) {
       this.pending--;
@@ -230,6 +237,11 @@ export class Traffic {
         }
       }
 
+      // Police siren nearby: pull over to the curb and crawl, so the police car can pass.
+      const wantPull = siren && Math.hypot(car.x - player.x, car.z - player.z) < SIREN_RANGE ? 1 : 0;
+      car.pull += THREE.MathUtils.clamp(wantPull - car.pull, -0.7 * dt, 1.1 * dt);
+      if (car.pull > 0.05) allowed = Math.min(allowed, PULL_SPEED + (1 - car.pull) * CRUISE);
+
       const target = Math.min(allowed, CRUISE);
       car.speed += THREE.MathUtils.clamp(target - car.speed, -12 * dt, 3 * dt);
       car.speed = Math.max(0, Math.min(car.speed, allowed + 0.01));
@@ -251,7 +263,9 @@ export class Traffic {
         }
       }
       const p = this.sample(car.seg, car.d);
-      car.x = p.x; car.z = p.z;
+      // Pulled over: shifted to the right of its lane (toward the curb).
+      const off = car.pull * PULL_OVER;
+      car.x = p.x - p.dir.z * off; car.z = p.z + p.dir.x * off;
       const want = Math.atan2(p.dir.x, p.dir.z);
       car.heading += Math.atan2(Math.sin(want - car.heading), Math.cos(want - car.heading)) * Math.min(1, dt * 12);
 

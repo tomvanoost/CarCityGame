@@ -40,6 +40,7 @@ const TOP_SPEED: Record<string, number> = {
   hurricano: 260, // Lamborghini Huracan Sterrato
   jessko: 480, // Koenigsegg Jesko (estimate)
   chirone: 380, // Bugatti Chiron Profilee
+  politie: 250, // BMW M6 (F13), limited
   vespo: 95, // Vespa Primavera 125
   'hondo-cbr': 230, // Honda CBR650R
   'kawa-z900': 240, // Kawasaki Z1000
@@ -158,6 +159,10 @@ export const VEHICLES: VehicleSpec[] = [
     presets.sports({ length: 4.54, width: 1.93, height: 1.19, nose: 0.55, ws: 0.29, roofFront: 0.42, roofRear: 0.56, rearEnd: 0.86, boxiness: 3.4, headlights: 'bar', grille: 'small', roofColor: 'black' })),
   car('hurricano', 'Lambergini', 'Hurricano', 2024, 190000, '#7ac142', { speed: 10, accel: 10, handling: 9 },
     presets.sports({ length: 4.52, width: 1.93, height: 1.14, belt: 0.78, nose: 0.5, ws: 0.4, roofFront: 0.51, roofRear: 0.59, rearEnd: 0.78, tail: 0.86, boxiness: 7, endRound: 0.12, tumblehome: 0.16, headlights: 'slim', grille: 'wide', spoiler: true })),
+  // --- police: siren + flashing lights (R), traffic pulls over to let you pass ---
+  { ...car('politie', 'Beemer', 'M6 Politie', 2012, 100000, '#111111', { speed: 9, accel: 9, handling: 9 },
+    presets.sports({ length: 4.89, width: 1.9, height: 1.37, nose: 0.7, ws: 0.4, roofFront: 0.48, roofRear: 0.62, rearEnd: 0.88, headlights: 'slim', grille: 'small', roofColor: 'body', boxiness: 3.2, endRound: 0.3, doors: 2 })),
+    police: true },
   car('jessko', 'Koenigsberg', 'Jessko', 2024, 250000, '#e8e8e8', { speed: 10, accel: 10, handling: 10 },
     presets.sports({ length: 4.7, width: 2.03, height: 1.21, nose: 0.56, frontOverhang: 0.95, rearOverhang: 1.15, ws: 0.33, roofFront: 0.45, roofRear: 0.56, rearEnd: 0.9, tail: 0.95, boxiness: 4, headlights: 'slim', grille: 'wide', spoiler: true, roofColor: 'black' })),
   car('chirone', 'Bugatto', 'Chirone', 2024, 300000, '#1f4fa3', { speed: 10, accel: 10, handling: 9 },

@@ -14,6 +14,7 @@
  *   Y / △ (top)         get in / out         paddles          horn
  *   X / □ (left)        horn
  *   B / ○ (right)       run (walking), close a panel   button 4 (△/Y)   close a panel
+ *   RB / R1             siren (police car)             R2 / L2 buttons  siren (police car)
  */
 
 export type PadKind = 'xbox' | 'playstation' | 'nintendo' | 'wheel' | 'other';
@@ -32,6 +33,8 @@ export interface PadState {
   interact: boolean;
   jump: boolean;
   horn: boolean;
+  /** Siren on/off (police car): RB / R1, or wheel button R2/L2 (one-shot). */
+  siren: boolean;
   /** Horn button held down right now (the horn sounds as long as it is held). */
   hornHeld: boolean;
   /** "Back" (B / ○, or wheel button 4): closes an open panel. */
@@ -84,7 +87,7 @@ export class Gamepads {
     let s: PadState | null = null;
     for (const pad of pads) {
       if (!pad || !pad.connected) continue;
-      s ??= { throttle: 0, brake: 0, steer: 0, handbrake: false, moveX: 0, moveY: 0, run: false, lookX: 0, lookY: 0, interact: false, jump: false, horn: false, hornHeld: false, back: false };
+      s ??= { throttle: 0, brake: 0, steer: 0, handbrake: false, moveX: 0, moveY: 0, run: false, lookX: 0, lookY: 0, interact: false, jump: false, horn: false, hornHeld: false, back: false, siren: false };
       const b = (i: number) => pad.buttons[i]?.pressed ?? false;
       const bv = (i: number) => pad.buttons[i]?.value ?? 0;
       const prev = this.held.get(pad.index) ?? [];
@@ -104,6 +107,7 @@ export class Gamepads {
         s.hornHeld ||= b(2) || b(4) || b(5);
         s.handbrake ||= b(1);
         s.back ||= tap(3);
+        s.siren ||= tap(6) || tap(7);
         continue;
       }
 
@@ -135,6 +139,7 @@ export class Gamepads {
       s.horn ||= tap(2);
       s.hornHeld ||= b(2);
       s.back ||= tap(1);
+      s.siren ||= tap(5);
     }
     if (s) s.steer = Math.max(-1, Math.min(1, s.steer));
     return s;

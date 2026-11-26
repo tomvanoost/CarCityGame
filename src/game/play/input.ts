@@ -11,6 +11,7 @@ export class Input {
   private jumpQueued = false;
   private interactQueued = false;
   private hornQueued = false;
+  private sirenQueued = false;
   private lookDX = 0;
   private lookDY = 0;
   private gamepads = new Gamepads();
@@ -29,6 +30,7 @@ export class Input {
       if (!e.repeat && (k === 'KeyE' || k === 'KeyF' || k === 'Enter')) this.interactQueued = true;
       if (!e.repeat && k === 'Space') this.jumpQueued = true;
       if (!e.repeat && k === 'KeyH') this.hornQueued = true;
+      if (!e.repeat && k === 'KeyR') this.sirenQueued = true;
       this.keys.add(k);
       if (k.startsWith('Arrow') || k === 'Space') e.preventDefault();
     } else this.keys.delete(k);
@@ -45,6 +47,7 @@ export class Input {
     if (p.interact) this.interactQueued = true;
     if (p.jump) this.jumpQueued = true;
     if (p.horn) this.hornQueued = true;
+    if (p.siren) this.sirenQueued = true;
     // The game screen closes an open panel (house, shop, map) on this, like the ✕ button.
     if (p.back) window.dispatchEvent(new Event('carcity-back'));
     // Right stick looks around like dragging the screen (~700 px per second at full tilt).
@@ -76,6 +79,9 @@ export class Input {
 
   queueJump() { this.jumpQueued = true; }
   queueHorn() { this.hornQueued = true; }
+  queueSiren() { this.sirenQueued = true; }
+  /** Siren switch pressed (R, 🚨 button, controller RB / R1): true once per press. */
+  takeSiren() { const s = this.sirenQueued; this.sirenQueued = false; return s; }
   queueInteract() { this.interactQueued = true; }
   addLook(dx: number, dy: number) { this.lookDX += dx; this.lookDY += dy; }
 

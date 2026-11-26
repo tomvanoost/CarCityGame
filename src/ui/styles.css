@@ -196,6 +196,13 @@ button, input { font: inherit; color: inherit; }
 .horn-btn { position: absolute; left: 16px; bottom: max(16px, env(safe-area-inset-bottom)); width: 72px; height: 72px; border-radius: 50%; border: 0;
   background: #ffc933; font-size: 36px; line-height: 1; display: grid; place-items: center; touch-action: none; cursor: pointer; box-shadow: 0 6px 0 #d99a00, var(--shadow); z-index: 5; }
 .horn-btn[hidden] { display: none; }
+.siren-btn { position: absolute; left: 100px; bottom: max(16px, env(safe-area-inset-bottom)); width: 72px; height: 72px; border-radius: 50%; border: 0;
+  background: #e8eef8; box-shadow: 0 6px 0 #b8c4d8, var(--shadow); font-size: 34px; line-height: 1; display: grid; place-items: center; cursor: pointer; touch-action: none; z-index: 5; }
+.siren-btn[hidden] { display: none; }
+.siren-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8c4d8; }
+.siren-btn.on { animation: siren-flash .8s steps(1) infinite; }
+@keyframes siren-flash { 0% { background: #ff5a5a; box-shadow: 0 6px 0 #b83030, var(--shadow); } 50% { background: #4f8dff; box-shadow: 0 6px 0 #2a5cc0, var(--shadow); } }
+.tablet .siren-btn { left: auto; right: calc(max(18px, env(safe-area-inset-right)) + 86px); bottom: calc(max(18px, env(safe-area-inset-bottom)) + 156px); }
 .horn-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d99a00; }
 .tablet .horn-btn { left: auto; right: max(18px, env(safe-area-inset-right)); bottom: calc(max(18px, env(safe-area-inset-bottom)) + 156px); }
 
@@ -213,6 +220,7 @@ button, input { font: inherit; color: inherit; }
   .pedal.brake { width: 76px; height: 76px; }
   .pedal.gas { width: 76px; height: 116px; }
   .tablet .horn-btn { width: 62px; height: 62px; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 128px); }
+  .tablet .siren-btn { width: 62px; height: 62px; right: calc(max(18px, env(safe-area-inset-right)) + 74px); bottom: calc(max(18px, env(safe-area-inset-bottom)) + 128px); }
   .keys-hint { display: none; }
 }
 

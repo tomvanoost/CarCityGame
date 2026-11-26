@@ -1461,5 +1461,54 @@ export const SKETCHFAB_VEHICLES: Record<string, SketchfabVehicle> = {
       "license": "CC Attribution",
       "url": "https://sketchfab.com/3d-models/2021-tesla-model-y-59e2ead369984b1a85c800ff6cf6789d"
     }
+  },
+  "politie": {
+    "length": 4.889999866485596,
+    "width": 2.005671977996826,
+    "height": 1.4610422849655151,
+    "bike": false,
+    "paintable": false,
+    "seat": [
+      0.40113439559936526,
+      0.6136377596855164,
+      -0.34229999065399175
+    ],
+    "wheels": [
+      [
+        0.786,
+        0.347,
+        1.367,
+        0.347,
+        0.128
+      ],
+      [
+        -0.786,
+        0.347,
+        1.367,
+        0.347,
+        0.128
+      ],
+      [
+        0.776,
+        0.344,
+        -1.381,
+        0.344,
+        0.142
+      ],
+      [
+        -0.776,
+        0.344,
+        -1.38,
+        0.344,
+        0.142
+      ]
+    ],
+    "credit": {
+      "name": "2012 BMW M6 Coupe (F13) - Patrol",
+      "author": "Ddiaz Design",
+      "authorUrl": "https://sketchfab.com/ddiaz-design",
+      "license": "CC Attribution-NonCommercial-ShareAlike",
+      "url": "https://sketchfab.com/3d-models/2012-bmw-m6-coupe-f13-patrol-df09eab1442d43cdadab51d329045c02"
+    }
   }
 };

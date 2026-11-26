@@ -63,7 +63,8 @@ export class Garage {
       const spot = keep && keep !== taken ? keep : free.shift();
       if (spot) plan.push({ id, spot });
     }
-    const built = await Promise.all(plan.map(({ id }) => loadVehicle(getVehicle(id), colors[id], { lod: true }).catch(() => null)));
+    // The police car's light version loses its black-and-white livery: it parks in full detail.
+    const built = await Promise.all(plan.map(({ id }) => loadVehicle(getVehicle(id), colors[id], { lod: !getVehicle(id).police }).catch(() => null)));
     if (v !== this.version) { built.forEach((b) => b?.dispose()); return; } // a newer refresh won
     this.clear();
     plan.forEach(({ id, spot }, i) => {

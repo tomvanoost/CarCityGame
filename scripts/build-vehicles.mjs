@@ -28,6 +28,7 @@ const SIZES = {
   'oudi-a4': 4.76, 'beemer-3': 4.71, 'mersedez-c': 4.75, taykan: 4.96, 'modelo-y': 4.75, 'id-vier': 4.58, 'atto-3': 4.46,
   'kio-ev6': 4.69, 'volvu-xc90': 4.95, 'rangy-rover': 4.95, 'id-bus': 4.71, jiep: 4.79, 'porsha-911': 4.57, korvet: 4.63,
   ferrara: 4.61, maxlaren: 4.54, hurricano: 4.52, jessko: 4.61, chirone: 4.54,
+  politie: 4.89,
   vespo: 1.85, 'hondo-cbr': 2.13, 'kawa-z900': 2.07, 'yamaho-r1': 2.06, harly: 2.6, 'beemer-gs': 2.27, dukati: 2.1,
 };
 const BIKES = new Set(['vespo', 'hondo-cbr', 'kawa-z900', 'yamaho-r1', 'harly', 'beemer-gs', 'dukati']);

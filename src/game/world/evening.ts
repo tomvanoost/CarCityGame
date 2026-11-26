@@ -130,3 +130,48 @@ export class StreetLamps {
     this.group.removeFromParent();
   }
 }
+
+/**
+ * Flashing police lights for the light bar on the roof (car faces +Z, stands on y = 0): a red glow
+ * on the left and a blue one on the right that flash in turn, and a soft colored glow on the road.
+ * Fake light only (2 small meshes), hidden while the siren is off.
+ */
+export class SirenLights {
+  readonly group = new THREE.Group();
+  private red: THREE.Mesh;
+  private blue: THREE.Mesh;
+  private pool: THREE.Mesh;
+  private t = 0;
+
+  constructor(width: number, height: number, roofZ: number) {
+    const puff = () => mergeGeos([0, Math.PI / 2, Math.PI / 4, -Math.PI / 4].map((ry) => new THREE.PlaneGeometry(0.9, 0.7).rotateY(ry)));
+    this.red = new THREE.Mesh(puff(), additive('#ff2a2a', 0.95));
+    this.blue = new THREE.Mesh(puff(), additive('#2a6bff', 0.95));
+    this.red.position.set(width * 0.2, height + 0.02, roofZ);
+    this.blue.position.set(-width * 0.2, height + 0.02, roofZ);
+    this.pool = new THREE.Mesh(new THREE.PlaneGeometry(width * 3.2, width * 4).rotateX(-Math.PI / 2), additive('#ffffff', 0.35));
+    this.pool.position.y = 0.05;
+    for (const m of [this.red, this.blue, this.pool]) { m.renderOrder = 2; m.frustumCulled = false; this.group.add(m); }
+    this.group.visible = false;
+  }
+
+  set on(v: boolean) { this.group.visible = v; }
+  get on() { return this.group.visible; }
+
+  /** Every frame: red and blue take turns (quick double flash, like real police lights). */
+  update(dt: number) {
+    if (!this.group.visible) return;
+    this.t += dt;
+    const phase = this.t % 0.8, left = phase < 0.4, k = phase % 0.4;
+    const flash = k < 0.1 || (k > 0.17 && k < 0.27);
+    this.red.visible = left && flash;
+    this.blue.visible = !left && flash;
+    (this.pool.material as THREE.MeshBasicMaterial).color.set(left ? '#ff3030' : '#3070ff');
+    (this.pool.material as THREE.MeshBasicMaterial).opacity = flash ? 0.35 : 0.12;
+  }
+
+  dispose() {
+    for (const m of [this.red, this.blue, this.pool]) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); }
+    this.group.removeFromParent();
+  }
+}

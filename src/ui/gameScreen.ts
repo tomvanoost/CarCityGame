@@ -70,6 +70,9 @@ export const gameScreen: Screen = (root, nav) => {
     input.queueHorn(); input.touch.horn = true;
   });
   for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) hornBtn.addEventListener(ev, () => { input.touch.horn = false; });
+  // Police car: 🚨 switches the siren and flashing lights on/off (also R or controller RB).
+  const sirenBtn = h('button', { class: 'siren-btn', title: t('siren'), 'aria-label': t('siren') }, '🚨');
+  sirenBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); sounds.unlock(); input.queueSiren(); });
   const fuelFill = h('i', {});
   const fuel = h('div', { class: 'fuel' }, h('span', {}, '⛽'), h('div', { class: 'fuel-bar' }, fuelFill));
   const speed = h('div', { class: 'speed' }, h('b', {}, '0'), h('small', {}, 'km/h'));
@@ -104,10 +107,10 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, hint, popups, back, money, tabletBtn, soundBtn, eveningBtn, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, money, tabletBtn, soundBtn, eveningBtn, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, police: false, siren: false };
   const render = () => {
     const driving = state.mode === 'driving';
     root.classList.toggle('tablet', tablet);
@@ -117,6 +120,8 @@ export const gameScreen: Screen = (root, nav) => {
     touch.walk.hidden = !(tablet && !driving) || overlay;
     dash.hidden = !driving;
     hornBtn.hidden = !driving || overlay;
+    sirenBtn.hidden = !(driving && state.police) || overlay;
+    sirenBtn.classList.toggle('on', state.siren);
     speed.firstElementChild!.textContent = String(state.kmh);
     fuelFill.style.width = `${Math.max(3, state.fuel * 100)}%`;
     fuel.classList.toggle('low', state.fuel < 0.2);

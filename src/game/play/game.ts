@@ -19,7 +19,8 @@ import { Pedestrians } from './pedestrians';
 import { Wildlife } from './wildlife';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Garage, type GarageSpot } from './garage';
-import { DAY, EVENING, headlightRig, loadEvening, saveEvening, StreetLamps } from '../world/evening';
+import { DAY, EVENING, headlightRig, loadEvening, saveEvening, SirenLights, StreetLamps } from '../world/evening';
+import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
 import { awardSticker } from '../../ui/stickers';
 import { RoadGraph, type P } from './roads';
 import { Traffic } from './traffic';
@@ -45,6 +46,9 @@ export interface GameState {
   job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number } | null;
   /** Navigation to a destination you picked on the map. */
   dest: { meters: number } | null;
+  /** Driving the police car (shows the 🚨 button), and whether its siren is on. */
+  police: boolean;
+  siren: boolean;
 }
 
 /** Everything the minimap / big map needs to draw. */
@@ -131,6 +135,9 @@ export class Game {
   private pendingCar = false;
   private pendingContext = false;
   private honking = false;
+  /** Police car: flashing lights on its roof, and whether the siren is on. */
+  private sirenLights?: SirenLights;
+  private sirenOn = false;
 
   constructor(canvas: HTMLCanvasElement, private input: Input, profile: PlayerProfile, private events: GameEvents) {
     const q = pickQuality();
@@ -312,8 +319,16 @@ export class Game {
     if (this.disposed) { v.dispose(); return; }
     const wasSeated = this.mode === 'driving' && this.avatar?.root.parent === this.vehicle?.car.root;
     if (wasSeated) this.scene.add(this.avatar!.root);
+    this.setSiren(false);
+    this.sirenLights?.dispose();
+    this.sirenLights = undefined;
     this.vehicle?.dispose();
     v.place(at.x, at.z, at.rot);
+    if (v.spec.police) {
+      // The light bar sits on the middle of the roof.
+      this.sirenLights = new SirenLights(v.width, SKETCHFAB_VEHICLES[v.spec.id]?.height ?? 1.4, -0.15);
+      v.root.add(this.sirenLights.group);
+    }
     const lights = headlightRig(v.length, v.width);
     lights.visible = this.evening;
     v.root.add(lights);
@@ -377,11 +392,20 @@ export class Game {
       p.place(door.x, door.z, v.heading + Math.PI / 2);
       a.play('StandUp', { once: true, fade: 0.15, then: 'Idle' });
       this.mode = 'walking';
+      this.setSiren(false);
       sounds.door();
     } else if (this.canEnter()) {
       this.seatAvatar();
       sounds.door();
     }
+  }
+
+  /** Police siren + flashing lights on/off; traffic pulls over while it is on. */
+  private setSiren(on: boolean) {
+    if (on === this.sirenOn) return;
+    this.sirenOn = on;
+    if (this.sirenLights) this.sirenLights.on = on;
+    if (on) sounds.sirenOn(); else sounds.sirenOff();
   }
 
   private canEnter() {
@@ -649,6 +673,9 @@ export class Game {
       awardSticker('honk');
     } else if (!honk && this.honking) sounds.hornStop();
     this.honking = honk;
+    // R / 🚨 / controller RB: siren on or off (police car only).
+    if (this.input.takeSiren() && this.mode === 'driving' && !this.paused && v.spec.police) this.setSiren(!this.sirenOn);
+    this.sirenLights?.update(dt);
     sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0, !!v.spec.electric);
     if (driving) {
       const before = { x: v.x, z: v.z };
@@ -685,7 +712,7 @@ export class Game {
     const pos = this.mode === 'driving' ? v : this.player;
     this.people?.update(dt, this.focus.x, this.focus.z, v, this.mode === 'walking' ? this.player : null);
     this.jobs?.update(dt, pos, this.mode === 'driving', v.kmh);
-    this.traffic?.update(dt, this.focus, v, this.mode === 'walking' ? this.player : null, this.people);
+    this.traffic?.update(dt, this.focus, v, this.mode === 'walking' ? this.player : null, this.people, this.sirenOn);
     this.bumpTraffic();
     this.updateNav(dt, pos);
     this.updateArrow(dt, pos);
@@ -737,6 +764,8 @@ export class Game {
       context: ctx,
       job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round((this.nav?.remaining || Math.hypot(job.x - pos.x, job.z - pos.z)) / 10) * 10 } : null,
       dest: !job && this.dest ? { meters: Math.round((this.nav?.remaining ?? 0) / 10) * 10 } : null,
+      police: this.mode === 'driving' && !!v.spec.police,
+      siren: this.sirenOn,
     };
     const key = JSON.stringify(state);
     if (key !== this.lastState) {
@@ -750,6 +779,9 @@ export class Game {
   dispose() {
     this.disposed = true;
     sounds.stopEngine();
+    sounds.sirenOff();
+    sounds.hornStop();
+    this.sirenLights?.dispose();
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onHide);
     window.removeEventListener('pagehide', this.onHide);
