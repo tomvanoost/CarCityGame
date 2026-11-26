@@ -50,7 +50,7 @@ export class Vehicle {
     this.root.add(this.car.root);
     const d = vehicleDims(spec);
     this.dims = d;
-    this.maxSpeed = 8 + spec.stats.speed * 2; // Golfo: 18 m/s = 65 km/h
+    this.maxSpeed = spec.topSpeed / 3.6; // the real car's top speed (Golfo: 250 km/h)
     this.accel = 3 + spec.stats.accel * 0.6;
     this.wheelbase = d.wheelbase;
     this.radius = d.width / 2;
@@ -81,7 +81,7 @@ export class Vehicle {
     // --- speed ---
     if (inp.throttle > 0) {
       if (this.speed < -0.5) this.speed += 14 * inp.throttle * dt; // braking out of reverse
-      else this.speed += this.accel * inp.throttle * (1 - Math.max(0, this.speed) / this.maxSpeed) * dt;
+      else this.speed += this.accel * inp.throttle * (1 - (Math.max(0, this.speed) / this.maxSpeed) ** 2) * dt; // air drag: harder near top speed
     }
     if (inp.brake > 0) {
       if (this.speed > 0.5) this.speed -= 14 * inp.brake * dt;
@@ -102,33 +102,36 @@ export class Vehicle {
     // --- never drive into a person: limit speed so the car can always stop in time ---
     this.yielding = this.yieldToPeople(people);
 
-    // --- move + collide ---
-    this.x += Math.sin(this.heading) * this.speed * dt;
-    this.z += Math.cos(this.heading) * this.speed * dt;
+    // --- move + collide (in small steps, so a fast car never skips through a pole or a person) ---
     this.bumped = Math.max(0, this.bumped - dt);
     const fx = Math.sin(this.heading), fz = Math.cos(this.heading);
-    for (const off of this.circles) {
-      const cx = this.x + fx * off, cz = this.z + fz * off;
-      const r = world.resolveCircle(cx, cz, this.radius, this.tmp);
-      if (!r.hit) continue;
-      this.x += this.tmp.x - cx;
-      this.z += this.tmp.z - cz;
-      // Only lose speed when driving *into* the obstacle.
-      const into = -(r.nx * fx + r.nz * fz) * Math.sign(this.speed || 1);
-      if (into > 0.2) {
-        if (Math.abs(this.speed) > 3) this.bumped = 0.3;
-        this.speed *= 1 - 0.8 * into;
+    const steps = Math.min(40, Math.max(1, Math.ceil(Math.abs(this.speed * dt) / 0.5)));
+    for (let step = 0; step < steps; step++) {
+      this.x += fx * this.speed * dt / steps;
+      this.z += fz * this.speed * dt / steps;
+      for (const off of this.circles) {
+        const cx = this.x + fx * off, cz = this.z + fz * off;
+        const r = world.resolveCircle(cx, cz, this.radius, this.tmp);
+        if (!r.hit) continue;
+        this.x += this.tmp.x - cx;
+        this.z += this.tmp.z - cz;
+        // Only lose speed when driving *into* the obstacle.
+        const into = -(r.nx * fx + r.nz * fz) * Math.sign(this.speed || 1);
+        if (into > 0.2) {
+          if (Math.abs(this.speed) > 3) this.bumped = 0.3;
+          this.speed *= 1 - 0.8 * into;
+        }
       }
-    }
-    // Hard safety net: if a person is still touching the car, push the car back and stop.
-    for (const off of this.circles) {
-      const cx = this.x + fx * off, cz = this.z + fz * off;
-      for (const o of people) {
-        const dx = cx - o.x, dz = cz - o.z, d = Math.hypot(dx, dz), min = this.radius + o.r;
-        if (d < min && d > 1e-4) {
-          this.x += (dx / d) * (min - d);
-          this.z += (dz / d) * (min - d);
-          this.speed = 0;
+      // Hard safety net: if a person is still touching the car, push the car back and stop.
+      for (const off of this.circles) {
+        const cx = this.x + fx * off, cz = this.z + fz * off;
+        for (const o of people) {
+          const dx = cx - o.x, dz = cz - o.z, d = Math.hypot(dx, dz), min = this.radius + o.r;
+          if (d < min && d > 1e-4) {
+            this.x += (dx / d) * (min - d);
+            this.z += (dz / d) * (min - d);
+            this.speed = 0;
+          }
         }
       }
     }
@@ -146,11 +149,13 @@ export class Vehicle {
     // While turning, the path bends: look a bit wider.
     const extra = 0.6 + Math.abs(this.steerAngle) * 3;
     let allowed = Infinity;
+    // Look far enough ahead to always stop calmly, also at top speed.
+    const look = Math.max(30, (this.speed * this.speed) / (2 * 9) + 15);
     for (const o of people) {
       const rx = o.x - this.x, rz = o.z - this.z;
       const ahead = (rx * fx + rz * fz) * dir;
       const lateral = Math.abs(rx * fz - rz * fx);
-      if (ahead <= 0 || ahead > 30 || lateral > this.width / 2 + o.r + extra) continue;
+      if (ahead <= 0 || ahead > look || lateral > this.width / 2 + o.r + extra) continue;
       const gap = ahead - this.length / 2 - o.r - 0.8;
       allowed = Math.min(allowed, gap <= 0 ? 0 : Math.sqrt(2 * 9 * gap));
     }

@@ -19,6 +19,7 @@ export class Navigator {
   /** How far the player is from the route (meters). */
   offRoute = 0;
   private recheck = 0;
+  private better = 1;
   private time = 0;
   private m = new THREE.Matrix4();
   private q = new THREE.Quaternion();
@@ -51,6 +52,19 @@ export class Navigator {
   /** Meters left to the target along the route. */
   get remaining() { return Math.max(0, this.length - this.progress); }
 
+  /** The part of the route that is still ahead of you (for the maps). */
+  remainingPath(): P[] {
+    if (this.path.length < 2) return [];
+    const start = pointAt(this.path, this.progress);
+    const out: P[] = [{ x: start.x, z: start.z }];
+    let acc = 0;
+    for (let i = 1; i < this.path.length; i++) {
+      acc += Math.hypot(this.path[i].x - this.path[i - 1].x, this.path[i].z - this.path[i - 1].z);
+      if (acc > this.progress) out.push(this.path[i]);
+    }
+    return out;
+  }
+
   /** A point on the route ~`ahead` meters in front of the player (for the floating arrow). */
   lookAhead(ahead: number): P | null {
     if (!this.path.length) return null;
@@ -61,9 +75,20 @@ export class Navigator {
   update(dt: number, pos: P, heading?: number) {
     this.time += dt;
     if (!this.target || !this.path.length) return;
-    const pr = projectOnPath(this.path, pos);
+    // Follow the route forward: look near where you were, so a road that the route uses
+    // twice (there and back) can't make the progress jump back.
+    let pr = projectOnPath(this.path, pos, this.progress - 25, this.progress + 90);
+    if (pr.d > 18) pr = projectOnPath(this.path, pos);
     this.progress = pr.s;
     this.offRoute = pr.d;
+    // Found a shorter way (e.g. you turned around)? Take it (checked once a second).
+    this.better -= dt;
+    if (this.better <= 0) {
+      this.better = 1;
+      const alt = this.graph.route(pos, this.target, heading);
+      const len = pathLength(alt);
+      if (len < this.remaining - 15) { this.path = alt; this.length = len; this.progress = 0; }
+    }
     // Left the route? Find a new one (at most twice a second).
     this.recheck -= dt;
     if (pr.d > 18 && this.recheck <= 0) {

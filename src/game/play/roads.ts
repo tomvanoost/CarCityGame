@@ -60,7 +60,9 @@ export class RoadGraph {
    * Route along the roads from `from` to `to` (Dijkstra; the graph is tiny).
    * Returns a polyline: start, road points ..., destination.
    */
-  route(from: P, to: P, heading?: number): P[] {
+  route(fromLive: P, toLive: P, heading?: number): P[] {
+    // Copies: callers often pass objects that keep moving (the car's position).
+    const from = { x: fromLive.x, z: fromLive.z }, to = { x: toLive.x, z: toLive.z };
     const s = this.nearestOnRoad(from), g = this.nearestOnRoad(to);
     const sp = { x: s.x, z: s.z }, gp = { x: g.x, z: g.z };
     if (s.edge === g.edge) return [from, sp, gp, to];
@@ -116,15 +118,19 @@ export function pointAt(path: P[], s: number): { x: number; z: number; dx: numbe
 }
 
 /** Distance along the path of the point closest to p, and how far p is from the path. */
-export function projectOnPath(path: P[], p: P) {
+export function projectOnPath(path: P[], p: P, sMin = -Infinity, sMax = Infinity) {
   let best = { s: 0, d: Infinity }, acc = 0;
   for (let i = 1; i < path.length; i++) {
     const a = path[i - 1], b = path[i];
     const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
     if (len < 1e-6) continue;
-    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (len * len)));
-    const d = Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t));
-    if (d < best.d) best = { s: acc + t * len, d };
+    // Only the part of the segment inside [sMin, sMax] counts.
+    const t0 = Math.max(0, Math.min(1, (sMin - acc) / len)), t1 = Math.max(0, Math.min(1, (sMax - acc) / len));
+    if (t1 > t0 || (t0 === t1 && sMin <= acc + t0 * len && acc + t0 * len <= sMax)) {
+      const t = Math.max(t0, Math.min(t1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (len * len)));
+      const d = Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t));
+      if (d < best.d) best = { s: acc + t * len, d };
+    }
     acc += len;
   }
   return best;

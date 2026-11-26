@@ -1,15 +1,23 @@
 import * as THREE from 'three';
 import { loadGltf } from '../../engine/assets';
-import { contactShadow, type BuiltCar } from './carBuilder';
+import { contactShadow, SEATED_SCALE, type BuiltCar } from './carBuilder';
 import { SKETCHFAB_VEHICLES } from './sketchfabManifest';
+
+/** Height from the hips to the top of the head of a seated character at scale 1 (measured). */
+const HEAD_ABOVE_HIP = 1.23;
 
 /**
  * Driver's hips (vehicle-local), from real-car proportions: a driver sits roughly in the
  * middle of the car, on the left (+X), with the hips at about a third of the roof height.
+ * In low sports cars the driver sits lower (and, if needed, a bit smaller) so the head
+ * always stays under the roof.
  */
 function seatFor(info: { length: number; width: number; height: number; bike: boolean }) {
-  if (info.bike) return new THREE.Vector3(0, info.height * 0.62, -info.length * 0.1);
-  return new THREE.Vector3(info.width * 0.18, info.height * 0.32, info.length * 0.01);
+  if (info.bike) return { seat: new THREE.Vector3(0, info.height * 0.62, -info.length * 0.1), scale: SEATED_SCALE };
+  const roof = info.height - 0.1;
+  const hip = Math.max(0.22, Math.min(info.height * 0.32, roof - HEAD_ABOVE_HIP * SEATED_SCALE));
+  const scale = Math.min(SEATED_SCALE, (roof - hip) / HEAD_ABOVE_HIP);
+  return { seat: new THREE.Vector3(info.width * 0.18, hip, info.length * 0.01), scale };
 }
 
 type Wheel = [number, number, number, number, number];
@@ -147,7 +155,8 @@ export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepres
   return {
     root,
     wheels,
-    seat: seatFor(info),
+    seat: seatFor(info).seat,
+    seatScale: seatFor(info).scale,
     setColor,
     dispose() {
       own.forEach((m) => m.dispose());

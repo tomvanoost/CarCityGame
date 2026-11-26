@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Collider, CityLayout } from '../city/layout';
 import { getVehicle } from '../vehicles/catalog';
 import { loadVehicle } from '../vehicles/factory';
@@ -17,6 +18,7 @@ export class Garage {
   readonly spots: GarageSpot[] = [];
   private cars: { id: string; built: BuiltCar; spot: GarageSpot }[] = [];
   private version = 0;
+  private pads?: THREE.Mesh;
 
   constructor(layout: CityLayout, world: CollisionWorld) {
     const h = layout.pois.home;
@@ -33,6 +35,17 @@ export class Garage {
         && layout.nature.every((p) => Math.hypot(p.x - x, p.z - z) > 2.8);
       if (clear) this.spots.push({ x, z, rot });
       if (this.spots.length === 4) break;
+    }
+    // Paved parking spots (one merged mesh), so it's clear the cars are parked, not on the lawn.
+    const pads = this.spots.map((sp) => new THREE.BoxGeometry(2.9, 0.06, 5.6).rotateY(sp.rot)
+      .translate(sp.x, groundHeight(sp.x, sp.z) + 0.03, sp.z));
+    if (pads.length) {
+      const geo = mergeGeometries(pads)!;
+      pads.forEach((g) => g.dispose());
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#b9b4ab', roughness: 0.92 }));
+      mesh.receiveShadow = true;
+      this.group.add(mesh);
+      this.pads = mesh;
     }
   }
 
@@ -91,6 +104,7 @@ export class Garage {
   dispose() {
     this.version++;
     this.clear();
+    if (this.pads) { this.pads.geometry.dispose(); (this.pads.material as THREE.Material).dispose(); }
     this.group.removeFromParent();
   }
 }

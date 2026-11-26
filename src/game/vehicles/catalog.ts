@@ -7,10 +7,55 @@ import type { BikeShape, VehicleSpec } from './types';
  * roughly EUR 300-450.
  */
 type Stats = VehicleSpec['stats'];
+
+/**
+ * Real top speeds (km/h) of the vehicles the 3D models show (manufacturer figures; electronically
+ * limited where the real car is). The game uses them as the real top speed.
+ */
+const TOP_SPEED: Record<string, number> = {
+  'golfo-2025': 250, // VW Golf R
+  polino: 200, // VW Polo 1.0 TSI
+  cinque: 150, // Fiat 500e
+  kuper: 235, // Mini Cooper S
+  klio: 180, // Renault Clio
+  yarus: 170, // Toyota Yaris Cross hybrid
+  'teslo-modelo3': 225, // Tesla Model 3
+  seel: 180, // BYD Seal AWD
+  'oudi-a4': 250, // Audi A4 3.2 FSI quattro
+  'beemer-3': 235, // BMW M3 (E30)
+  'mersedez-c': 250, // Mercedes-Benz C63 AMG
+  taykan: 305, // Porsche Taycan Turbo GT Weissach
+  'modelo-y': 217, // Tesla Model Y Long Range
+  'id-vier': 160, // VW ID.4
+  'atto-3': 160, // BYD Atto 3
+  'kio-ev6': 185, // Kia EV6
+  'volvu-xc90': 180, // Volvo XC90
+  'rangy-rover': 242, // Range Rover Sport
+  'id-bus': 160, // VW ID. Buzz GTX
+  jiep: 180, // Jeep Wrangler Rubicon
+  'porsha-911': 318, // Porsche 911 GT3 (992)
+  korvet: 290, // Chevrolet Corvette C7
+  ferrara: 340, // Ferrari F8 Tributo
+  maxlaren: 341, // McLaren 720S
+  hurricano: 260, // Lamborghini Huracan Sterrato
+  jessko: 480, // Koenigsegg Jesko (estimate)
+  chirone: 380, // Bugatti Chiron Profilee
+  vespo: 95, // Vespa Primavera 125
+  'hondo-cbr': 230, // Honda CBR650R
+  'kawa-z900': 240, // Kawasaki Z1000
+  'yamaho-r1': 299, // Yamaha R1
+  harly: 185, // Harley-Davidson Road Glide
+  'beemer-gs': 200, // BMW R1200GS Adventure
+  dukati: 300, // Ducati Panigale V4 SP
+};
+const top = (id: string) => TOP_SPEED[id] ?? 180;
+/** The shop's speed bar follows the real top speed: 40 km/h per step, 1..10. */
+const speedStat = (id: string) => Math.max(1, Math.min(10, Math.round(top(id) / 40)));
+
 const car = (id: string, brand: string, model: string, year: number, price: number, color: string, stats: Stats, shape: ShapeParams): VehicleSpec =>
-  ({ id, brand, model, year, price, kind: 'car', color, stats, shape: makeShape(shape) });
+  ({ id, brand, model, year, price, kind: 'car', color, topSpeed: top(id), stats: { ...stats, speed: speedStat(id) }, shape: makeShape(shape) });
 const bike = (id: string, brand: string, model: string, year: number, price: number, color: string, stats: Stats, shape: BikeShape): VehicleSpec =>
-  ({ id, brand, model, year, price, kind: 'motor', color, stats, bike: shape });
+  ({ id, brand, model, year, price, kind: 'motor', color, topSpeed: top(id), stats: { ...stats, speed: speedStat(id) }, bike: shape });
 
 export const VEHICLES: VehicleSpec[] = [
   {
@@ -21,7 +66,8 @@ export const VEHICLES: VehicleSpec[] = [
     price: 0,
     kind: 'car',
     color: '#d7dbe0',
-    stats: { speed: 5, accel: 5, handling: 7 },
+    topSpeed: top('golfo-2025'),
+    stats: { speed: speedStat('golfo-2025'), accel: 5, handling: 7 },
     shape: {
       length: 4.28, width: 1.79,
       frontAxle: 0.205, rearAxle: 0.82,
@@ -55,7 +101,8 @@ export const VEHICLES: VehicleSpec[] = [
     price: 24000,
     kind: 'car',
     color: '#c8102e',
-    stats: { speed: 8, accel: 9, handling: 8 },
+    topSpeed: top('teslo-modelo3'),
+    stats: { speed: speedStat('teslo-modelo3'), accel: 9, handling: 8 },
     shape: {
       length: 4.72, width: 1.85,
       frontAxle: 0.19, rearAxle: 0.79,

@@ -237,7 +237,7 @@ export class Game {
       x: driving ? this.vehicle.x : this.player.x,
       z: driving ? this.vehicle.z : this.player.z,
       heading: driving ? this.vehicle.heading : this.player.heading,
-      path: this.nav?.path ?? [],
+      path: this.nav?.remainingPath() ?? [],
       job: job ? { x: job.x, z: job.z } : null,
       dest: this.dest,
     };
@@ -355,9 +355,10 @@ export class Game {
   private seatAvatar() {
     const v = this.vehicle!, a = this.avatar!;
     v.car.root.add(a.root);
-    a.root.position.copy(seatedRootPosition(v.car.seat));
+    const scale = v.car.seatScale ?? SEATED_SCALE;
+    a.root.position.copy(seatedRootPosition(v.car.seat, scale));
     a.root.rotation.set(0, 0, 0);
-    a.root.scale.setScalar(SEATED_SCALE);
+    a.root.scale.setScalar(scale);
     a.play('SitDown', { once: true, fade: 0.2, then: null });
     this.mode = 'driving';
   }
@@ -658,7 +659,7 @@ export class Game {
       if (v.bumped > 0.25) this.shake = 0.25;
       this.follow.update(dt, this.focus, {
         behindYaw: Math.abs(v.speed) > 0.5 ? v.heading + Math.PI + (v.speed < -0.5 ? Math.PI : 0) : null,
-        distance: 7.5 + v.kmh * 0.03,
+        distance: 7.5 + Math.min(v.kmh, 160) * 0.03,
         pitch: 0.26,
         blocked: this.blocked,
       });

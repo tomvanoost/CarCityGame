@@ -18,6 +18,8 @@ export interface BuiltCar {
   setColor(color: THREE.ColorRepresentation): void;
   /** Where the driver's hips go (vehicle-local). Use `seatedRootPosition()` to place a character. */
   seat: THREE.Vector3;
+  /** Scale for the character in the seat (smaller in very low cars); default SEATED_SCALE. */
+  seatScale?: number;
   dispose(): void;
 }
 

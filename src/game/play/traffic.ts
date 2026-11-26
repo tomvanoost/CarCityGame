@@ -189,8 +189,9 @@ export class Traffic {
         const drv = people.makeDriver();
         if (drv) {
           car.built.root.add(drv);
-          drv.position.copy(seatedRootPosition(car.built.seat));
-          drv.scale.multiplyScalar(SEATED_SCALE);
+          const scale = car.built.seatScale ?? SEATED_SCALE;
+          drv.position.copy(seatedRootPosition(car.built.seat, scale));
+          drv.scale.multiplyScalar(scale);
           car.hasDriver = true;
         }
       }

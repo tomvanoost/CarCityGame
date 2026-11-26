@@ -329,6 +329,8 @@ button, input { font: inherit; color: inherit; }
 .shop-title { display: flex; flex-direction: column; }
 .shop-title small { font-size: 14px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
 .shop-title b { font-size: 26px; font-weight: 900; line-height: 1.1; }
+.shop-top-speed { font-size: 15px; color: var(--muted); }
+.shop-top-speed b { color: var(--ink); font-size: 18px; font-weight: 900; }
 .stat { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
 .stat-bar { height: 10px; background: #e6edf6; border-radius: 6px; overflow: hidden; }
 .stat-bar i { display: block; height: 100%; background: linear-gradient(90deg, #3ddc84, #2f8bff); border-radius: 6px; }

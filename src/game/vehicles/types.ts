@@ -67,6 +67,8 @@ export interface VehicleSpec {
   kind: 'car' | 'motor';
   /** Default paint color. */
   color: string;
+  /** Real top speed of the car it's modeled on, in km/h (also the in-game top speed). */
+  topSpeed: number;
   /** Gameplay stats (1..10) shown in the shop. */
   stats: { speed: number; accel: number; handling: number };
   /** Cars have a body shape, motorbikes a bike shape. */

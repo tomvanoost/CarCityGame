@@ -108,6 +108,7 @@ export const vehicleShopScreen: Screen = (root, nav) => {
     }
     info.replaceChildren(
       h('div', { class: 'shop-title' }, h('small', {}, v.brand), h('b', {}, `${v.model}`)),
+      h('div', { class: 'shop-top-speed' }, `🏁 ${t('topSpeed')} `, h('b', {}, `${v.topSpeed} km/h`)),
       bar(t('statSpeed'), v.stats.speed),
       bar(t('statAccel'), v.stats.accel),
       bar(t('statHandling'), v.stats.handling),

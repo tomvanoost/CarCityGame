@@ -130,9 +130,13 @@ export class Minimap {
       let dx = (p.x - s.x) * K * zoom, dy = (p.z - s.z) * K * zoom;
       const c = Math.cos(rot), sn = Math.sin(rot);
       [dx, dy] = [dx * c - dy * sn, dx * sn + dy * c];
-      const d = Math.hypot(dx, dy), max = R - 13 * dpr;
-      if (d > max) { dx *= max / d; dy *= max / d; }
-      badge(g, emoji, R + dx, R + dy, 10 * dpr, ring);
+      const d = Math.hypot(dx, dy), max = R - 17 * dpr; // stay inside the white ring
+      const far = d > max;
+      if (far) { dx *= max / d; dy *= max / d; }
+      // Far away places: a smaller, see-through badge on the edge (only shows the direction).
+      g.globalAlpha = far ? 0.8 : 1;
+      badge(g, emoji, R + dx, R + dy, (far ? 7.5 : 10) * dpr, ring);
+      g.globalAlpha = 1;
     };
     icon(this.places.gas, '⛽', '#e5484d');
     icon(this.places.apartment, '🏢', '#8e5bd9');
