@@ -39,6 +39,7 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     fish: {},
     animalsFed: [],
     swimFloat: false,
+    kite: false,
     treasureMap: 0,
     treasureFound: 0,
     quizDay: '',
@@ -82,6 +83,7 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   if (!p.fish || typeof p.fish !== 'object') p.fish = {};
   p.animalsFed = toArray(raw.animalsFed, []);
   p.swimFloat = p.swimFloat === true;
+  p.kite = p.kite === true;
   p.treasureMap = Number(p.treasureMap) || 0;
   p.treasureFound = Number(p.treasureFound) || 0;
   p.quizDay = typeof p.quizDay === 'string' ? p.quizDay : '';

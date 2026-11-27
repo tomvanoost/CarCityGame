@@ -28,6 +28,7 @@ import { BAKERY, BAKERY_TIME, BakeryBuilding, bakeryGeometry, type BakeryId } fr
 import { FunFair, RIDE_PRICE, type RideKind as FairRide } from './funFair';
 import { BALLOON_FRONT, BALLOON_PRICE, Balloon } from './balloon';
 import { BOAT_FRONT, BOAT_PRICE, Boat } from './boat';
+import { KITE_FRONT, KITE_PRICE, Kite, onBeach } from './kite';
 import { SANDBOARD_END, SANDBOARD_FRONT, SANDBOARD_PRICE, SANDBOARD_TOP, Sandboard } from './sandboard';
 import { FIREWORKS_FRONT, FIREWORKS_PRICE, FIREWORKS_STAND, Fireworks } from './fireworks';
 import { Beach, FLOAT_FRONT, FLOAT_PRICE, floatGeometry } from './beach';
@@ -65,7 +66,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' };
+export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -159,7 +160,7 @@ export interface GameEvents {
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery' | 'library'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'kiteBought' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
   onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
   /** Photo mode: the interact key / controller A was pressed (take the picture). */
@@ -195,6 +196,8 @@ export class Game {
   private library?: LibraryBuilding;
   private sandboard?: Sandboard;
   private boat?: Boat;
+  private kite?: Kite;
+  private kiteAwarded = false;
   private sandboardAnim: 'walk' | 'slide' | null = null;
   private turnLines?: THREE.Mesh;
   private chest?: TreasureChest;
@@ -408,6 +411,8 @@ export class Game {
     this.scene.add(this.sandboard.group);
     this.boat = new Boat();
     this.scene.add(this.boat.group);
+    this.kite = new Kite();
+    this.scene.add(this.kite.group);
     this.balloon = new Balloon();
     this.scene.add(this.balloon.group);
     this.fireworks = new Fireworks((k) => sounds.firework(k));
@@ -1296,6 +1301,7 @@ export class Game {
     if (near(BOAT_FRONT)) return { kind: 'ride', ride: 'boat', price: BOAT_PRICE };
     if (near(SANDBOARD_FRONT)) return { kind: 'ride', ride: 'sandboard', price: SANDBOARD_PRICE };
     if (near(FLOAT_FRONT) && !this.profile.swimFloat) return { kind: 'buyFloat', price: FLOAT_PRICE };
+    if (near(KITE_FRONT) && !this.profile.kite) return { kind: 'buyKite', price: KITE_PRICE };
     if (near(FIREWORKS_FRONT) && !this.fireworks?.active) return { kind: 'fireworks', price: FIREWORKS_PRICE };
     if (near(L.pois.home.door)) return { kind: 'home' };
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
@@ -1368,6 +1374,16 @@ export class Game {
         this.events.onMoney(TREASURE_PRIZE, 'treasure');
         sounds.coin();
         awardSticker('treasure');
+        break;
+      }
+      case 'buyKite': {
+        const p = this.profile;
+        if (p.money < c.price) { this.events.onMessage('needMoney', c.price - p.money); break; }
+        setProfile({ ...p, money: p.money - c.price, kite: true });
+        void updateProfile({ money: p.money - c.price, kite: true });
+        this.events.onMoney(-c.price, 'beach');
+        sounds.coin();
+        this.events.onMessage('kiteBought');
         break;
       }
       case 'buyFloat': {
@@ -1827,6 +1843,13 @@ export class Game {
     if (this.sandboard && (this.ride?.kind === 'sandboard' || Math.hypot(this.focus.x - SANDBOARD_FRONT.x, this.focus.z - SANDBOARD_FRONT.z) < 300)) this.sandboard.update(dt);
     this.fireworks?.update(dt);
     this.updateSwimming(dt);
+    // Kite: flies while you walk on the beach (not swimming, not on a ride); a minute up = sticker.
+    if (this.kite && this.player && this.avatar) {
+      const pl = this.player;
+      const flying = this.profile.kite && this.mode === 'walking' && !this.ride && !pl.swimming && onBeach(pl.x, pl.z);
+      const hand = new THREE.Vector3(pl.x + Math.cos(pl.heading) * 0.3, pl.y + 1.15, pl.z - Math.sin(pl.heading) * 0.3);
+      if (this.kite.update(dt, flying, hand, pl.speed) && !this.kiteAwarded) { this.kiteAwarded = true; awardSticker('kite'); }
+    }
     if (this.farm && Math.hypot(this.focus.x - PETTING.x, this.focus.z - PETTING.z) < 400) this.farm.update(dt);
     this.coins?.update(dt, this.ride ? null : pos, this.mode === 'driving' ? 3.5 : 2);
     this.chest?.update(dt, this.hasTreasureMap(), pos.x, pos.z);
@@ -1964,6 +1987,7 @@ export class Game {
     this.balloon?.dispose();
     this.sandboard?.dispose();
     this.boat?.dispose();
+    this.kite?.dispose();
     this.fireworks?.dispose();
     this.beach?.dispose();
     this.coins?.dispose();

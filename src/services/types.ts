@@ -55,6 +55,8 @@ export interface PlayerProfile {
   animalsFed: string[];
   /** Has the rubber duck float for swimming. */
   swimFloat: boolean;
+  /** Has a kite (flies on the beach). */
+  kite: boolean;
   /** Treasure hunt: the week of the treasure map you have, and the last week you found the chest (0 = none). */
   treasureMap: number;
   treasureFound: number;

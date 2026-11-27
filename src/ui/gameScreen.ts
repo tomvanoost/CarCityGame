@@ -281,6 +281,7 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'treasureMap' ? `📮 ${t('treasureMapBtn')}`
         : c.kind === 'openTreasure' ? `💎 ${t('openTreasure')}`
         : c.kind === 'buyFloat' ? `🦆 ${t('buyFloat')} ${euro(c.price)}`
+        : c.kind === 'buyKite' ? `🪁 ${t('buyKite')} ${euro(c.price)}`
         : c.kind === 'fireworks' ? `🎆 ${t('fireworks')} ${euro(c.price)}`
         : c.kind === 'feed' ? `🥕 ${t('feedAnimal')} ${ANIMAL_EMOJI[c.animal]} ${euro(c.price)}`
         : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
