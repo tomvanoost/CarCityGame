@@ -213,7 +213,7 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'bakery' ? `🥐 ${t('visitBakery')}`
         : c.kind === 'feed' ? `🥕 ${t('feedAnimal')} ${ANIMAL_EMOJI[c.animal]} ${euro(c.price)}`
         : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
-        : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : 'rideCarousel')} ${euro(c.price)}`
+        : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : c.ride === 'balloon' ? '🎈' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : c.ride === 'balloon' ? 'rideBalloon' : 'rideCarousel')} ${euro(c.price)}`
         : c.kind === 'rideStop' ? `🚶 ${t('rideStop')}`
         : c.kind === 'fish' ? `🎣 ${t('fishStart')}`
         : c.kind === 'fishReel' ? (c.bite ? `❗ ${t('fishReel')}` : `🎣 ${t('fishWaiting')}`)
@@ -282,7 +282,7 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : reason === 'fish' ? 'fishShort' : reason === 'bakery' ? 'bakery' : reason === 'farm' ? 'pettingFarm' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : reason === 'fish' ? 'fishShort' : reason === 'bakery' ? 'bakery' : reason === 'farm' ? 'pettingFarm' : reason === 'balloon' ? 'rideBalloon' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : job.kind === 'bus' ? t('busStart') : t('pickedPassenger')),
     onFed: (a) => toast(`${ANIMAL_EMOJI[a]} ${t(`fed_${a}` as TKey)}`),
     onBusStop: (n, total) => toast(`🚌 ${t('busHopOn')} ${n}/${total}`),

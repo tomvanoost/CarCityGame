@@ -25,7 +25,9 @@ import { PizzeriaBuilding } from './pizzeria';
 import { BusShelters } from './busStops';
 import { FEED_PRICE, PettingFarm, type FarmAnimalKind } from './pettingFarm';
 import { BAKERY, BAKERY_TIME, BakeryBuilding, bakeryGeometry, type BakeryId } from './bakery';
-import { FunFair, RIDE_PRICE, type RideKind } from './funFair';
+import { FunFair, RIDE_PRICE, type RideKind as FairRide } from './funFair';
+import { BALLOON_FRONT, BALLOON_PRICE, Balloon } from './balloon';
+type RideKind = FairRide | 'balloon';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { HORNS, isHorn, type HornId } from '../horns';
 import { MAX_DENTS, REPAIR_PRICE, addDentMesh, clearDents, dentCount, findDent } from '../vehicles/dents';
@@ -126,7 +128,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
@@ -182,6 +184,7 @@ export class Game {
   private farm?: PettingFarm;
   private bakery?: BakeryBuilding;
   private funFair?: FunFair;
+  private balloon?: Balloon;
   private coins?: Coins;
   private raceTrack?: RaceTrack;
   private jetty?: FishingJetty;
@@ -190,7 +193,7 @@ export class Game {
   /** The race you're driving: countdown first, then the lap time; `next` = the gate to drive through (0 = finish). */
   private race: { count: number; t: number; next: number; passed: number } | null = null;
   /** Riding the Ferris wheel or the carousel (as a passenger: no walking). */
-  private ride: { kind: RideKind; t: number; dur: number } | null = null;
+  private ride: { kind: RideKind; t: number; dur: number; exit: { x: number; z: number }; from: { x: number; z: number } } | null = null;
   /** Your pet that comes along (follows you on foot, sits next to you in the car). */
   private pet?: Pet;
   /** Seconds left holding an ice cream (0 = none). */
@@ -357,6 +360,8 @@ export class Game {
     this.scene.add(this.bakery.group);
     this.funFair = new FunFair(city.layout);
     this.scene.add(this.funFair.group);
+    this.balloon = new Balloon();
+    this.scene.add(this.balloon.group);
     this.coins = new Coins(city.layout, this.profile.coins, (c) => {
       const coins = [...new Set([...this.profile.coins, c.id])];
       setProfile({ ...this.profile, coins });
@@ -931,13 +936,15 @@ export class Game {
 
   /** Pay and get on the Ferris wheel or the carousel; you get off by yourself when the ride is over. */
   private startRide(kind: RideKind, price: number) {
-    if (!this.funFair || !this.avatar || this.ride) return;
+    if (!this.funFair || !this.balloon || !this.avatar || !this.city || this.ride) return;
     const p = this.profile;
     if (p.money < price) { this.events.onMessage('needMoney', price - p.money); return; }
     setProfile({ ...p, money: p.money - price });
     void updateProfile({ money: p.money - price });
-    this.events.onMoney(-price, 'funFair');
-    const { seat, duration } = this.funFair.board(kind);
+    this.events.onMoney(-price, kind === 'balloon' ? 'balloon' : 'funFair');
+    const { seat, duration } = kind === 'balloon' ? this.balloon.board() : this.funFair.board(kind);
+    const fair = kind === 'balloon' ? null : this.city.layout.pois.funFair[kind];
+    const exit = fair ? fair.front : BALLOON_FRONT, from = fair ?? { x: BALLOON_FRONT.x, z: BALLOON_FRONT.z + 3 };
     const a = this.avatar, scale = 0.9;
     seat.add(a.root);
     a.root.position.copy(seatedRootPosition(new THREE.Vector3(), scale));
@@ -945,17 +952,16 @@ export class Game {
     a.root.scale.setScalar(scale);
     a.setTallGear(false);
     a.play('SitDown', { once: true, fade: 0.2, then: null });
-    this.ride = { kind, t: 0, dur: duration };
-    awardSticker('funFair');
+    this.ride = { kind, t: 0, dur: duration, exit, from };
+    awardSticker(kind === 'balloon' ? 'balloon' : 'funFair');
     this.mission('funFair');
   }
 
   private endRide() {
     if (!this.ride || !this.avatar || !this.player || !this.city) return;
-    const front = this.city.layout.pois.funFair[this.ride.kind].front;
-    const fair = this.city.layout.pois.funFair[this.ride.kind];
+    const front = this.ride.exit, fair = this.ride.from;
+    if (this.ride.kind === 'balloon') this.balloon?.leave(); else this.funFair?.leave();
     this.ride = null;
-    this.funFair?.leave();
     const a = this.avatar;
     this.scene.add(a.root);
     a.root.scale.setScalar(1);
@@ -1162,6 +1168,7 @@ export class Game {
     const near = (d: { x: number; z: number }) => Math.hypot(p.x - d.x, p.z - d.z) < 3.2;
     if (near(L.pois.funFair.wheel.front)) return { kind: 'ride', ride: 'wheel', price: RIDE_PRICE };
     if (near(L.pois.funFair.carousel.front)) return { kind: 'ride', ride: 'carousel', price: RIDE_PRICE };
+    if (near(BALLOON_FRONT)) return { kind: 'ride', ride: 'balloon', price: BALLOON_PRICE };
     if (near(L.pois.home.door)) return { kind: 'home' };
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
     if (Math.hypot(p.x - L.pois.supermarket.front.x, p.z - L.pois.supermarket.front.z) < 4) return { kind: 'supermarket' };
@@ -1527,7 +1534,7 @@ export class Game {
         this.avatar.root.getWorldPosition(this.focus);
         this.focus.y += 0.9;
         this.setCameraRange(false);
-        this.follow.update(dt, this.focus, { behindYaw: null, distance: this.ride.kind === 'wheel' ? 4.5 : 6, pitch: this.ride.kind === 'wheel' ? 0.2 : 0.35 });
+        this.follow.update(dt, this.focus, { behindYaw: null, distance: this.ride.kind === 'wheel' ? 4.5 : this.ride.kind === 'balloon' ? 7 : 6, pitch: this.ride.kind === 'wheel' ? 0.2 : this.ride.kind === 'balloon' ? 0.3 : 0.35 });
         if (this.ride.t >= this.ride.dur) this.endRide();
       } else {
         const wx = this.player.x, wz = this.player.z;
@@ -1561,6 +1568,7 @@ export class Game {
     // In the dashboard view your own driver is hidden, so you look over the real dashboard.
     this.avatar.root.visible = !(this.cockpit && this.mode === 'driving');
     this.funFair?.update(dt);
+    this.balloon?.update(dt);
     if (this.farm && Math.hypot(this.focus.x - PETTING.x, this.focus.z - PETTING.z) < 400) this.farm.update(dt);
     this.coins?.update(dt, this.ride ? null : pos, this.mode === 'driving' ? 3.5 : 2);
     this.avatar.update(dt);
@@ -1686,6 +1694,7 @@ export class Game {
     this.farm?.dispose();
     this.bakery?.dispose();
     this.funFair?.dispose();
+    this.balloon?.dispose();
     this.coins?.dispose();
     this.raceTrack?.dispose();
     this.jetty?.dispose();

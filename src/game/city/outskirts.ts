@@ -154,7 +154,7 @@ export function duneHeight(x: number, z: number) {
   if (a <= 0) return 0;
   // How far outside the desert town (0 inside): flat in town, dunes start 40 m out.
   const out = Math.max(DESERT_TOWN.x0 - x, x - DESERT_TOWN.x1, DESERT_TOWN.z0 - z, z - DESERT_TOWN.z1);
-  const flat = Math.min(smooth(10, 45, outRoadDistance(x, z)), smooth(0, 40, out), smooth(RACE.half + 6, RACE.half + 40, raceDistance(x, z)));
+  const flat = Math.min(smooth(10, 45, outRoadDistance(x, z)), smooth(0, 40, out), smooth(RACE.half + 6, RACE.half + 40, raceDistance(x, z)), smooth(BALLOON.r + 8, BALLOON.r + 40, Math.hypot(x - BALLOON.x, z - BALLOON.z)));
   if (flat <= 0) return 0;
   const n = Math.sin(x * 0.045 + Math.sin(z * 0.02) * 2) * 0.6 + Math.sin(z * 0.06 + x * 0.013) * 0.4;
   return Math.max(0, (n * 0.5 + 0.5)) * 3.8 * a * flat;
@@ -166,6 +166,9 @@ export function bridgeHeight(z: number) {
   if (z <= b.z0 || z >= b.z1) return 0;
   return b.h * Math.min(smooth(b.z0, b.z0 + b.ramp, z), 1 - smooth(b.z1 - b.ramp, b.z1, z));
 }
+
+/** Hot air balloon field: a launch pad south of the east road, at the start of the desert. */
+export const BALLOON = { x: 780, z: 42, r: 9 };
 
 /** Petting farm: a fenced paddock next to the farm road (gate on the east side, towards the road). */
 export const PETTING = { x: 1812, z: 1000, w: 26, d: 20, gate: 4 };

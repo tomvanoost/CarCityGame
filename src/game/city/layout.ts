@@ -1,6 +1,6 @@
 import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
-import { BRIDGE, DESERT, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, PETTING, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
+import { BALLOON, BRIDGE, DESERT, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, PETTING, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
 import { buildingCollider, generateTowns, type TownsData } from './towns';
 
 /**
@@ -391,7 +391,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   // ---------- desert: cacti and rocks (not on the road) ----------
   for (let i = 0; i < 260; i++) {
     const x = rng.range(DESERT.x0 + 60, DESERT.x1 - 20), z = rng.range(DESERT.z0 + 30, DESERT.z1 - 30);
-    if (onOutRoad(x, z, 8) || desertAmount(x, z) < 0.6 || inDesertTown(x, z, 25) || raceDistance(x, z) < RACE.half + 10) continue;
+    if (onOutRoad(x, z, 8) || desertAmount(x, z) < 0.6 || inDesertTown(x, z, 25) || raceDistance(x, z) < RACE.half + 10 || Math.hypot(x - BALLOON.x, z - BALLOON.z) < BALLOON.r + 12) continue;
     if (rng.chance(0.55)) {
       const s2 = rng.range(0.8, 1.4);
       L.desert.cacti.push({ x, z, s: s2, rot: rng.range(0, 6.28) });
@@ -429,6 +429,8 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       L.colliders.push({ x0: LAKE.x + gap, z0: z, x1: LAKE.x + w, z1: z + 6, water: true });
     }
   }
+  // The balloon basket on its launch pad.
+  L.colliders.push({ x0: BALLOON.x - 0.9, z0: BALLOON.z - 0.9, x1: BALLOON.x + 0.9, z1: BALLOON.z + 0.9 });
   // The petting farm: fence (with a gate gap on the road side), nothing else growing inside.
   {
     const P = PETTING, x0 = P.x - P.w / 2, x1 = P.x + P.w / 2, z0 = P.z - P.d / 2, z1 = P.z + P.d / 2, t = 0.25;
