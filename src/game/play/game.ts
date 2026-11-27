@@ -28,12 +28,13 @@ import { BAKERY, BAKERY_TIME, BakeryBuilding, bakeryGeometry, type BakeryId } fr
 import { FunFair, RIDE_PRICE, type RideKind as FairRide } from './funFair';
 import { BALLOON_FRONT, BALLOON_PRICE, Balloon } from './balloon';
 import { BOAT_FRONT, BOAT_PRICE, Boat } from './boat';
+import { SkatePark } from './skatePark';
 import { KITE_FRONT, KITE_PRICE, Kite, onBeach } from './kite';
 import { CROPS, Garden, HARVEST, cropOf, growth, type CropId } from './garden';
 import { SANDBOARD_END, SANDBOARD_FRONT, SANDBOARD_PRICE, SANDBOARD_TOP, Sandboard } from './sandboard';
 import { FIREWORKS_FRONT, FIREWORKS_PRICE, FIREWORKS_STAND, Fireworks } from './fireworks';
 import { Beach, FLOAT_FRONT, FLOAT_PRICE, floatGeometry } from './beach';
-type RideKind = FairRide | 'balloon' | 'sandboard' | 'boat';
+type RideKind = FairRide | 'balloon' | 'sandboard' | 'boat' | 'skate';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { turnLinesMesh } from './turnLines';
 import { LibraryBuilding, QUIZ_REWARD, today } from './library';
@@ -197,6 +198,8 @@ export class Game {
   private library?: LibraryBuilding;
   private sandboard?: Sandboard;
   private boat?: Boat;
+  private skate?: SkatePark;
+  private skateRolling = false;
   private kite?: Kite;
   private garden?: Garden;
   private kiteAwarded = false;
@@ -416,6 +419,8 @@ export class Game {
     this.scene.add(this.sandboard.group);
     this.boat = new Boat();
     this.scene.add(this.boat.group);
+    this.skate = new SkatePark(city.layout);
+    this.scene.add(this.skate.group);
     this.kite = new Kite();
     this.scene.add(this.kite.group);
     this.garden = new Garden(city.layout);
@@ -1115,6 +1120,22 @@ export class Game {
     if (p.money < price) { this.events.onMessage('needMoney', price - p.money); return; }
     setProfile({ ...p, money: p.money - price });
     void updateProfile({ money: p.money - price });
+    if (kind === 'skate') {
+      // Skateboarding is free: you stand on the board and the ride does the tricks.
+      if (!this.skate) return;
+      const { seat, duration } = this.skate.start();
+      const a = this.avatar;
+      seat.add(a.root);
+      a.root.position.set(0, 0.12, 0);
+      a.root.rotation.set(0, 0, 0);
+      a.root.scale.setScalar(1);
+      a.play('Walk', { fade: 0.2 });
+      this.skateRolling = false;
+      const sp = this.city.layout.pois.skatePark;
+      this.ride = { kind, t: 0, dur: duration, exit: sp.front, from: { x: sp.x, z: sp.z } };
+      awardSticker('skater');
+      return;
+    }
     if (kind === 'sandboard') {
       // Sandboard: you stand on it (no sitting); pulled up by the rope tow, then you slide down.
       if (!this.sandboard) return;
@@ -1153,11 +1174,12 @@ export class Game {
   private endRide() {
     if (!this.ride || !this.avatar || !this.player || !this.city) return;
     const front = this.ride.exit, fair = this.ride.from;
+    if (this.ride.kind === 'skate') this.skate?.leave();
     if (this.ride.kind === 'balloon') this.balloon?.leave();
     else if (this.ride.kind === 'boat') this.boat?.leave();
     else if (this.ride.kind === 'sandboard') this.sandboard?.leave();
     else this.funFair?.leave();
-    const wasBoard = this.ride.kind === 'sandboard';
+    const wasBoard = this.ride.kind === 'sandboard' || this.ride.kind === 'skate';
     this.ride = null;
     const a = this.avatar;
     this.scene.add(a.root);
@@ -1368,6 +1390,7 @@ export class Game {
     if (near(L.pois.funFair.carousel.front)) return { kind: 'ride', ride: 'carousel', price: RIDE_PRICE };
     if (near(BALLOON_FRONT)) return { kind: 'ride', ride: 'balloon', price: BALLOON_PRICE };
     if (near(BOAT_FRONT)) return { kind: 'ride', ride: 'boat', price: BOAT_PRICE };
+    if (near(L.pois.skatePark.front)) return { kind: 'ride', ride: 'skate', price: 0 };
     if (near(SANDBOARD_FRONT)) return { kind: 'ride', ride: 'sandboard', price: SANDBOARD_PRICE };
     if (near(FLOAT_FRONT) && !this.profile.swimFloat) return { kind: 'buyFloat', price: FLOAT_PRICE };
     if (near(KITE_FRONT) && !this.profile.kite) return { kind: 'buyKite', price: KITE_PRICE };
@@ -1890,6 +1913,13 @@ export class Game {
           const ph = this.sandboard.phase;
           if (ph && ph !== this.sandboardAnim) { this.sandboardAnim = ph; this.avatar.play(ph === 'walk' ? 'Walk' : 'Idle', { fade: 0.25 }); }
           this.follow.update(dt, this.focus, { behindYaw: this.sandboard.seat.rotation.y + Math.PI, distance: 6.5, pitch: 0.28 });
+        } else if (this.ride.kind === 'skate' && this.skate) {
+          const rolling = this.skate.rolling;
+          if (rolling !== this.skateRolling) { this.skateRolling = rolling; this.avatar.play(rolling ? 'Idle' : 'Walk', { fade: 0.2 }); }
+          // Watch from the open side of the pipe, a little from above.
+          const sp = this.city.layout.pois.skatePark;
+          this.focus.set(sp.x, this.focus.y - 0.5, sp.z);
+          this.follow.update(dt, this.focus, { behindYaw: 0, distance: 10.5, pitch: 0.32 });
         } else if (this.ride.kind === 'boat' && this.boat) {
           this.follow.update(dt, this.focus, { behindYaw: this.boat.heading + Math.PI, distance: 9, pitch: 0.3 });
         } else this.follow.update(dt, this.focus, { behindYaw: null, distance: this.ride.kind === 'wheel' ? 4.5 : this.ride.kind === 'balloon' ? 7 : 6, pitch: this.ride.kind === 'wheel' ? 0.2 : this.ride.kind === 'balloon' ? 0.3 : 0.35 });
@@ -1931,6 +1961,7 @@ export class Game {
     this.funFair?.update(dt);
     this.trafficLights?.update(dt);
     this.balloon?.update(dt);
+    if (this.skate && (this.ride?.kind === 'skate' || Math.hypot(this.focus.x - this.city.layout.pois.skatePark.x, this.focus.z - this.city.layout.pois.skatePark.z) < 120)) this.skate.update(dt);
     if (this.boat && (this.ride?.kind === 'boat' || Math.hypot(this.focus.x - BOAT_FRONT.x, this.focus.z - (BOAT_FRONT.z + 200)) < 600)) this.boat.update(dt);
     if (this.sandboard && (this.ride?.kind === 'sandboard' || Math.hypot(this.focus.x - SANDBOARD_FRONT.x, this.focus.z - SANDBOARD_FRONT.z) < 300)) this.sandboard.update(dt);
     this.fireworks?.update(dt);
@@ -2084,6 +2115,7 @@ export class Game {
     this.balloon?.dispose();
     this.sandboard?.dispose();
     this.boat?.dispose();
+    this.skate?.dispose();
     this.kite?.dispose();
     this.garden?.dispose();
     this.fireworks?.dispose();

@@ -90,6 +90,8 @@ export interface CityLayout {
     iceCream: { x: number; z: number; front: { x: number; z: number } };
     /** Post office stand in the park, opposite the ice cream stand (the treasure map). */
     postOffice: { x: number; z: number; front: { x: number; z: number } };
+    /** Skate park (half-pipe across X, open towards ±Z) in the park's south-east part; `front` = where to start. */
+    skatePark: { x: number; z: number; front: { x: number; z: number } };
     /** Supermarket on a shops block near home: building middle, its entrance (+Z side), the parking lot. */
     supermarket: { x: number; z: number; w: number; d: number; front: { x: number; z: number }; parking: Rect };
     /** Pet shop next to the supermarket (front = +Z). */
@@ -485,6 +487,17 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   L.colliders.push({ x0: STREAM.x0, z0: STREAM.z0, x1: STREAM.x1, z1: FOOTBRIDGE.z - gapHalf, water: true });
   L.colliders.push({ x0: STREAM.x0, z0: FOOTBRIDGE.z + gapHalf, x1: STREAM.x1, z1: STREAM.z1, water: true });
 
+  // ---------- skate park in the park's south-east part (away from the paths, pond and fun fair) ----------
+  const skX = L.park.fountain.x + 60, skZ = L.park.fountain.z + 32;
+  {
+    const inSk = (x: number, z: number) => Math.abs(x - skX) < 12 && Math.abs(z - skZ) < 11;
+    L.nature = L.nature.filter((n) => !inSk(n.x, n.z));
+    L.colliders = L.colliders.filter((c) => !(c.knock && inSk((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2)));
+    // The ramps and decks are solid (the flat middle and the open sides are not).
+    for (const s of [-1, 1]) L.colliders.push({ x0: Math.min(skX + s * 3.4, skX + s * 8), z0: skZ - 4, x1: Math.max(skX + s * 3.4, skX + s * 8), z1: skZ + 4 });
+    L.paths.push({ x0: skX - 9.5, z0: skZ - 7.5, x1: skX + 9.5, z1: skZ + 7.5 }); // no grass through the pad
+  }
+
   // ---------- vegetable garden behind your house: no trees or bushes in it ----------
   {
     const gd = homeLot!.garden;
@@ -590,6 +603,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     apartment: apartment!,
     iceCream: { x: ic.x, z: ic.z, front: { x: ic.x, z: ic.z + 2.4 } },
     postOffice: { x: po.x, z: po.z, front: { x: po.x, z: po.z + 2.4 } },
+    skatePark: { x: skX, z: skZ, front: { x: skX, z: skZ + 6 } },
     supermarket,
     petShop,
     paintShop,

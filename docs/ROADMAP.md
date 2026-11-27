@@ -23,8 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Skate park in the city park** (feature): ramps and a half-pipe; walk onto them for a skateboard
-  ride with a little jump and stars, no falling.
 - [ ] **Triangle diet** (performance): find the biggest triangle sources at the spawn (buildings, trees,
   cars, shadow pass); add LODs / lower-detail far versions, let only big things cast shadows, tighten
   the shadow camera. Target: city spawn under 1.4 M triangles.

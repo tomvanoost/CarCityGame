@@ -289,7 +289,7 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'fireworks' ? `🎆 ${t('fireworks')} ${euro(c.price)}`
         : c.kind === 'feed' ? `🥕 ${t('feedAnimal')} ${ANIMAL_EMOJI[c.animal]} ${euro(c.price)}`
         : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
-        : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : c.ride === 'balloon' ? '🎈' : c.ride === 'sandboard' ? '🏂' : c.ride === 'boat' ? '⛴️' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : c.ride === 'balloon' ? 'rideBalloon' : c.ride === 'sandboard' ? 'rideSandboard' : c.ride === 'boat' ? 'rideBoat' : 'rideCarousel')} ${euro(c.price)}`
+        : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : c.ride === 'balloon' ? '🎈' : c.ride === 'sandboard' ? '🏂' : c.ride === 'boat' ? '⛴️' : c.ride === 'skate' ? '🛹' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : c.ride === 'balloon' ? 'rideBalloon' : c.ride === 'sandboard' ? 'rideSandboard' : c.ride === 'boat' ? 'rideBoat' : c.ride === 'skate' ? 'rideSkate' : 'rideCarousel')}${c.price ? ` ${euro(c.price)}` : ''}`
         : c.kind === 'rideStop' ? `🚶 ${t('rideStop')}`
         : c.kind === 'fish' ? `🎣 ${t('fishStart')}`
         : c.kind === 'fishReel' ? (c.bite ? `❗ ${t('fishReel')}` : `🎣 ${t('fishWaiting')}`)
