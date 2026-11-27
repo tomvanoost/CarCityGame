@@ -110,7 +110,7 @@ export interface GameState {
   /** Dashboard view is on (the HUD shows the mirror frame). */
   cockpit: boolean;
   /** Turn signal that is blinking right now. */
-  blinker: 'left' | 'right' | null;
+  blinker: 'left' | 'right' | 'both' | null;
   /** Driving an emergency vehicle (shows the 🚨 button), and whether its siren is on. */
   police: boolean;
   siren: boolean;
@@ -1681,7 +1681,7 @@ export class Game {
         this.bumpSoundTimer = 0.4; // sliding along a wall doesn't keep thudding
         v.wallHit = 0;
       }
-      if (this.signals?.side) {
+      if (this.signals?.side && this.signals.side !== 'both') { // hazard lights stay on until switched off
         // Left turns raise the heading, right turns lower it. Turned ~60° and the wheel is straight again: off.
         this.blinkTurned += (v.heading - h0) * (this.signals.side === 'left' ? 1 : -1);
         if (this.blinkTurned > 1.05 && Math.abs(driveInput.steer) < 0.15) this.signals.side = null;

@@ -192,7 +192,10 @@ export const gameScreen: Screen = (root, nav) => {
     return b;
   };
   const blinkL = blinkBtn('left'), blinkR = blinkBtn('right');
-  const dash = h('div', { class: 'dash' }, h('div', { class: 'dash-row' }, blinkL, speed, blinkR), fuel);
+  // Hazard lights (both turn signals): ⚠️ next to the fuel bar (or 3, or the Capture / Share button).
+  const hazardBtn = h('button', { class: 'hazard-btn', 'aria-label': t('hazardLights'), title: `${t('hazardLights')} (3)` }, '⚠️');
+  hazardBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); sounds.unlock(); input.queueBlink('both'); });
+  const dash = h('div', { class: 'dash' }, h('div', { class: 'dash-row' }, blinkL, speed, blinkR), h('div', { class: 'dash-row fuel-row' }, fuel, hazardBtn));
   const action = h('button', { class: 'action-btn' });
   const actionLabel = h('span', {});
   const actionKey = h('kbd', {}, 'E');
@@ -245,8 +248,9 @@ export const gameScreen: Screen = (root, nav) => {
     photoBtn.hidden = state.context?.kind === 'rideStop' || overlay;
     mirrorFrame.hidden = !state.cockpit;
     if (state.mp) mpPill.textContent = `🌐 ${state.mp.room} · 👥 ${state.mp.others + 1}`;
-    blinkL.classList.toggle('on', state.blinker === 'left');
-    blinkR.classList.toggle('on', state.blinker === 'right');
+    blinkL.classList.toggle('on', state.blinker === 'left' || state.blinker === 'both');
+    blinkR.classList.toggle('on', state.blinker === 'right' || state.blinker === 'both');
+    hazardBtn.classList.toggle('on', state.blinker === 'both');
     sirenBtn.classList.toggle('on', state.siren);
     speed.firstElementChild!.textContent = String(state.kmh);
     fuelFill.style.width = `${Math.max(3, state.fuel * 100)}%`;

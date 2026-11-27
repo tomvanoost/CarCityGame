@@ -15,7 +15,7 @@ export class Input {
   private interactQueued = false;
   private hornQueued = false;
   private sirenQueued = false;
-  private blinkQueued: 'left' | 'right' | null = null;
+  private blinkQueued: 'left' | 'right' | 'both' | null = null;
   private viewQueued = false;
   private lookDX = 0;
   private lookDY = 0;
@@ -39,6 +39,7 @@ export class Input {
       if (!e.repeat && k === 'F2') { this.viewQueued = true; e.preventDefault(); }
       if (!e.repeat && (k === 'Digit1' || k === 'Numpad1')) this.blinkQueued = 'left';
       if (!e.repeat && (k === 'Digit2' || k === 'Numpad2')) this.blinkQueued = 'right';
+      if (!e.repeat && (k === 'Digit3' || k === 'Numpad3')) this.blinkQueued = 'both'; // hazard lights
       this.keys.add(k);
       if (k.startsWith('Arrow') || k === 'Space') e.preventDefault();
     } else this.keys.delete(k);
@@ -67,6 +68,7 @@ export class Input {
     if (p.view) this.viewQueued = true;
     if (p.blinkLeft) this.blinkQueued = 'left';
     if (p.blinkRight) this.blinkQueued = 'right';
+    if (p.hazard) this.blinkQueued = 'both';
     // The game screen closes an open panel (house, shop, map) on this, like the ✕ button.
     if (p.back) window.dispatchEvent(new Event('carcity-back'));
     // Right stick looks around like dragging the screen (~700 px per second at full tilt).
@@ -99,7 +101,7 @@ export class Input {
   queueJump() { this.jumpQueued = true; }
   queueHorn() { this.hornQueued = true; }
   queueSiren() { this.sirenQueued = true; }
-  queueBlink(side: 'left' | 'right') { this.blinkQueued = side; }
+  queueBlink(side: 'left' | 'right' | 'both') { this.blinkQueued = side; }
   queueView() { this.viewQueued = true; }
   /** Camera view switch pressed (F2, View / Create / Capture, 🎥): once per press. */
   takeView() { const v = this.viewQueued; this.viewQueued = false; return v; }

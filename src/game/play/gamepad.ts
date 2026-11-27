@@ -15,7 +15,8 @@
  *   Y / △ (top)         get in / out         paddles          horn
  *   X / □ (left)        horn
  *   B / ○ (right)       run (walking), close a panel   button 4 (△/Y)   close a panel
- *   View / Create / Capture  dashboard view on/off
+ *   View / Create (select)  dashboard view on/off
+ *   Capture / Share (logo)  hazard lights (both turn signals)   Share / View button  hazard lights
  *   RB / R1             siren (police car)             R2 / L2 buttons  siren (police car)
  *                                                      LSB / RSB        turn signal left / right
  */
@@ -41,6 +42,8 @@ export interface PadState {
   /** Turn signal pressed (d-pad left / right; one-shot). */
   blinkLeft: boolean;
   blinkRight: boolean;
+  /** Hazard lights on / off (Capture / Share button; one-shot). */
+  hazard: boolean;
   /** Siren on/off (police car): RB / R1, or wheel button R2/L2 (one-shot). */
   siren: boolean;
   /** Horn button held down right now (the horn sounds as long as it is held). */
@@ -97,7 +100,7 @@ export class Gamepads {
     let s: PadState | null = null;
     for (const pad of pads) {
       if (!pad || !pad.connected) continue;
-      s ??= { throttle: 0, brake: 0, steer: 0, handbrake: false, moveX: 0, moveY: 0, run: false, lookX: 0, lookY: 0, interact: false, jump: false, horn: false, hornHeld: false, back: false, siren: false, blinkLeft: false, blinkRight: false, view: false };
+      s ??= { throttle: 0, brake: 0, steer: 0, handbrake: false, moveX: 0, moveY: 0, run: false, lookX: 0, lookY: 0, interact: false, jump: false, horn: false, hornHeld: false, back: false, siren: false, blinkLeft: false, blinkRight: false, hazard: false, view: false };
       const b = (i: number) => pad.buttons[i]?.pressed ?? false;
       const bv = (i: number) => pad.buttons[i]?.value ?? 0;
       const prev = this.held.get(pad.index) ?? [];
@@ -117,10 +120,13 @@ export class Gamepads {
         s.hornHeld ||= b(2) || b(4) || b(5);
         s.handbrake ||= b(1);
         s.back ||= tap(3);
-        s.siren ||= tap(6) || tap(7);
         // Turn signals on the stick buttons: LSB = left, RSB = right. PlayStation-style wheels (G29,
         // G923 PS) number them L3 = 11 / R3 = 10, Xbox-style wheels (G920, G923 Xbox) LSB = 9 / RSB = 8.
-        const [lsb, rsb] = /g920|c262|c26d|c26e|xbox/.test(pad.id.toLowerCase()) ? [9, 8] : [11, 10];
+        const xboxWheel = /g920|c262|c26d|c26e|xbox/.test(pad.id.toLowerCase());
+        const [lsb, rsb] = xboxWheel ? [9, 8] : [11, 10];
+        // Hazard lights: the Share button (PlayStation-style wheels, 8) or the View button (Xbox-style, 7).
+        s.hazard ||= tap(xboxWheel ? 7 : 8);
+        s.siren ||= tap(6) || (!xboxWheel && tap(7));
         s.blinkLeft ||= tap(lsb);
         s.blinkRight ||= tap(rsb);
         continue;
@@ -160,8 +166,10 @@ export class Gamepads {
       s.hornHeld ||= b(2);
       s.back ||= tap(1);
       s.siren ||= tap(5);
-      // View (Xbox) / Create (PlayStation) / Capture (Nintendo): dashboard view on/off.
-      s.view ||= (std ? tap(8) || tap(17) : false);
+      // View (Xbox) / Create (PlayStation) / − (Nintendo): dashboard view on/off.
+      s.view ||= (std ? tap(8) : false);
+      // Capture / Share button (the logo button next to the home button): hazard lights.
+      s.hazard ||= (std ? tap(17) : false);
     }
     if (s) s.steer = Math.max(-1, Math.min(1, s.steer));
     return s;

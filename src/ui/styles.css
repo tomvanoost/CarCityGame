@@ -561,3 +561,9 @@ button, input { font: inherit; color: inherit; }
 .album-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .album-empty { text-align: center; font-size: 18px; margin: 18px 0; }
 .photo-on .fps, .photo-on .lang-toggle { display: none !important; }
+
+/* ⚠️ Hazard lights button next to the fuel bar; blinks while the hazard lights are on. */
+.fuel-row { gap: 8px; align-items: center; }
+.fuel-row .fuel { flex: 1; }
+.hazard-btn { width: 34px; height: 30px; border-radius: 10px; border: 0; background: rgba(255,255,255,.12); font-size: 17px; cursor: pointer; padding: 0; line-height: 1; filter: grayscale(.6); pointer-events: auto; touch-action: none; }
+.hazard-btn.on { background: #e5484d; filter: none; animation: blink-arrow .7s steps(1) infinite; }

@@ -31,7 +31,7 @@ export interface PlayerState {
   /** Speed (m/s) of the car or the walker, for smooth movement and the walk/run animation. */
   v: number;
   siren: boolean;
-  blink: 'left' | 'right' | null;
+  blink: 'left' | 'right' | 'both' | null;
   /** Paint shop extras on the car: roof stripe and rim color ('' = none). */
   stripe?: string;
   rims?: string;

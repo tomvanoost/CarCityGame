@@ -223,13 +223,13 @@ export class SirenLights {
 
 /**
  * Turn signals: orange lamps at the front and rear corners (car faces +Z, the driver's left is +X)
- * that blink on the chosen side. Fake light: 1 small mesh per side, hidden when off.
+ * that blink on the chosen side, or on both sides (hazard lights). Fake light: 1 small mesh per side, hidden when off.
  */
 export class TurnSignals {
   readonly group = new THREE.Group();
   private sides: Record<'left' | 'right', THREE.Mesh>;
   private t = 0;
-  side: 'left' | 'right' | null = null;
+  side: 'left' | 'right' | 'both' | null = null;
 
   constructor(length: number, width: number) {
     const mat = additive('#ff8400', 1);
@@ -249,11 +249,11 @@ export class TurnSignals {
 
   /** Every frame; returns true at the moment the lamp switches (for the tick sound). */
   update(dt: number): boolean {
-    const was = this.side ? this.sides[this.side].visible : false;
+    const was = this.sides.left.visible || this.sides.right.visible;
     this.t = this.side ? this.t + dt : 0;
     const on = !!this.side && this.t % 0.7 < 0.35;
-    this.sides.left.visible = on && this.side === 'left';
-    this.sides.right.visible = on && this.side === 'right';
+    this.sides.left.visible = on && this.side !== 'right';
+    this.sides.right.visible = on && this.side !== 'left';
     return !!this.side && on !== was;
   }
 
