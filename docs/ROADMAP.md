@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Boat trip on the lake**: a little ferry at the jetty (€10) that sails a loop around the lake
-  with a view of the lake town and the bridge; you sit on deck, ducks swim by.
 - [ ] **Kite flying on the beach**: buy a kite (€15) at the float stand; it flies behind you on a string
   while you walk on the beach, higher when you run; a sticker for keeping it up for a minute.
 - [ ] **Vegetable garden at home**: plant seeds (€5) in a small garden next to your house; they grow over

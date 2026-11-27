@@ -34,7 +34,7 @@ const merge = (parts: THREE.BufferGeometry[]) => {
 };
 
 /** Mother duck (mallard-like), facing +Z, waterline at y = 0. */
-function duckGeometry() {
+export function duckGeometry() {
   return merge([
     ball(0.22, 1, 0.62, 1.45, 0, 0.06, 0, '#8a6a4a'), // body
     cone(0.1, 0.22, 0, 0.12, -0.38, '#5a4634'), // tail
@@ -47,7 +47,7 @@ function duckGeometry() {
 }
 
 /** Duckling: a small fluffy yellow ball with an orange beak. */
-function ducklingGeometry() {
+export function ducklingGeometry() {
   return merge([
     ball(0.09, 1, 0.75, 1.25, 0, 0.04, 0, '#ffd84a'),
     ball(0.06, 1, 1, 1, 0, 0.15, 0.08, '#ffe066'),

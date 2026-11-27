@@ -27,10 +27,11 @@ import { FEED_PRICE, PettingFarm, type FarmAnimalKind } from './pettingFarm';
 import { BAKERY, BAKERY_TIME, BakeryBuilding, bakeryGeometry, type BakeryId } from './bakery';
 import { FunFair, RIDE_PRICE, type RideKind as FairRide } from './funFair';
 import { BALLOON_FRONT, BALLOON_PRICE, Balloon } from './balloon';
+import { BOAT_FRONT, BOAT_PRICE, Boat } from './boat';
 import { SANDBOARD_END, SANDBOARD_FRONT, SANDBOARD_PRICE, SANDBOARD_TOP, Sandboard } from './sandboard';
 import { FIREWORKS_FRONT, FIREWORKS_PRICE, FIREWORKS_STAND, Fireworks } from './fireworks';
 import { Beach, FLOAT_FRONT, FLOAT_PRICE, floatGeometry } from './beach';
-type RideKind = FairRide | 'balloon' | 'sandboard';
+type RideKind = FairRide | 'balloon' | 'sandboard' | 'boat';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { turnLinesMesh } from './turnLines';
 import { LibraryBuilding, QUIZ_REWARD, today } from './library';
@@ -140,7 +141,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks' | 'beach' | 'treasure' | 'sandboard' | 'quiz'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks' | 'beach' | 'treasure' | 'sandboard' | 'quiz' | 'boat'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
@@ -193,6 +194,7 @@ export class Game {
   private postOffice?: THREE.Mesh;
   private library?: LibraryBuilding;
   private sandboard?: Sandboard;
+  private boat?: Boat;
   private sandboardAnim: 'walk' | 'slide' | null = null;
   private turnLines?: THREE.Mesh;
   private chest?: TreasureChest;
@@ -404,6 +406,8 @@ export class Game {
     this.scene.add(this.funFair.group);
     this.sandboard = new Sandboard();
     this.scene.add(this.sandboard.group);
+    this.boat = new Boat();
+    this.scene.add(this.boat.group);
     this.balloon = new Balloon();
     this.scene.add(this.balloon.group);
     this.fireworks = new Fireworks((k) => sounds.firework(k));
@@ -1053,10 +1057,13 @@ export class Game {
       awardSticker('sandboard');
       return;
     }
-    this.events.onMoney(-price, kind === 'balloon' ? 'balloon' : 'funFair');
-    const { seat, duration } = kind === 'balloon' ? this.balloon.board() : this.funFair.board(kind);
-    const fair = kind === 'balloon' ? null : this.city.layout.pois.funFair[kind];
-    const exit = fair ? fair.front : BALLOON_FRONT, from = fair ?? { x: BALLOON_FRONT.x, z: BALLOON_FRONT.z + 3 };
+    if (kind === 'boat' && !this.boat) return;
+    this.events.onMoney(-price, kind === 'balloon' ? 'balloon' : kind === 'boat' ? 'boat' : 'funFair');
+    const { seat, duration } = kind === 'balloon' ? this.balloon.board() : kind === 'boat' ? this.boat!.board() : this.funFair.board(kind);
+    const fair = kind === 'balloon' || kind === 'boat' ? null : this.city.layout.pois.funFair[kind];
+    // Off the boat you step back onto the jetty, facing land (north).
+    const exit = fair ? fair.front : kind === 'boat' ? BOAT_FRONT : BALLOON_FRONT;
+    const from = fair ?? (kind === 'boat' ? { x: BOAT_FRONT.x, z: BOAT_FRONT.z + 3 } : { x: BALLOON_FRONT.x, z: BALLOON_FRONT.z + 3 });
     const a = this.avatar, scale = 0.9;
     seat.add(a.root);
     a.root.position.copy(seatedRootPosition(new THREE.Vector3(), scale));
@@ -1065,14 +1072,15 @@ export class Game {
     a.setTallGear(false);
     a.play('SitDown', { once: true, fade: 0.2, then: null });
     this.ride = { kind, t: 0, dur: duration, exit, from };
-    awardSticker(kind === 'balloon' ? 'balloon' : 'funFair');
-    this.mission('funFair');
+    awardSticker(kind === 'balloon' ? 'balloon' : kind === 'boat' ? 'boat' : 'funFair');
+    if (kind !== 'boat') this.mission('funFair');
   }
 
   private endRide() {
     if (!this.ride || !this.avatar || !this.player || !this.city) return;
     const front = this.ride.exit, fair = this.ride.from;
     if (this.ride.kind === 'balloon') this.balloon?.leave();
+    else if (this.ride.kind === 'boat') this.boat?.leave();
     else if (this.ride.kind === 'sandboard') this.sandboard?.leave();
     else this.funFair?.leave();
     const wasBoard = this.ride.kind === 'sandboard';
@@ -1285,6 +1293,7 @@ export class Game {
     if (near(L.pois.funFair.wheel.front)) return { kind: 'ride', ride: 'wheel', price: RIDE_PRICE };
     if (near(L.pois.funFair.carousel.front)) return { kind: 'ride', ride: 'carousel', price: RIDE_PRICE };
     if (near(BALLOON_FRONT)) return { kind: 'ride', ride: 'balloon', price: BALLOON_PRICE };
+    if (near(BOAT_FRONT)) return { kind: 'ride', ride: 'boat', price: BOAT_PRICE };
     if (near(SANDBOARD_FRONT)) return { kind: 'ride', ride: 'sandboard', price: SANDBOARD_PRICE };
     if (near(FLOAT_FRONT) && !this.profile.swimFloat) return { kind: 'buyFloat', price: FLOAT_PRICE };
     if (near(FIREWORKS_FRONT) && !this.fireworks?.active) return { kind: 'fireworks', price: FIREWORKS_PRICE };
@@ -1773,6 +1782,8 @@ export class Game {
           const ph = this.sandboard.phase;
           if (ph && ph !== this.sandboardAnim) { this.sandboardAnim = ph; this.avatar.play(ph === 'walk' ? 'Walk' : 'Idle', { fade: 0.25 }); }
           this.follow.update(dt, this.focus, { behindYaw: this.sandboard.seat.rotation.y + Math.PI, distance: 6.5, pitch: 0.28 });
+        } else if (this.ride.kind === 'boat' && this.boat) {
+          this.follow.update(dt, this.focus, { behindYaw: this.boat.heading + Math.PI, distance: 9, pitch: 0.3 });
         } else this.follow.update(dt, this.focus, { behindYaw: null, distance: this.ride.kind === 'wheel' ? 4.5 : this.ride.kind === 'balloon' ? 7 : 6, pitch: this.ride.kind === 'wheel' ? 0.2 : this.ride.kind === 'balloon' ? 0.3 : 0.35 });
         if (this.ride.t >= this.ride.dur) this.endRide();
       } else {
@@ -1812,6 +1823,7 @@ export class Game {
     this.funFair?.update(dt);
     this.trafficLights?.update(dt);
     this.balloon?.update(dt);
+    if (this.boat && (this.ride?.kind === 'boat' || Math.hypot(this.focus.x - BOAT_FRONT.x, this.focus.z - (BOAT_FRONT.z + 200)) < 600)) this.boat.update(dt);
     if (this.sandboard && (this.ride?.kind === 'sandboard' || Math.hypot(this.focus.x - SANDBOARD_FRONT.x, this.focus.z - SANDBOARD_FRONT.z) < 300)) this.sandboard.update(dt);
     this.fireworks?.update(dt);
     this.updateSwimming(dt);
@@ -1951,6 +1963,7 @@ export class Game {
     this.funFair?.dispose();
     this.balloon?.dispose();
     this.sandboard?.dispose();
+    this.boat?.dispose();
     this.fireworks?.dispose();
     this.beach?.dispose();
     this.coins?.dispose();

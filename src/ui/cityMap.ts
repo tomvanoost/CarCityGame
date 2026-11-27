@@ -19,6 +19,7 @@ const OUT_PLACES: [P, string, string][] = [
   [{ x: BALLOON.x, z: BALLOON.z }, '🎈', '#e5484d'],
   [{ x: FIREWORKS.x, z: FIREWORKS.z }, '🎆', '#9b5de5'],
   [{ x: BIG_DUNE.x, z: BIG_DUNE.z }, '🏂', '#ff8a2b'],
+  [{ x: -240, z: 1050 }, '⛴️', '#1f6fe0'],
 ];
 /** Base map resolution: pixels per meter (the whole world must fit in a canvas tablets allow). */
 const K = 0.7;
