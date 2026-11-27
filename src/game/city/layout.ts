@@ -1,6 +1,6 @@
 import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
-import { BALLOON, BRIDGE, DESERT, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, PETTING, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
+import { BALLOON, BRIDGE, DESERT, FIREWORKS, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, PETTING, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
 import { buildingCollider, generateTowns, type TownsData } from './towns';
 
 /**
@@ -429,6 +429,8 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       L.colliders.push({ x0: LAKE.x + gap, z0: z, x1: LAKE.x + w, z1: z + 6, water: true });
     }
   }
+  // The fireworks stand on the north beach of the lake (east of the jetty).
+  L.colliders.push({ x0: FIREWORKS.x - 1.3, z0: FIREWORKS.z - 0.8, x1: FIREWORKS.x + 1.3, z1: FIREWORKS.z + 0.8 });
   // The balloon basket on its launch pad.
   L.colliders.push({ x0: BALLOON.x - 0.9, z0: BALLOON.z - 0.9, x1: BALLOON.x + 0.9, z1: BALLOON.z + 0.9 });
   // The petting farm: fence (with a gate gap on the road side), nothing else growing inside.

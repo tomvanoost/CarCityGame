@@ -1,7 +1,7 @@
 import type { CityLayout, District } from '../game/city/layout';
 import type { MapState } from '../game/play/game';
 import type { P, RoadGraph } from '../game/play/roads';
-import { BALLOON, BRIDGE, DESERT, DESERT_TOWN, FARM, FOOTBRIDGE, LAKE, LAKE_TOWN, JETTY, OUT_ROADS, PATH, PETTING, RACE, STREAM, racePoints } from '../game/city/outskirts';
+import { BALLOON, BRIDGE, DESERT, FIREWORKS, DESERT_TOWN, FARM, FOOTBRIDGE, LAKE, LAKE_TOWN, JETTY, OUT_ROADS, PATH, PETTING, RACE, STREAM, racePoints } from '../game/city/outskirts';
 
 /** World extent shown on the maps: -E..E meters on both axes (city, desert, lake, countryside). */
 const E = 2350;
@@ -17,6 +17,7 @@ const OUT_PLACES: [P, string, string][] = [
   [{ x: JETTY.x, z: JETTY.z0 - 14 }, '🎣', '#2f8bff'],
   [{ x: PETTING.x, z: PETTING.z }, '🐐', '#2fa84f'],
   [{ x: BALLOON.x, z: BALLOON.z }, '🎈', '#e5484d'],
+  [{ x: FIREWORKS.x, z: FIREWORKS.z }, '🎆', '#9b5de5'],
 ];
 /** Base map resolution: pixels per meter (the whole world must fit in a canvas tablets allow). */
 const K = 0.7;

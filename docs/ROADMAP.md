@@ -16,7 +16,15 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Fireworks at the lake**: in the evening, tap the fireworks button on the beach (€25) for a
-  colorful (quiet, soft-popping) fireworks show over the water.
+- [ ] **Swimming at the beach**: walk into the lake at the beach and swim (a simple swim animation
+  and splashes, slow and safe, always back to the shore), with a rubber duck float to buy (€15).
+- [ ] **Treasure map**: a weekly treasure map from the post office shows a blurry spot; find the chest
+  (it sparkles nearby) for a big prize and a rare sticker.
+- [ ] **Car photo mode**: a 📷 button that hides the buttons and lets you turn the camera around your
+  car, then saves the picture (download) and puts it in a small photo album.
+- [ ] **Sledge hill in the desert dunes**: a sandboard rental (€10) to slide down the biggest dune,
+  with a lift (a rope tow) back up.
+- [ ] **Library / quiz corner**: a little library in the lake town with picture quizzes about the game
+  world (NL + EN), €10 per right answer and a "clever" sticker.
 
 (Add new ideas here, in order, for the next runs.)

@@ -419,6 +419,16 @@ class Sounds {
     this.noise(ctx, t + 0.1, 0.4, 0.05 * v, 'highpass', 4500, 0.7, 0.02);
   }
 
+  /** A firework bursting far away: a soft low pop and a quiet crackle (k: 0..1, how close / loud). */
+  firework(k = 1) {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const t = ctx.currentTime + 0.25, v = 0.35 + k * 0.4; // a little later: sound travels slower than light
+    this.tone(ctx, 'sine', 120, t, 0.35, 0.22 * v, 40);
+    this.noise(ctx, t, 0.12, 0.08 * v, 'lowpass', 600, 0.7);
+    for (let i = 0; i < 6; i++) this.noise(ctx, t + 0.15 + Math.random() * 0.6, 0.03, 0.03 * v, 'highpass', 3000 + Math.random() * 2000, 0.8);
+  }
+
   /** Bumping into a wall: a soft rubbery thud (k: 0..1, how hard). */
   bump(k = 1) {
     const ctx = this.ready();

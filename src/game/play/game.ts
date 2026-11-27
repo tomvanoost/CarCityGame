@@ -27,6 +27,7 @@ import { FEED_PRICE, PettingFarm, type FarmAnimalKind } from './pettingFarm';
 import { BAKERY, BAKERY_TIME, BakeryBuilding, bakeryGeometry, type BakeryId } from './bakery';
 import { FunFair, RIDE_PRICE, type RideKind as FairRide } from './funFair';
 import { BALLOON_FRONT, BALLOON_PRICE, Balloon } from './balloon';
+import { FIREWORKS_FRONT, FIREWORKS_PRICE, FIREWORKS_STAND, Fireworks } from './fireworks';
 type RideKind = FairRide | 'balloon';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { HORNS, isHorn, type HornId } from '../horns';
@@ -56,7 +57,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean };
+export type ContextAction = { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -128,7 +129,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
@@ -146,7 +147,7 @@ export interface GameEvents {
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
   onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
 }
@@ -185,6 +186,7 @@ export class Game {
   private bakery?: BakeryBuilding;
   private funFair?: FunFair;
   private balloon?: Balloon;
+  private fireworks?: Fireworks;
   private coins?: Coins;
   private raceTrack?: RaceTrack;
   private jetty?: FishingJetty;
@@ -362,6 +364,8 @@ export class Game {
     this.scene.add(this.funFair.group);
     this.balloon = new Balloon();
     this.scene.add(this.balloon.group);
+    this.fireworks = new Fireworks((k) => sounds.firework(k));
+    this.scene.add(this.fireworks.group);
     this.coins = new Coins(city.layout, this.profile.coins, (c) => {
       const coins = [...new Set([...this.profile.coins, c.id])];
       setProfile({ ...this.profile, coins });
@@ -1169,6 +1173,7 @@ export class Game {
     if (near(L.pois.funFair.wheel.front)) return { kind: 'ride', ride: 'wheel', price: RIDE_PRICE };
     if (near(L.pois.funFair.carousel.front)) return { kind: 'ride', ride: 'carousel', price: RIDE_PRICE };
     if (near(BALLOON_FRONT)) return { kind: 'ride', ride: 'balloon', price: BALLOON_PRICE };
+    if (near(FIREWORKS_FRONT) && !this.fireworks?.active) return { kind: 'fireworks', price: FIREWORKS_PRICE };
     if (near(L.pois.home.door)) return { kind: 'home' };
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
     if (Math.hypot(p.x - L.pois.supermarket.front.x, p.z - L.pois.supermarket.front.z) < 4) return { kind: 'supermarket' };
@@ -1216,6 +1221,21 @@ export class Game {
       case 'ride':
         this.startRide(c.ride, c.price);
         break;
+      case 'fireworks': {
+        // Fireworks only show up well in the dark: by day you get a hint (and pay nothing).
+        if (!this.evening) { this.events.onMessage('fireworksEvening'); break; }
+        const p = this.profile, pl = this.player!;
+        if (p.money < c.price) { this.events.onMessage('needMoney', c.price - p.money); break; }
+        setProfile({ ...p, money: p.money - c.price });
+        void updateProfile({ money: p.money - c.price });
+        this.events.onMoney(-c.price, 'fireworks');
+        this.fireworks?.start();
+        // Turn around to watch the lake.
+        pl.heading = Math.atan2(FIREWORKS_STAND.x - pl.x, 900 - pl.z);
+        this.follow.yaw = pl.heading + Math.PI;
+        awardSticker('fireworks');
+        break;
+      }
       case 'feed': {
         const p = this.profile, pl = this.player!, a = this.farm?.nearest(pl.x, pl.z);
         if (!a || a.happy > 0) break;
@@ -1543,7 +1563,10 @@ export class Game {
         if (this.missionWalk >= 10) { this.mission('walk', this.missionWalk); this.missionWalk = 0; }
         this.focus.set(this.player.x, this.player.y + 1.4, this.player.z);
         this.setCameraRange(false);
-        this.follow.update(dt, this.focus, { behindYaw: null, distance: 5.5, pitch: 0.32, blocked: this.blocked });
+        // Watching fireworks near the stand: the camera looks out over the lake at sky level.
+        const watching = this.fireworks?.active && Math.hypot(this.player.x - FIREWORKS_STAND.x, this.player.z - FIREWORKS_STAND.z) < 30;
+        if (watching) this.focus.y += 10;
+        this.follow.update(dt, this.focus, { behindYaw: null, distance: watching ? 9 : 5.5, pitch: watching ? 0.06 : 0.32, blocked: this.blocked });
       }
     }
     this.refuel(dt, ctx);
@@ -1569,6 +1592,7 @@ export class Game {
     this.avatar.root.visible = !(this.cockpit && this.mode === 'driving');
     this.funFair?.update(dt);
     this.balloon?.update(dt);
+    this.fireworks?.update(dt);
     if (this.farm && Math.hypot(this.focus.x - PETTING.x, this.focus.z - PETTING.z) < 400) this.farm.update(dt);
     this.coins?.update(dt, this.ride ? null : pos, this.mode === 'driving' ? 3.5 : 2);
     this.avatar.update(dt);
@@ -1695,6 +1719,7 @@ export class Game {
     this.bakery?.dispose();
     this.funFair?.dispose();
     this.balloon?.dispose();
+    this.fireworks?.dispose();
     this.coins?.dispose();
     this.raceTrack?.dispose();
     this.jetty?.dispose();
