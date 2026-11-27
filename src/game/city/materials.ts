@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { BLOCK_SPACING, HALF_CITY, ROAD_WIDTH, WIDE_HALF } from './layout';
+import { LAKE } from './outskirts';
+import { SKY } from '../world/sky';
 
 /** Shared GLSL helpers: value noise + anti-aliased masks. */
 const NOISE = /* glsl */ `
@@ -325,19 +327,58 @@ export function createTowerMaterial() {
 }
 
 /** Pond / fountain water with gentle moving ripples. */
+/**
+ * Water (the lake, the stream, the park pond): calm big swells with fine ripples on top (the ripples
+ * fade out in the distance, so far water lies smooth and mirrors the sky), sun glitter that twinkles on
+ * the sun's reflection, the sky's horizon color at low angles (orange at sunset), and on the lake a
+ * deep blue middle, turquoise shallows and a soft moving foam line along the shore.
+ */
 export function createWaterMaterial() {
   const uTime = { value: 0 };
-  const mat = new THREE.MeshStandardMaterial({ color: 0x3d8fd6, roughness: 0.08, metalness: 0.2 });
+  // (Sky reflection turned down: the calm water would otherwise mirror the pale sky and lose its blue.)
+  const mat = new THREE.MeshStandardMaterial({ color: 0x3d8fd6, roughness: 0.09, metalness: 0.05, envMapIntensity: 0.3 });
   mat.onBeforeCompile = (shader) => {
     withWorldPos(shader);
     shader.uniforms.uTime = uTime;
+    shader.uniforms.uLake = { value: new THREE.Vector4(LAKE.x, LAKE.z, LAKE.rx, LAKE.rz) };
+    shader.uniforms.uSunDir = { value: SKY.sunDir };
+    shader.uniforms.uHorizon = { value: SKY.horizon };
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime;')
+      .replace('#include <common>', '#include <common>\nuniform float uTime; uniform vec4 uLake; uniform vec3 uSunDir; uniform vec3 uHorizon;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        vec3 toCam = normalize(cameraPosition - vWorld);
+        float lakeE = length((vWorld.xz - uLake.xy) / uLake.zw); // 0 in the middle .. 1 at the shore
+        float onLake = 1.0 - step(1.02, lakeE);
+        // Deep blue in the middle, turquoise shallows near the shore (the pond and stream keep their color).
+        vec3 lakeCol = mix(vec3(0.05, 0.27, 0.52), vec3(0.18, 0.58, 0.70), smoothstep(0.80, 1.0, lakeE));
+        diffuseColor.rgb = mix(diffuseColor.rgb, lakeCol, onLake);
+        // A soft foam line that rolls towards the beach, and a white edge right at the sand.
+        float shoreM = (1.0 - lakeE) * uLake.w; // ~meters from the shore
+        float roll = smoothstep(0.82, 1.0, sin(shoreM * 0.9 + uTime * 1.3 + vnoise(vWorld.xz * 0.15) * 4.0));
+        float foam = onLake * (roll * (1.0 - smoothstep(0.0, 9.0, shoreM)) * 0.45 + (1.0 - smoothstep(0.0, 1.6, shoreM)) * 0.6);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.96, 0.98, 1.0), clamp(foam, 0.0, 0.85));
+        // Looking across the water at a low angle it takes the sky's horizon color.
+        float fres = pow(1.0 - max(toCam.y, 0.0), 6.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, uHorizon, fres * 0.3);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        vec2 wp = vWorld.xz * 0.6;
-        float n1 = vnoise(wp + uTime * 0.4), n2 = vnoise(wp * 1.7 - uTime * 0.3);
-        normal = normalize(normal + (vec3(n1 - 0.5, 0.0, n2 - 0.5) * 0.35));`);
+        // Waves in world space: slow big swells + quick small ripples (fading with distance).
+        float near = 1.0 - smoothstep(50.0, 240.0, length(vWorld.xz - cameraPosition.xz));
+        vec2 wp = vWorld.xz;
+        float s1 = vnoise(wp * 0.07 + uTime * vec2(0.05, 0.03)), s2 = vnoise(wp * 0.07 + vec2(5.2, 1.3) - uTime * 0.04);
+        float r1 = vnoise(wp * 0.55 + uTime * 0.35), r2 = vnoise(wp * 0.7 - uTime * 0.3 + 7.1);
+        vec3 waterN = normalize(vec3((s1 - 0.5) * 0.22 + (r1 - 0.5) * 0.3 * near, 1.0, (s2 - 0.5) * 0.22 + (r2 - 0.5) * 0.3 * near));
+        normal = normalize((viewMatrix * vec4(waterN, 0.0)).xyz);
+        // Lean the surface a little towards the viewer: at low angles calm water would mirror the pale
+        // sky almost fully; this keeps more of the water's own blue (a common trick for game water).
+        normal = normalize(normal + normalize(vViewPosition) * 0.45);`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        // Sun glitter: tiny facets that catch the sun twinkle on its reflection path.
+        vec3 glintN = normalize(waterN + vec3(vnoise(wp * 3.1 + uTime * 1.7) - 0.5, 0.0, vnoise(wp * 2.7 - uTime * 1.5 + 3.3) - 0.5) * 0.35);
+        float glint = pow(max(dot(reflect(-toCam, glintN), normalize(uSunDir)), 0.0), 300.0);
+        float twinkle = step(0.72, vnoise(wp * 2.3 + uTime * 2.2));
+        float sunUp = smoothstep(-0.02, 0.12, uSunDir.y);
+        totalEmissiveRadiance += mix(vec3(1.0, 0.96, 0.88), uHorizon, 0.35) * glint * twinkle * sunUp * 2.5;`);
   };
-  mat.customProgramCacheKey = () => 'cityWater';
+  mat.customProgramCacheKey = () => 'cityWater2';
   return { mat, uTime };
 }
