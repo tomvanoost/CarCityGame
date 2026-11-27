@@ -25,6 +25,8 @@ import { PizzeriaBuilding } from './pizzeria';
 import { FunFair, RIDE_PRICE, type RideKind } from './funFair';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { HORNS, isHorn, type HornId } from '../horns';
+import { CHECKPOINTS, MEDAL_PRIZE, RaceTrack, medalFor, type Medal } from './raceTrack';
+import { RACE } from '../city/outskirts';
 import { missionDay, todaysMissions, type Mission, type MissionId } from '../missions';
 import { applyRims, applyStripe } from '../vehicles/carStyle';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
@@ -47,7 +49,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' };
+export type ContextAction = { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -81,6 +83,8 @@ export interface GameState {
   /** The car is in the car wash right now. */
   washing: boolean;
   context: ContextAction | null;
+  /** Desert race: countdown (> 0 before the start), lap time, next gate (1..6, 0 = finish). */
+  race: { countdown: number; time: number; gate: number; total: number } | null;
   job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number; timeLeft?: number } | null;
   /** Navigation to a destination you picked on the map. */
   dest: { meters: number } | null;
@@ -117,11 +121,13 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
   onCoin?(found: number, total: number): void;
+  /** Desert race finished. */
+  onRaceDone?(r: { medal: Medal; time: number; best: number; record: boolean; prize: number }): void;
   onJobStart(job: ActiveJob): void;
   onJobDone?(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
@@ -163,6 +169,9 @@ export class Game {
   private pizzeria?: PizzeriaBuilding;
   private funFair?: FunFair;
   private coins?: Coins;
+  private raceTrack?: RaceTrack;
+  /** The race you're driving: countdown first, then the lap time; `next` = the gate to drive through (0 = finish). */
+  private race: { count: number; t: number; next: number; passed: number } | null = null;
   /** Riding the Ferris wheel or the carousel (as a passenger: no walking). */
   private ride: { kind: RideKind; t: number; dur: number } | null = null;
   /** Your pet that comes along (follows you on foot, sits next to you in the car). */
@@ -333,6 +342,8 @@ export class Game {
       this.events.onCoin?.(coins.length, COIN_COUNT);
     });
     this.scene.add(this.coins.group);
+    this.raceTrack = new RaceTrack();
+    this.scene.add(this.raceTrack.group);
     this.setPet(this.profile.activePet);
     this.lamps = new StreetLamps(city.layout);
     this.scene.add(this.lamps.group);
@@ -519,7 +530,7 @@ export class Game {
     if (list.every((x) => next.done.includes(x.id))) awardSticker('missions');
   }
 
-  private addMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'km' | 'mission' | 'coin') {
+  private addMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'km' | 'mission' | 'coin' | 'race') {
     const p = this.profile;
     setProfile({ ...p, money: Math.max(0, p.money + amount) });
     this.dirty = true;
@@ -731,6 +742,51 @@ export class Game {
     a.setTallGear(false);
     a.play('SitDown', { once: true, fade: 0.2, then: null });
     this.mode = 'driving';
+  }
+
+  private stopRace() {
+    this.race = null;
+    this.raceTrack?.highlight(null);
+  }
+
+  /** Desert race: 3-2-1 (the car waits), then drive through the gates in order and back over the finish line. */
+  private updateRace(dt: number) {
+    const r = this.race, v = this.vehicle, track = this.raceTrack;
+    if (!r || !v || !track) return;
+    if (this.mode !== 'driving' || r.t > 600) { this.stopRace(); return; }
+    if (r.count > 0) {
+      v.limit = 0;
+      const before = Math.ceil(r.count);
+      r.count -= dt;
+      if (Math.ceil(r.count) !== before) sounds.blinkerTick(r.count > 0);
+      if (r.count <= 0) { r.count = 0; sounds.coin(); }
+      return;
+    }
+    r.t += dt;
+    const g = track.gates[r.next];
+    if (Math.hypot(v.x - g.x, v.z - g.z) > RACE.half + 4) return;
+    if (r.next === 0) { this.finishRace(r.t); return; }
+    r.passed++;
+    sounds.blinkerTick(true);
+    r.next = r.passed >= CHECKPOINTS ? 0 : r.next + 1;
+    track.highlight(r.next);
+  }
+
+  private finishRace(time: number) {
+    const v = this.vehicle!, p = this.profile, id = v.spec.id;
+    this.stopRace();
+    const medal = medalFor(time, v.spec.topSpeed);
+    const old = p.raceBest[id];
+    const record = !old || time < old;
+    const best = record ? time : old;
+    const raceBest = { ...p.raceBest, [id]: Math.round(best * 10) / 10 };
+    setProfile({ ...this.profile, raceBest });
+    void updateProfile({ raceBest });
+    const prize = MEDAL_PRIZE[medal];
+    this.addMoney(prize, 'race');
+    this.events.onRaceDone?.({ medal, time, best, record, prize });
+    awardSticker('race');
+    if (medal === 'gold') awardSticker('raceGold');
   }
 
   /** Pay and get on the Ferris wheel or the carousel; you get off by yourself when the ride is over. */
@@ -947,6 +1003,9 @@ export class Game {
     if (!this.city || !this.vehicle || !this.player) return null;
     const L = this.city.layout, v = this.vehicle;
     if (this.mode === 'driving') {
+      if (this.race) return { kind: 'raceStop' };
+      const start = this.raceTrack?.gates[0];
+      if (start && Math.hypot(v.x - start.x, v.z - start.z) < 14 && v.kmh < 15) return { kind: 'raceStart' };
       if (this.carWash?.inside(v.x, v.z) && (v.kmh < 4 || this.washTimer > 0)) return { kind: 'wash', price: WASH_PRICE };
       const c = L.gas.canopy;
       const under = v.x > c.x0 - 2 && v.x < c.x1 + 2 && v.z > c.z0 - 2 && v.z < c.z1 + 2;
@@ -1002,6 +1061,14 @@ export class Game {
         break;
       case 'ride':
         this.startRide(c.ride, c.price);
+        break;
+      case 'raceStart':
+        this.race = { count: 2.999, t: 0, next: 1, passed: 0 };
+        this.raceTrack?.highlight(1);
+        sounds.blinkerTick(true);
+        break;
+      case 'raceStop':
+        this.stopRace();
         break;
       case 'rideStop':
         this.endRide();
@@ -1210,6 +1277,7 @@ export class Game {
         awardSticker('carWash');
       }
     }
+    this.updateRace(dt);
     if (this.shineTimer > 0) {
       this.shineTimer = Math.max(0, this.shineTimer - dt);
       if (this.shineTimer === 0) this.setShine(false);
@@ -1379,6 +1447,7 @@ export class Game {
       job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round((this.nav?.remaining || Math.hypot(job.x - pos.x, job.z - pos.z)) / 10) * 10, timeLeft: job.timeLeft === undefined ? undefined : Math.ceil(job.timeLeft) } : null,
       dest: !job && this.dest ? { meters: Math.round((this.nav?.remaining ?? 0) / 10) * 10 } : null,
       topSpeed: v.spec.topSpeed,
+      race: this.race ? { countdown: Math.ceil(this.race.count), time: this.race.t, gate: this.race.passed, total: CHECKPOINTS } : null,
       maxSpeed: this.maxKmh,
       blinker: this.mode === 'driving' ? this.signals?.side ?? null : null,
       cockpit: this.cockpit && this.mode === 'driving',
@@ -1444,6 +1513,7 @@ export class Game {
     this.pizzeria?.dispose();
     this.funFair?.dispose();
     this.coins?.dispose();
+    this.raceTrack?.dispose();
     this.pet?.dispose();
     this.garage?.dispose();
     this.lamps?.dispose();

@@ -1,7 +1,7 @@
 import type { CityLayout, District } from '../game/city/layout';
 import type { MapState } from '../game/play/game';
 import type { P, RoadGraph } from '../game/play/roads';
-import { BRIDGE, DESERT, DESERT_TOWN, FARM, FOOTBRIDGE, LAKE, LAKE_TOWN, OUT_ROADS, PATH, STREAM } from '../game/city/outskirts';
+import { BRIDGE, DESERT, DESERT_TOWN, FARM, FOOTBRIDGE, LAKE, LAKE_TOWN, OUT_ROADS, PATH, RACE, STREAM, racePoints } from '../game/city/outskirts';
 
 /** World extent shown on the maps: -E..E meters on both axes (city, desert, lake, countryside). */
 const E = 2350;
@@ -13,6 +13,7 @@ const OUT_PLACES: [P, string, string][] = [
   [{ x: LAKE_TOWN.x, z: LAKE_TOWN.z }, '🏘️', '#e5484d'],
   [{ x: LAKE.x, z: LAKE.z }, '🌉', '#2f8bff'],
   [{ x: (FARM.x0 + FARM.x1) / 2, z: (FARM.z0 + FARM.z1) / 2 }, '🚜', '#16b862'],
+  [{ x: RACE.access.x, z: RACE.z + RACE.rz + 30 }, '🏁', '#1c1d20'],
 ];
 /** Base map resolution: pixels per meter (the whole world must fit in a canvas tablets allow). */
 const K = 0.7;
@@ -89,6 +90,16 @@ export function renderBaseMap(layout: CityLayout, roads: RoadGraph): HTMLCanvasE
     for (const r of OUT_ROADS) { g.moveTo(X(r.ax), X(r.az)); g.lineTo(X(r.bx), X(r.bz)); }
     g.moveTo(X(LAKE_TOWN.x + LAKE_TOWN.ring), X(LAKE_TOWN.z));
     g.arc(X(LAKE_TOWN.x), X(LAKE_TOWN.z), LAKE_TOWN.ring * K, 0, Math.PI * 2);
+    g.stroke();
+  }
+  // The desert race track: a dirt loop with its access path.
+  {
+    const pts = racePoints();
+    g.strokeStyle = '#a87a45'; g.lineWidth = RACE.half * 2 * K; g.lineJoin = 'round';
+    g.beginPath();
+    pts.forEach((p, i) => (i ? g.lineTo(X(p.x), X(p.z)) : g.moveTo(X(p.x), X(p.z))));
+    g.closePath();
+    g.moveTo(X(RACE.access.x), X(RACE.access.z0)); g.lineTo(X(pts[0].x), X(pts[0].z));
     g.stroke();
   }
   // The car bridge (grey edges over the water), the gravel path and the wooden footbridge.

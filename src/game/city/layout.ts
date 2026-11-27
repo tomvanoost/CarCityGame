@@ -1,6 +1,6 @@
 import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
-import { BRIDGE, DESERT, FOOTBRIDGE, LAKE, STREAM, WORLD_EDGE, desertAmount, inDesertTown, noTrees, onOutRoad } from './outskirts';
+import { BRIDGE, DESERT, FOOTBRIDGE, LAKE, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
 import { buildingCollider, generateTowns, type TownsData } from './towns';
 
 /**
@@ -384,7 +384,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   // ---------- desert: cacti and rocks (not on the road) ----------
   for (let i = 0; i < 260; i++) {
     const x = rng.range(DESERT.x0 + 60, DESERT.x1 - 20), z = rng.range(DESERT.z0 + 30, DESERT.z1 - 30);
-    if (onOutRoad(x, z, 8) || desertAmount(x, z) < 0.6 || inDesertTown(x, z, 25)) continue;
+    if (onOutRoad(x, z, 8) || desertAmount(x, z) < 0.6 || inDesertTown(x, z, 25) || raceDistance(x, z) < RACE.half + 10) continue;
     if (rng.chance(0.55)) {
       const s2 = rng.range(0.8, 1.4);
       L.desert.cacti.push({ x, z, s: s2, rot: rng.range(0, 6.28) });

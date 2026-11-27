@@ -32,6 +32,7 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     coins: [],
     horns: [],
     vehicleHorns: {},
+    raceBest: {},
   };
 }
 
@@ -64,6 +65,7 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   p.coins = toArray(raw.coins, []);
   p.horns = toArray(raw.horns, []);
   if (!p.vehicleHorns || typeof p.vehicleHorns !== 'object') p.vehicleHorns = {};
+  if (!p.raceBest || typeof p.raceBest !== 'object') p.raceBest = {};
   // Daily missions: keep only well-formed progress.
   const m = raw.missions as { day?: unknown; progress?: unknown; done?: unknown } | undefined;
   if (m && typeof m.day === 'string') {

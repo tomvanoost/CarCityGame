@@ -109,6 +109,39 @@ export const inDesertTown = (x: number, z: number, m = 0) =>
 export const inLakeTown = (x: number, z: number, m = 0) => Math.hypot(x - LAKE_TOWN.x, z - LAKE_TOWN.z) < LAKE_TOWN.r + m;
 export const inFarm = (x: number, z: number, m = 0) => x > FARM.x0 - m && x < FARM.x1 + m && z > FARM.z0 - m && z < FARM.z1 + m;
 
+/**
+ * Desert race track: a loop with S-bends north of the east road, plus a short dirt path from the road
+ * to the start line (point 0, the side nearest the road). `half` = half the track width.
+ */
+export const RACE = { x: 1150, z: -430, rx: 260, rz: 150, half: 6.5, n: 160, access: { x: 1150, z0: EAST_ROAD.z - 6 } };
+let racePts: { x: number; z: number }[] | null = null;
+/** The track's center line (closed loop, point 0 = start/finish). */
+export function racePoints() {
+  if (racePts) return racePts;
+  racePts = [];
+  for (let i = 0; i < RACE.n; i++) {
+    const a = Math.PI / 2 + (i / RACE.n) * Math.PI * 2;
+    racePts.push({ x: RACE.x + Math.cos(a) * RACE.rx + Math.sin(a * 2) * 35, z: RACE.z + Math.sin(a) * RACE.rz + Math.sin(a * 3) * 28 });
+  }
+  return racePts;
+}
+const segDist = (x: number, z: number, ax: number, az: number, bx: number, bz: number) => {
+  const dx = bx - ax, dz = bz - az, l = dx * dx + dz * dz;
+  const t = l ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l)) : 0;
+  return Math.hypot(x - ax - dx * t, z - az - dz * t);
+};
+/** Distance to the track's center line or its access path (Infinity when far away). */
+export function raceDistance(x: number, z: number) {
+  if (x < RACE.x - RACE.rx - 140 || x > RACE.x + RACE.rx + 140 || z < RACE.z - RACE.rz - 140 || z > RACE.access.z0 + 60) return Infinity;
+  const p = racePoints();
+  let d = segDist(x, z, RACE.access.x, RACE.access.z0, p[0].x, p[0].z);
+  for (let i = 0; i < p.length; i++) {
+    const a = p[i], b = p[(i + 1) % p.length];
+    d = Math.min(d, segDist(x, z, a.x, a.z, b.x, b.z));
+  }
+  return d;
+}
+
 /** 0 outside the desert, 1 in its middle (smooth edge). */
 export function desertAmount(x: number, z: number) {
   const d = Math.min(x - DESERT.x0, DESERT.x1 - x, z - DESERT.z0, DESERT.z1 - z);
@@ -121,7 +154,7 @@ export function duneHeight(x: number, z: number) {
   if (a <= 0) return 0;
   // How far outside the desert town (0 inside): flat in town, dunes start 40 m out.
   const out = Math.max(DESERT_TOWN.x0 - x, x - DESERT_TOWN.x1, DESERT_TOWN.z0 - z, z - DESERT_TOWN.z1);
-  const flat = Math.min(smooth(10, 45, outRoadDistance(x, z)), smooth(0, 40, out));
+  const flat = Math.min(smooth(10, 45, outRoadDistance(x, z)), smooth(0, 40, out), smooth(RACE.half + 6, RACE.half + 40, raceDistance(x, z)));
   if (flat <= 0) return 0;
   const n = Math.sin(x * 0.045 + Math.sin(z * 0.02) * 2) * 0.6 + Math.sin(z * 0.06 + x * 0.013) * 0.4;
   return Math.max(0, (n * 0.5 + 0.5)) * 3.8 * a * flat;

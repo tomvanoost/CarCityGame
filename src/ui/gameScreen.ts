@@ -138,6 +138,9 @@ export const gameScreen: Screen = (root, nav) => {
   const actionKey = h('kbd', {}, 'E');
   action.append(svgIcon('<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M9 17l5-5-5-5"/><path d="M14 12H3"/>', 26), actionLabel, actionKey);
   const ctxBtn = h('button', { class: 'context-btn' });
+  const countEl = h('div', { class: 'race-count', hidden: true }, '3');
+  /** 0:52.3 */
+  const raceTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
   const hint = h('div', { class: 'keys-hint' }, t('keysHint'));
   const yieldBubble = h('div', { class: 'yield-bubble' }, '✋ ', t('yieldPeople'));
   const jobCard = h('div', { class: 'job-card' });
@@ -163,10 +166,10 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, mirrorFrame, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, mirrorFrame, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, race: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false };
   const render = () => {
     const driving = state.mode === 'driving';
     if (!speedPop.hidden) showLimit(state.maxSpeed); else speedBtn.lastElementChild!.textContent = state.maxSpeed && state.maxSpeed < state.topSpeed ? String(state.maxSpeed) : 'MAX';
@@ -207,6 +210,8 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
         : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : 'rideCarousel')} ${euro(c.price)}`
         : c.kind === 'rideStop' ? `🚶 ${t('rideStop')}`
+        : c.kind === 'raceStart' ? `🏁 ${t('raceStart')}`
+        : c.kind === 'raceStop' ? `✋ ${t('raceStop')}`
         : c.kind === 'buyApartment' ? `🏢 ${t('buyApartment')} ${euro(c.price)}` : `🏠 ${t('goInside')}`;
       ctxBtn.classList.toggle('busy', state.refueling || state.washing);
     }
@@ -217,7 +222,14 @@ export const gameScreen: Screen = (root, nav) => {
       cancel.addEventListener('click', () => game.setDestination(null));
       jobCard.replaceChildren(h('span', { class: 'job-icon' }, '📍'), h('span', { class: 'job-text' }, t('toDest')), h('b', {}, `${state.dest.meters} m`), cancel);
     }
-    if (state.job) {
+    // Desert race: lap time and gates, plus the big 3-2-1.
+    countEl.hidden = !state.race || state.race.countdown <= 0;
+    if (state.race) {
+      const r = state.race;
+      if (r.countdown > 0) countEl.textContent = String(r.countdown);
+      jobCard.hidden = false;
+      jobCard.replaceChildren(h('span', { class: 'job-icon' }, '🏁'), h('b', {}, raceTime(r.time)), h('span', { class: 'job-text' }, `🚩 ${r.gate}/${r.total}`));
+    } else if (state.job) {
       const j = state.job;
       jobCard.replaceChildren(
         h('span', { class: 'job-icon' }, j.kind === 'delivery' ? '📦' : j.kind === 'pizza' ? '🍕' : '🚕'),
@@ -262,8 +274,9 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : t('pickedPassenger')),
+    onRaceDone: (r) => toast(`${r.medal === 'gold' ? '🥇' : r.medal === 'silver' ? '🥈' : '🥉'} ${t(r.medal === 'gold' ? 'medalGold' : r.medal === 'silver' ? 'medalSilver' : 'medalBronze')} ${raceTime(r.time)}${r.record ? ` — ${t('raceRecord')}` : ` (${t('raceBest')} ${raceTime(r.best)})`}`),
     onCoin: (n, total) => toast(`🪙 ${t('coinFound')} ${n}/${total}`),
     onMission: (m) => toast(`${m.emoji} ${t('missionDone')} ${missionText(m)}`),
     onJobDone: (job) => { if (job.kind === 'pizza') toast(job.hot ? t('pizzaHot') : t('pizzaThanks')); },

@@ -522,3 +522,6 @@ button, input { font: inherit; color: inherit; }
 .horn-tile b { font-size: 14px; }
 .horn-tile small { font-size: 12px; font-weight: 900; color: #b07900; }
 .horn-tile.active small { color: #2f9e6a; }
+
+/* Desert race: the big 3-2-1 */
+.race-count { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); font-size: 120px; font-weight: 900; color: #fff; text-shadow: 0 6px 0 #e5484d, 0 10px 24px rgba(0,0,0,.35); pointer-events: none; z-index: 20; animation: pop .4s cubic-bezier(.2, 1.4, .4, 1); }

@@ -44,6 +44,8 @@ export interface PlayerProfile {
   /** Horn shop: horns you bought, and the horn chosen per vehicle (see game/horns.ts). */
   horns: string[];
   vehicleHorns: Record<string, string>;
+  /** Desert race: best lap time (seconds) per vehicle. */
+  raceBest: Record<string, number>;
   /** Today's daily missions progress (see game/missions.ts); reset when the day changes. */
   missions?: { day: string; progress: Partial<Record<import('../game/missions').MissionId, number>>; done: import('../game/missions').MissionId[] };
 }
