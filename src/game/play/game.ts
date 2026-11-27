@@ -22,6 +22,7 @@ import { Pet, PetShopBuilding, getPet } from './pets';
 import { FURNITURE } from '../furniture';
 import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
 import { PizzeriaBuilding } from './pizzeria';
+import { FunFair, RIDE_PRICE, type RideKind } from './funFair';
 import { applyRims, applyStripe } from '../vehicles/carStyle';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
 import { FLAVORS, ICE_CREAM_PRICE, ICE_CREAM_TIME, IceCreamStand, coneGeometry, type Flavor } from './iceCream';
@@ -43,7 +44,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number };
+export type ContextAction = { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -113,7 +114,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair'): void;
   onJobStart(job: ActiveJob): void;
   onJobDone?(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
@@ -153,6 +154,9 @@ export class Game {
   private petShop?: PetShopBuilding;
   private paintShop?: PaintShopBuilding;
   private pizzeria?: PizzeriaBuilding;
+  private funFair?: FunFair;
+  /** Riding the Ferris wheel or the carousel (as a passenger: no walking). */
+  private ride: { kind: RideKind; t: number; dur: number } | null = null;
   /** Your pet that comes along (follows you on foot, sits next to you in the car). */
   private pet?: Pet;
   /** Seconds left holding an ice cream (0 = none). */
@@ -308,6 +312,8 @@ export class Game {
     this.scene.add(this.paintShop.group);
     this.pizzeria = new PizzeriaBuilding(city.layout);
     this.scene.add(this.pizzeria.group);
+    this.funFair = new FunFair(city.layout);
+    this.scene.add(this.funFair.group);
     this.setPet(this.profile.activePet);
     this.lamps = new StreetLamps(city.layout);
     this.scene.add(this.lamps.group);
@@ -659,6 +665,41 @@ export class Game {
     this.mode = 'driving';
   }
 
+  /** Pay and get on the Ferris wheel or the carousel; you get off by yourself when the ride is over. */
+  private startRide(kind: RideKind, price: number) {
+    if (!this.funFair || !this.avatar || this.ride) return;
+    const p = this.profile;
+    if (p.money < price) { this.events.onMessage('needMoney', price - p.money); return; }
+    setProfile({ ...p, money: p.money - price });
+    void updateProfile({ money: p.money - price });
+    this.events.onMoney(-price, 'funFair');
+    const { seat, duration } = this.funFair.board(kind);
+    const a = this.avatar, scale = 0.9;
+    seat.add(a.root);
+    a.root.position.copy(seatedRootPosition(new THREE.Vector3(), scale));
+    a.root.rotation.set(0, 0, 0);
+    a.root.scale.setScalar(scale);
+    a.setTallGear(false);
+    a.play('SitDown', { once: true, fade: 0.2, then: null });
+    this.ride = { kind, t: 0, dur: duration };
+    awardSticker('funFair');
+  }
+
+  private endRide() {
+    if (!this.ride || !this.avatar || !this.player || !this.city) return;
+    const front = this.city.layout.pois.funFair[this.ride.kind].front;
+    const fair = this.city.layout.pois.funFair[this.ride.kind];
+    this.ride = null;
+    this.funFair?.leave();
+    const a = this.avatar;
+    this.scene.add(a.root);
+    a.root.scale.setScalar(1);
+    a.setTallGear(true);
+    // Step off facing away from the ride.
+    this.player.place(front.x, front.z, Math.atan2(front.x - fair.x, front.z - fair.z));
+    a.play('StandUp', { once: true, fade: 0.15, then: 'Idle' });
+  }
+
   private toggleCar() {
     const v = this.vehicle!, a = this.avatar!, p = this.player!;
     if (this.mode === 'driving') {
@@ -845,8 +886,11 @@ export class Game {
       if (Math.hypot(v.x - ps.x, v.z - ps.z) < 7 && v.kmh < 6) return { kind: 'paintShop' };
       return null;
     }
+    if (this.ride) return { kind: 'rideStop' };
     const p = this.player;
     const near = (d: { x: number; z: number }) => Math.hypot(p.x - d.x, p.z - d.z) < 3.2;
+    if (near(L.pois.funFair.wheel.front)) return { kind: 'ride', ride: 'wheel', price: RIDE_PRICE };
+    if (near(L.pois.funFair.carousel.front)) return { kind: 'ride', ride: 'carousel', price: RIDE_PRICE };
     if (near(L.pois.home.door)) return { kind: 'home' };
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
     if (Math.hypot(p.x - L.pois.supermarket.front.x, p.z - L.pois.supermarket.front.z) < 4) return { kind: 'supermarket' };
@@ -885,6 +929,12 @@ export class Game {
       case 'paintShop':
         this.paused = true;
         this.events.onPlace(c.kind);
+        break;
+      case 'ride':
+        this.startRide(c.ride, c.price);
+        break;
+      case 'rideStop':
+        this.endRide();
         break;
       case 'buyApartment': {
         const p = this.profile;
@@ -1061,7 +1111,7 @@ export class Game {
     const key = this.input.takeInteract();
     if (!this.paused) {
       if ((key || this.pendingContext) && ctx) this.doContext(ctx);
-      else if (key || this.pendingCar) this.toggleCar();
+      else if ((key || this.pendingCar) && !this.ride) this.toggleCar();
     }
     this.pendingCar = this.pendingContext = false;
     const look = this.input.takeLook();
@@ -1159,10 +1209,20 @@ export class Game {
       });
     } else {
       v.update(dt, null, this.world);
-      if (!this.paused) this.player.update(dt, this.input.walk(), jump, this.follow.yaw, this.world);
-      this.focus.set(this.player.x, this.player.y + 1.4, this.player.z);
-      this.setCameraRange(false);
-      this.follow.update(dt, this.focus, { behindYaw: null, distance: 5.5, pitch: 0.32, blocked: this.blocked });
+      if (this.ride) {
+        // On a ride: the camera follows your gondola / horse (from the top of the wheel you see the whole city).
+        this.ride.t += dt;
+        this.avatar.root.getWorldPosition(this.focus);
+        this.focus.y += 0.9;
+        this.setCameraRange(false);
+        this.follow.update(dt, this.focus, { behindYaw: null, distance: this.ride.kind === 'wheel' ? 4.5 : 6, pitch: this.ride.kind === 'wheel' ? 0.2 : 0.35 });
+        if (this.ride.t >= this.ride.dur) this.endRide();
+      } else {
+        if (!this.paused) this.player.update(dt, this.input.walk(), jump, this.follow.yaw, this.world);
+        this.focus.set(this.player.x, this.player.y + 1.4, this.player.z);
+        this.setCameraRange(false);
+        this.follow.update(dt, this.focus, { behindYaw: null, distance: 5.5, pitch: 0.32, blocked: this.blocked });
+      }
     }
     this.refuel(dt, ctx);
     if (this.shake > 0) {
@@ -1185,6 +1245,7 @@ export class Game {
     this.yieldTimer = v.yielding ? 1.2 : Math.max(0, this.yieldTimer - dt);
     // In the dashboard view your own driver is hidden, so you look over the real dashboard.
     this.avatar.root.visible = !(this.cockpit && this.mode === 'driving');
+    this.funFair?.update(dt);
     this.avatar.update(dt);
     this.updatePet(dt);
     this.sun.follow(this.focus);
@@ -1303,6 +1364,7 @@ export class Game {
     this.petShop?.dispose();
     this.paintShop?.dispose();
     this.pizzeria?.dispose();
+    this.funFair?.dispose();
     this.pet?.dispose();
     this.garage?.dispose();
     this.lamps?.dispose();

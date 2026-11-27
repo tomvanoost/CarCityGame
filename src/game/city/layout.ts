@@ -83,6 +83,11 @@ export interface CityLayout {
     supermarket: { x: number; z: number; w: number; d: number; front: { x: number; z: number }; parking: Rect };
     /** Pet shop next to the supermarket (front = +Z). */
     petShop: { x: number; z: number; front: { x: number; z: number } };
+    /** Fun fair in the park's north-west corner: a Ferris wheel (axle along Z) and a carousel; `front` = where you board. */
+    funFair: {
+      wheel: { x: number; z: number; front: { x: number; z: number } };
+      carousel: { x: number; z: number; front: { x: number; z: number } };
+    };
     /** Pizzeria kiosk at the front corner of the supermarket parking lot (counter = +Z, towards the road). */
     pizzeria: { x: number; z: number; front: { x: number; z: number } };
     /** Paint shop garage on the other side of the supermarket (door = +Z); drive up to `front`. */
@@ -435,6 +440,18 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   L.colliders = L.colliders.filter((c) => !(c.knock && clear((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2)));
   L.colliders.push({ x0: ic.x - 1.5, z0: ic.z - 1.1, x1: ic.x + 1.5, z1: ic.z + 1.1 });
 
+  // ---------- fun fair in the park's north-west corner (away from the pond and the paths) ----------
+  const pr = L.park.rect;
+  const wheel = { x: pr.x0 + 32, z: pr.z0 + 30, front: { x: pr.x0 + 32, z: pr.z0 + 34.5 } };
+  const carousel = { x: pr.x0 + 32, z: pr.z0 + 68, front: { x: pr.x0 + 42.5, z: pr.z0 + 68 } };
+  const fair = (x: number, z: number) => x > pr.x0 + 10 && x < pr.x0 + 56 && z > pr.z0 + 14 && z < pr.z0 + 82;
+  L.nature = L.nature.filter((n) => !fair(n.x, n.z));
+  L.colliders = L.colliders.filter((c) => !(c.knock && fair((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2)));
+  L.colliders.push({ x0: wheel.x - 3, z0: wheel.z - 2.5, x1: wheel.x + 3, z1: wheel.z + 2.5 });
+  for (const s of [-1, 1]) L.colliders.push({ x0: wheel.x + s * 7 - 0.8, z0: wheel.z - 3.5, x1: wheel.x + s * 7 + 0.8, z1: wheel.z + 3.5 });
+  L.colliders.push({ x0: carousel.x - 7.5, z0: carousel.z - 7.5, x1: carousel.x + 7.5, z1: carousel.z + 7.5 });
+  const funFair = { wheel, carousel };
+
   // ---------- supermarket: on the shops block nearest to home (replaces that block's buildings) ----------
   const shopBlocks = L.blocks.filter((b) => b.district === 'shops');
   const sb = shopBlocks.sort((a, b) => Math.hypot(a.bx - HOME_BLOCK[0], a.bz - HOME_BLOCK[1]) - Math.hypot(b.bx - HOME_BLOCK[0], b.bz - HOME_BLOCK[1]))[0] ?? L.blocks[0];
@@ -472,6 +489,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     petShop,
     paintShop,
     pizzeria,
+    funFair,
   };
   return L;
 }

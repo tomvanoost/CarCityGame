@@ -203,6 +203,8 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'supermarket' ? `🛒 ${t('goShopping')}`
         : c.kind === 'petShop' ? `🐾 ${t('visitPetShop')}`
         : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
+        : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : 'rideCarousel')} ${euro(c.price)}`
+        : c.kind === 'rideStop' ? `🚶 ${t('rideStop')}`
         : c.kind === 'buyApartment' ? `🏢 ${t('buyApartment')} ${euro(c.price)}` : `🏠 ${t('goInside')}`;
       ctxBtn.classList.toggle('busy', state.refueling || state.washing);
     }
@@ -258,7 +260,7 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : t('pickedPassenger')),
     onJobDone: (job) => { if (job.kind === 'pizza') toast(job.hot ? t('pizzaHot') : t('pizzaThanks')); },
     onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : place === 'paintShop' ? openPaintShop() : openPanel(place)),
@@ -352,7 +354,7 @@ export const gameScreen: Screen = (root, nav) => {
     if (!minimap && game.roads && game.city) {
       const L = game.city.layout;
       const base = renderBaseMap(L, game.roads);
-      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front, pizzeria: L.pois.pizzeria.front };
+      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front, pizzeria: L.pois.pizzeria.front, funFair: L.pois.funFair.wheel.front };
       minimap = new Minimap(base, places, openMap, (id) => {
         const name = game.navigateToPlayer(id);
         if (name) toast(t('mpNavTo').replace('{name}', name));
