@@ -214,6 +214,8 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'supermarket' ? `🛒 ${t('goShopping')}`
         : c.kind === 'petShop' ? `🐾 ${t('visitPetShop')}`
         : c.kind === 'bakery' ? `🥐 ${t('visitBakery')}`
+        : c.kind === 'treasureMap' ? `📮 ${t('treasureMapBtn')}`
+        : c.kind === 'openTreasure' ? `💎 ${t('openTreasure')}`
         : c.kind === 'buyFloat' ? `🦆 ${t('buyFloat')} ${euro(c.price)}`
         : c.kind === 'fireworks' ? `🎆 ${t('fireworks')} ${euro(c.price)}`
         : c.kind === 'feed' ? `🥕 ${t('feedAnimal')} ${ANIMAL_EMOJI[c.animal]} ${euro(c.price)}`
@@ -287,7 +289,7 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : reason === 'fish' ? 'fishShort' : reason === 'bakery' ? 'bakery' : reason === 'farm' ? 'pettingFarm' : reason === 'balloon' ? 'rideBalloon' : reason === 'fireworks' ? 'fireworks' : reason === 'beach' ? 'buyFloat' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : reason === 'fish' ? 'fishShort' : reason === 'bakery' ? 'bakery' : reason === 'farm' ? 'pettingFarm' : reason === 'balloon' ? 'rideBalloon' : reason === 'fireworks' ? 'fireworks' : reason === 'beach' ? 'buyFloat' : reason === 'treasure' ? 'treasureFound' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : job.kind === 'bus' ? t('busStart') : t('pickedPassenger')),
     onFed: (a) => toast(`${ANIMAL_EMOJI[a]} ${t(`fed_${a}` as TKey)}`),
     onBusStop: (n, total) => toast(`🚌 ${t('busHopOn')} ${n}/${total}`),
@@ -387,7 +389,7 @@ export const gameScreen: Screen = (root, nav) => {
     if (!minimap && game.roads && game.city) {
       const L = game.city.layout;
       const base = renderBaseMap(L, game.roads);
-      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front, pizzeria: L.pois.pizzeria.front, funFair: L.pois.funFair.wheel.front, bakery: L.pois.bakery.front, busDepot: L.pois.busStops[0]?.stop ?? L.pois.spawn };
+      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front, pizzeria: L.pois.pizzeria.front, funFair: L.pois.funFair.wheel.front, postOffice: L.pois.postOffice, bakery: L.pois.bakery.front, busDepot: L.pois.busStops[0]?.stop ?? L.pois.spawn };
       minimap = new Minimap(base, places, openMap, (id) => {
         const name = game.navigateToPlayer(id);
         if (name) toast(t('mpNavTo').replace('{name}', name));

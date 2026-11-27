@@ -31,6 +31,7 @@ import { FIREWORKS_FRONT, FIREWORKS_PRICE, FIREWORKS_STAND, Fireworks } from './
 import { Beach, FLOAT_FRONT, FLOAT_PRICE, floatGeometry } from './beach';
 type RideKind = FairRide | 'balloon';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
+import { TREASURE_PRIZE, TREASURE_RADIUS, TreasureChest, postOfficeMesh, treasureSpot, weekNumber } from './treasure';
 import { HORNS, isHorn, type HornId } from '../horns';
 import { MAX_DENTS, REPAIR_PRICE, addDentMesh, clearDents, dentCount, findDent } from '../vehicles/dents';
 import { CHECKPOINTS, MEDAL_PRIZE, RaceTrack, medalFor, type Medal } from './raceTrack';
@@ -60,7 +61,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean };
+export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -127,6 +128,8 @@ export interface MapState {
   players: { id: string; name: string; x: number; z: number }[];
   /** The player we're navigating to, if any. */
   following: string | null;
+  /** Treasure map: the blurry spot where this week's chest is (null = no map, or already found). */
+  treasure: { x: number; z: number; r: number } | null;
 }
 
 export interface GameEvents {
@@ -134,7 +137,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks' | 'beach'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks' | 'beach' | 'treasure'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
@@ -152,7 +155,7 @@ export interface GameEvents {
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
   onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
 }
@@ -182,6 +185,9 @@ export class Game {
   wildlife?: Wildlife;
   carWash?: CarWash;
   private iceStand?: IceCreamStand;
+  private postOffice?: THREE.Mesh;
+  private chest?: TreasureChest;
+  private week = weekNumber();
   private supermarket?: SupermarketBuilding;
   private petShop?: PetShopBuilding;
   private paintShop?: PaintShopBuilding;
@@ -363,6 +369,9 @@ export class Game {
     this.scene.add(this.carWash.group);
     this.iceStand = new IceCreamStand(city.layout);
     this.scene.add(this.iceStand.group);
+    this.postOffice = postOfficeMesh(city.layout);
+    this.chest = new TreasureChest(treasureSpot(city.layout, this.week));
+    this.scene.add(this.postOffice, this.chest.group);
     this.supermarket = new SupermarketBuilding(city.layout);
     this.scene.add(this.supermarket.group);
     this.petShop = new PetShopBuilding(city.layout);
@@ -448,6 +457,9 @@ export class Game {
   private knownPlayers = new Map<string, { name: string; goneAt: number }>();
   private followTimer = 0;
 
+  /** You have this week's treasure map and haven't found the chest yet. */
+  private hasTreasureMap() { return this.profile.treasureMap === this.week && this.profile.treasureFound !== this.week; }
+
   mapState(): MapState | null {
     if (!this.vehicle || !this.player) return null;
     const driving = this.mode === 'driving';
@@ -461,6 +473,7 @@ export class Game {
       dest: this.dest,
       players: this.remote?.positions() ?? [],
       following: this.followId,
+      treasure: this.hasTreasureMap() && this.chest ? { x: this.chest.spot.cx, z: this.chest.spot.cz, r: TREASURE_RADIUS } : null,
     };
   }
 
@@ -1220,6 +1233,8 @@ export class Game {
     if (near(FIREWORKS_FRONT) && !this.fireworks?.active) return { kind: 'fireworks', price: FIREWORKS_PRICE };
     if (near(L.pois.home.door)) return { kind: 'home' };
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
+    if (near(L.pois.postOffice.front)) return { kind: 'treasureMap' };
+    if (this.chest && this.hasTreasureMap() && Math.hypot(p.x - this.chest.spot.x, p.z - this.chest.spot.z) < 2.6) return { kind: 'openTreasure' };
     if (Math.hypot(p.x - L.pois.supermarket.front.x, p.z - L.pois.supermarket.front.z) < 4) return { kind: 'supermarket' };
     if (near(L.pois.petShop.front)) return { kind: 'petShop' };
     if (near(L.pois.bakery.front)) return { kind: 'bakery' };
@@ -1265,6 +1280,28 @@ export class Game {
       case 'ride':
         this.startRide(c.ride, c.price);
         break;
+      case 'treasureMap': {
+        // One free map a week; the chest moves every Monday.
+        const p = this.profile;
+        if (p.treasureFound === this.week) { this.events.onMessage('treasureNextWeek'); break; }
+        if (p.treasureMap === this.week) { this.events.onMessage('treasureHave'); break; }
+        setProfile({ ...p, treasureMap: this.week });
+        void updateProfile({ treasureMap: this.week });
+        sounds.coin();
+        this.events.onMessage('treasureMapGot');
+        break;
+      }
+      case 'openTreasure': {
+        const p = this.profile;
+        if (!this.hasTreasureMap()) break;
+        setProfile({ ...p, money: p.money + TREASURE_PRIZE, treasureFound: this.week });
+        void updateProfile({ money: p.money + TREASURE_PRIZE, treasureFound: this.week });
+        this.chest?.openUp();
+        this.events.onMoney(TREASURE_PRIZE, 'treasure');
+        sounds.coin();
+        awardSticker('treasure');
+        break;
+      }
       case 'buyFloat': {
         const p = this.profile;
         if (p.money < c.price) { this.events.onMessage('needMoney', c.price - p.money); break; }
@@ -1680,6 +1717,7 @@ export class Game {
     this.updateSwimming(dt);
     if (this.farm && Math.hypot(this.focus.x - PETTING.x, this.focus.z - PETTING.z) < 400) this.farm.update(dt);
     this.coins?.update(dt, this.ride ? null : pos, this.mode === 'driving' ? 3.5 : 2);
+    this.chest?.update(dt, this.hasTreasureMap(), pos.x, pos.z);
     this.avatar.update(dt);
     this.updatePet(dt);
     // The clock runs on (one game minute per second); the light follows it.
@@ -1800,6 +1838,8 @@ export class Game {
     this.grass?.dispose();
     this.carWash?.dispose();
     this.iceStand?.dispose();
+    this.chest?.dispose();
+    if (this.postOffice) { this.postOffice.geometry.dispose(); (this.postOffice.material as THREE.Material).dispose(); this.postOffice.removeFromParent(); }
     this.supermarket?.dispose();
     this.petShop?.dispose();
     this.paintShop?.dispose();

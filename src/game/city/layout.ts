@@ -87,6 +87,8 @@ export interface CityLayout {
     apartment: { x: number; z: number; door: { x: number; z: number } };
     /** Ice cream stand in the park: where it stands, and the spot in front of its counter (+Z side). */
     iceCream: { x: number; z: number; front: { x: number; z: number } };
+    /** Post office stand in the park, opposite the ice cream stand (the treasure map). */
+    postOffice: { x: number; z: number; front: { x: number; z: number } };
     /** Supermarket on a shops block near home: building middle, its entrance (+Z side), the parking lot. */
     supermarket: { x: number; z: number; w: number; d: number; front: { x: number; z: number }; parking: Rect };
     /** Pet shop next to the supermarket (front = +Z). */
@@ -477,6 +479,12 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   L.nature = L.nature.filter((n) => !clear(n.x, n.z));
   L.colliders = L.colliders.filter((c) => !(c.knock && clear((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2)));
   L.colliders.push({ x0: ic.x - 1.5, z0: ic.z - 1.1, x1: ic.x + 1.5, z1: ic.z + 1.1 });
+  // The post office stand on the other side of the path.
+  const po = { x: L.park.fountain.x - 10, z: L.park.fountain.z - 9 };
+  const clearPo = (x: number, z: number) => Math.abs(x - po.x) < 5 && Math.abs(z - po.z) < 4.5;
+  L.nature = L.nature.filter((n) => !clearPo(n.x, n.z));
+  L.colliders = L.colliders.filter((c) => !(c.knock && clearPo((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2)));
+  L.colliders.push({ x0: po.x - 1.5, z0: po.z - 1.1, x1: po.x + 2.2, z1: po.z + 1.1 });
 
   // ---------- bus stops: six blocks in a ring around the middle; a shelter on the sidewalk facing the road ----------
   const busStops: { x: number; z: number; rot: number; stop: { x: number; z: number } }[] = [];
@@ -556,6 +564,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     home: homeLot!,
     apartment: apartment!,
     iceCream: { x: ic.x, z: ic.z, front: { x: ic.x, z: ic.z + 2.4 } },
+    postOffice: { x: po.x, z: po.z, front: { x: po.x, z: po.z + 2.4 } },
     supermarket,
     petShop,
     paintShop,

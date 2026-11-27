@@ -166,7 +166,17 @@ function drawRoute(g: CanvasRenderingContext2D, path: P[], toX: (p: P) => [numbe
   }
 }
 
-export interface MapPlaces { home: P; apartment: P; gas: P; iceCream: P; supermarket: P; petShop: P; paintShop: P; pizzeria: P; funFair: P; bakery: P; busDepot: P }
+/** The blurry gold spot of the treasure map (the chest is somewhere inside). */
+function treasureSpot(g: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  const grad = g.createRadialGradient(x, y, 0, x, y, r);
+  grad.addColorStop(0, 'rgba(255, 200, 40, 0.7)');
+  grad.addColorStop(0.6, 'rgba(255, 170, 30, 0.4)');
+  grad.addColorStop(1, 'rgba(255, 150, 20, 0)');
+  g.fillStyle = grad;
+  g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+}
+
+export interface MapPlaces { home: P; apartment: P; gas: P; iceCream: P; supermarket: P; petShop: P; paintShop: P; pizzeria: P; funFair: P; bakery: P; busDepot: P; postOffice: P }
 
 /** Small round map in the corner. It turns with you: forward is always up. */
 export class Minimap {
@@ -230,6 +240,7 @@ export class Minimap {
     g.scale(zoom, zoom);
     g.translate(-(s.x + E) * K, -(s.z + E) * K);
     g.drawImage(this.base, 0, 0);
+    if (s.treasure) treasureSpot(g, (s.treasure.x + E) * K, (s.treasure.z + E) * K, s.treasure.r * K);
     drawRoute(g, s.path, (p) => [(p.x + E) * K, (p.z + E) * K], 6 / zoom * dpr);
     g.restore();
     // Icons stay upright; far ones stick to the edge so you can see which way they are.
@@ -256,6 +267,8 @@ export class Minimap {
     icon(this.places.pizzeria, '🍕', '#e5484d');
     icon(this.places.funFair, '🎡', '#1f6fe0');
     icon(this.places.bakery, '🥐', '#a8642f');
+    icon(this.places.postOffice, '📮', '#ff8c1a');
+    if (s.treasure && Math.hypot(s.treasure.x - s.x, s.treasure.z - s.z) > s.treasure.r) icon(s.treasure, '🗺️', '#e8b931');
     icon(this.places.busDepot, '🚌', '#1f6fe0');
     icon(this.places.apartment, '🏢', '#8e5bd9');
     icon(this.places.home, '🏠', '#ff8a2b');
@@ -339,11 +352,17 @@ export class BigMap {
     badge(g, '🍕', ...at(this.places.pizzeria), big, '#e5484d');
     badge(g, '🎡', ...at(this.places.funFair), big, '#1f6fe0');
     badge(g, '🥐', ...at(this.places.bakery), big, '#a8642f');
+    badge(g, '📮', ...at(this.places.postOffice), big, '#ff8c1a');
     badge(g, '🚌', ...at(this.places.busDepot), big, '#1f6fe0');
     badge(g, '🏢', ...at(this.places.apartment), big, '#8e5bd9');
     badge(g, '🏠', ...at(this.places.home), big, '#ff8a2b');
     if (s.job) badge(g, '⭐', ...at(s.job), big, '#16b862');
     if (s.dest) badge(g, '📍', ...at(s.dest), big, '#16b862');
+    if (s.treasure) {
+      const [tx, ty] = at(s.treasure);
+      treasureSpot(g, tx, ty, Math.max(s.treasure.r * K * scale, 22 * dpr));
+      badge(g, '🗺️', tx, ty, big, '#e8b931');
+    }
     const [px, py] = at(s);
     playerArrow(g, px, py, Math.atan2(Math.cos(s.heading), Math.sin(s.heading)) + Math.PI / 2, 12 * dpr);
   }
