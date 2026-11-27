@@ -14,6 +14,14 @@ import { buildingCollider, generateTowns, type TownsData } from './towns';
 export const GRID_BLOCKS = 10;
 export const BLOCK_SPACING = 96;
 export const ROAD_WIDTH = 10;
+/** Wide avenues (every other grid line, 3 lanes each way + a median) are this half wide; small roads ROAD_WIDTH / 2. */
+export const WIDE_HALF = 11;
+/** Is grid line i a wide avenue? (The odd lines; the outer lines 0 and GRID_BLOCKS stay small roads.) */
+export const isWideLine = (i: number) => i % 2 === 1;
+/** Half width of the road on grid line i. */
+export const roadHalf = (i: number) => (isWideLine(i) ? WIDE_HALF : ROAD_WIDTH / 2);
+/** Lane centers on a wide avenue, measured from its middle: left-turn, straight, right-turn lane. */
+export const WIDE_LANES = [2.67, 6, 9.33];
 export const SIDEWALK = 4;
 export const CURB_HEIGHT = 0.15;
 export const HALF_CITY = (GRID_BLOCKS * BLOCK_SPACING) / 2; // 480
@@ -122,7 +130,6 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     blocks: [], buildings: [], towers: [], nature: [], props: [], colliders: [], paths: [],
     park: null!, gas: null!, pois: null!, desert: { cacti: [], rocks: [] }, towns: null!,
   };
-  const inset = ROAD_WIDTH / 2;
 
   // ---------- blocks & districts ----------
   for (let bx = 0; bx < GRID_BLOCKS; bx++) {
@@ -141,7 +148,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
 
       const bx1 = district === 'park' ? bx + 2 : bx + 1;
       const bz1 = district === 'park' ? bz + 2 : bz + 1;
-      const slab = { x0: LINES[bx] + inset, z0: LINES[bz] + inset, x1: LINES[bx1] - inset, z1: LINES[bz1] - inset };
+      const slab = { x0: LINES[bx] + roadHalf(bx), z0: LINES[bz] + roadHalf(bz), x1: LINES[bx1] - roadHalf(bx1), z1: LINES[bz1] - roadHalf(bz1) };
       const lot = { x0: slab.x0 + SIDEWALK, z0: slab.z0 + SIDEWALK, x1: slab.x1 - SIDEWALK, z1: slab.z1 - SIDEWALK };
       L.blocks.push({ bx, bz, district, slab, lot });
     }
@@ -346,19 +353,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     }
   }
 
-  // ---------- traffic lights at inner-city crossings ----------
-  for (let i = 2; i <= 8; i++) {
-    for (let j = 2; j <= 8; j++) {
-      if (isPark(i - 1, j - 1) && isPark(i, j)) continue;
-      const cx = LINES[i], cz = LINES[j];
-      const o = ROAD_WIDTH / 2 + 0.8;
-      for (const [sx, sz] of [[1, 1], [-1, -1]]) {
-        const x = cx + sx * o, z = cz + sz * o;
-        L.props.push({ model: 'TrafficLight_2', x, z, rot: Math.atan2(-sx, -sz) + Math.PI / 4, scale: 1 });
-        L.colliders.push({ x0: x - 0.2, z0: z - 0.2, x1: x + 0.2, z1: z + 0.2, knock: 'metal' });
-      }
-    }
-  }
+  // (Traffic lights are real now: see play/trafficLights.ts.)
 
   // ---------- forest ring outside the city (kept off the roads out, the lake and the desert) ----------
   const inner = HALF_CITY + ROAD_WIDTH / 2 + 18, outer = 760;
@@ -547,7 +542,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   const gasC = { x: (L.gas.canopy.x0 + L.gas.canopy.x1) / 2, z: (L.gas.canopy.z0 + L.gas.canopy.z1) / 2 };
   L.pois = {
     // Start on the road next to your house, facing east.
-    spawn: { x: homeLot!.x, z: LINES[HOME_BLOCK[1] + 1] + 2.5, rot: Math.PI / 2 },
+    spawn: { x: homeLot!.x, z: LINES[HOME_BLOCK[1] + 1] + (isWideLine(HOME_BLOCK[1] + 1) ? WIDE_LANES[2] : 2.5), rot: Math.PI / 2 },
     gasStation: gasC,
     home: homeLot!,
     apartment: apartment!,
@@ -567,7 +562,8 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
 export function isOnRoad(x: number, z: number): boolean {
   const near = (v: number) => {
     const i = Math.round((v + HALF_CITY) / BLOCK_SPACING);
-    return Math.abs(v - LINES[Math.max(0, Math.min(GRID_BLOCKS, i))]) <= ROAD_WIDTH / 2;
+    const k = Math.max(0, Math.min(GRID_BLOCKS, i));
+    return Math.abs(v - LINES[k]) <= roadHalf(k);
   };
   return Math.abs(x) <= HALF_CITY + ROAD_WIDTH / 2 && Math.abs(z) <= HALF_CITY + ROAD_WIDTH / 2 && (near(x) || near(z));
 }

@@ -1,4 +1,4 @@
-import { GRID_BLOCKS, LINES, type CityLayout } from '../city/layout';
+import { GRID_BLOCKS, LINES, WIDE_LANES, roadHalf, type CityLayout } from '../city/layout';
 import { DESERT_TOWN, LAKE_TOWN, LINK_ROAD, SOUTH_ROAD } from '../city/outskirts';
 
 export interface P { x: number; z: number }
@@ -29,6 +29,35 @@ export class RoadGraph {
   readonly highwayEnds: { node: number; towards: number }[] = [];
 
   isHighway(a: number, b: number) { return this.highway.has(`${a}-${b}`); }
+
+  /** Grid line numbers of a city node (null for nodes outside the city grid). */
+  private gridIJ(node: number) {
+    const n = GRID_BLOCKS + 1;
+    return node < n * n ? { i: Math.floor(node / n), j: node % n } : null;
+  }
+
+  /** Half width of the road between nodes a and b (wide avenues 11 m, small roads 5 m). */
+  halfOf(a: number, b: number) {
+    const A = this.gridIJ(a), B = this.gridIJ(b);
+    if (!A || !B) return 5;
+    return A.j === B.j ? roadHalf(A.j) : roadHalf(A.i);
+  }
+
+  /** Half width of the road that crosses the road (node, other) at `node`. */
+  crossHalf(node: number, other: number) {
+    const A = this.gridIJ(node), B = this.gridIJ(other);
+    if (!A || !B) return 5;
+    return A.j === B.j ? roadHalf(A.i) : roadHalf(A.j);
+  }
+
+  /** Lane centers (from the road's middle, on the right-hand side) of the road a-b. */
+  lanesOf(a: number, b: number): readonly number[] { return this.halfOf(a, b) > 6 ? WIDE_LANES : [LANE]; }
+
+  /** The lane cars normally drive in: the middle lane of an avenue, the only lane of a small road. */
+  cruiseLane(a: number, b: number) { const l = this.lanesOf(a, b); return l[Math.floor(l.length / 2)]; }
+
+  /** Where the crossing at `node` begins on the road (node, other): the turn curve starts here. */
+  insetAt(node: number, other: number) { return this.crossHalf(node, other) + 2.5; }
 
   constructor(layout: CityLayout) {
     const n = GRID_BLOCKS + 1;

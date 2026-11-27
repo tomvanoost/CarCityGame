@@ -81,16 +81,23 @@ export function renderBaseMap(layout: CityLayout, roads: RoadGraph): HTMLCanvasE
   g.fillRect(X(gas.x0), X(gas.z0), (gas.x1 - gas.x0) * K, (gas.z1 - gas.z0) * K);
   // Roads: casing + white surface, like a real map.
   g.lineCap = 'round';
-  for (const [w, col] of [[13, '#b9b3a6'], [10, '#ffffff']] as const) {
+  // Wide avenues are drawn wider than the small roads (each width in its own pass).
+  for (const [extra, col] of [[3, '#b9b3a6'], [0, '#ffffff']] as const) {
     g.strokeStyle = col;
-    g.lineWidth = w * K;
-    g.beginPath();
-    for (const [a, b] of roads.navEdges) {
-      const A = roads.nodes[a], B = roads.nodes[b];
-      if (Math.max(Math.abs(A.x), Math.abs(A.z), Math.abs(B.x), Math.abs(B.z)) > 490) continue; // drawn below
-      g.moveTo(X(A.x), X(A.z));
-      g.lineTo(X(B.x), X(B.z));
+    for (const wide of [false, true]) {
+      g.lineWidth = ((wide ? 22 : 10) + extra) * K;
+      g.beginPath();
+      for (const [a, b] of roads.navEdges) {
+        const A = roads.nodes[a], B = roads.nodes[b];
+        if (Math.max(Math.abs(A.x), Math.abs(A.z), Math.abs(B.x), Math.abs(B.z)) > 490) continue; // drawn below
+        if ((roads.halfOf(a, b) > 6) !== wide) continue;
+        g.moveTo(X(A.x), X(A.z));
+        g.lineTo(X(B.x), X(B.z));
+      }
+      g.stroke();
     }
+    g.lineWidth = (10 + extra) * K;
+    g.beginPath();
     for (const r of OUT_ROADS) { g.moveTo(X(r.ax), X(r.az)); g.lineTo(X(r.bx), X(r.bz)); }
     g.moveTo(X(LAKE_TOWN.x + LAKE_TOWN.ring), X(LAKE_TOWN.z));
     g.arc(X(LAKE_TOWN.x), X(LAKE_TOWN.z), LAKE_TOWN.ring * K, 0, Math.PI * 2);

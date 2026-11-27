@@ -21,7 +21,6 @@ import type { Vehicle } from './vehicle';
 const CRUISE = 13.9; // m/s (50 km/h in the city)
 const TURN = 6;
 const DECEL = 7;
-const INSET = 7; // where the turn curve starts/ends, from the intersection center
 /** Police siren: cars this close pull over this far toward their curb (half onto the sidewalk) and crawl. */
 const SIREN_RANGE = 55;
 const PULL_OVER = 2.1; // car edge ~0.6 m over the curb, clear of the trees and lamps 1.3 m from it
@@ -29,7 +28,7 @@ const PULL_SPEED = 2.5;
 
 type Seg =
   | { kind: 'line'; a: P; b: P; len: number }
-  | { kind: 'curve'; p0: P; p1: P; p2: P; len: number; straight: boolean };
+  | { kind: 'curve'; p0: P; p1: P; p2: P; len: number; straight: boolean; laneOut: number };
 
 interface Car {
   spec: VehicleSpec;
@@ -60,6 +59,8 @@ interface Car {
   pull: number;
   /** Node after `to`, chosen once when approaching the intersection. */
   nextNode?: number;
+  /** Sideways position: distance from the road's middle to the right (the lane the car is in). */
+  lane: number;
 }
 
 const sub = (a: P, b: P) => ({ x: a.x - b.x, z: a.z - b.z });
@@ -88,32 +89,44 @@ export class Traffic {
     this.pending = count;
   }
 
-  /** Lane point at distance s from node a towards node b. */
-  private lanePoint(a: number, b: number, s: number): P {
+  /** Point at distance s from node a towards node b, `lane` meters to the right of the road's middle. */
+  private lanePoint(a: number, b: number, s: number, lane = LANE): P {
     const A = this.graph.nodes[a], B = this.graph.nodes[b];
     const d = norm(sub(B, A)), r = right(d);
-    return { x: A.x + d.x * s + r.x * LANE, z: A.z + d.z * s + r.z * LANE };
+    return { x: A.x + d.x * s + r.x * lane, z: A.z + d.z * s + r.z * lane };
   }
 
+  /** The straight part of a road, along its middle (the car adds its lane), between the two crossings. */
   private lineSeg(a: number, b: number): Seg {
     const len = Math.hypot(this.graph.nodes[b].x - this.graph.nodes[a].x, this.graph.nodes[b].z - this.graph.nodes[a].z);
-    const p = this.lanePoint(a, b, INSET), q = this.lanePoint(a, b, len - INSET);
+    const p = this.lanePoint(a, b, this.graph.insetAt(a, b), 0), q = this.lanePoint(a, b, len - this.graph.insetAt(b, a), 0);
     return { kind: 'line', a: p, b: q, len: Math.hypot(q.x - p.x, q.z - p.z) };
   }
 
-  private curveSeg(a: number, b: number, c: number): Seg {
+  /** The lane a car turns into: the rightmost for a right turn, the leftmost for a left turn, else the same / middle one. */
+  private exitLane(a: number, b: number, c: number, laneIn: number) {
+    const N = this.graph.nodes, lanes = this.graph.lanesOf(b, c);
+    const move = moveOf(N[a], N[b], N[c]);
+    if (move === 'right') return lanes[lanes.length - 1];
+    if (move === 'left') return lanes[0];
+    return lanes.reduce((best, l) => (Math.abs(l - laneIn) < Math.abs(best - laneIn) ? l : best), lanes[0]);
+  }
+
+  private curveSeg(a: number, b: number, c: number, laneIn = LANE, laneOut = LANE): Seg {
     const N = this.graph.nodes;
     const lenAB = Math.hypot(N[b].x - N[a].x, N[b].z - N[a].z);
-    const p0 = this.lanePoint(a, b, lenAB - INSET), p2 = this.lanePoint(b, c, INSET);
+    const p0 = this.lanePoint(a, b, lenAB - this.graph.insetAt(b, a), laneIn), p2 = this.lanePoint(b, c, this.graph.insetAt(b, c), laneOut);
     const d1 = norm(sub(N[b], N[a])), d2 = norm(sub(N[c], N[b]));
     const dot = d1.x * d2.x + d1.z * d2.z;
-    const r1 = right(d1), r2 = right(d2), B = N[b];
-    const p1 = dot > 0.9 ? { x: B.x + r1.x * LANE, z: B.z + r1.z * LANE }
+    const B = N[b];
+    // Control point: where the two lanes meet (turns), halfway (straight on), past the middle (turning around).
+    const along = (p2.x - p0.x) * d1.x + (p2.z - p0.z) * d1.z;
+    const p1 = dot > 0.9 ? { x: (p0.x + p2.x) / 2, z: (p0.z + p2.z) / 2 }
       : dot < -0.9 ? { x: B.x + d1.x * 6, z: B.z + d1.z * 6 }
-      : { x: B.x + (r1.x + r2.x) * LANE, z: B.z + (r1.z + r2.z) * LANE };
+      : { x: p0.x + d1.x * along, z: p0.z + d1.z * along };
     const chord = Math.hypot(p2.x - p0.x, p2.z - p0.z);
     const len = (Math.hypot(p1.x - p0.x, p1.z - p0.z) + Math.hypot(p2.x - p1.x, p2.z - p1.z) + chord) / 2;
-    return { kind: 'curve', p0, p1, p2, len, straight: dot > 0.9 };
+    return { kind: 'curve', p0, p1, p2, len, straight: dot > 0.9, laneOut };
   }
 
   private sample(seg: Seg, d: number) {
@@ -152,7 +165,8 @@ export class Traffic {
       if (car.holds >= 0 && this.owners.get(car.holds) === car) this.owners.delete(car.holds);
       clearDents(car.root); // a 'new' car: no dents
       // nextNode must be cleared: a turn planned on the car's old road would send it across the blocks.
-      Object.assign(car, { from, to, seg, d, speed: CRUISE * 0.6, x: p.x, z: p.z, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined, pull: 0 });
+      const lane = this.graph.cruiseLane(from, to);
+      Object.assign(car, { from, to, seg, d, lane, speed: CRUISE * 0.6, x: p.x - p.dir.z * lane, z: p.z + p.dir.x * lane, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined, pull: 0 });
       return true;
     }
     return false;
@@ -176,7 +190,7 @@ export class Traffic {
     const car: Car = {
       spec, built, light: built, color, root, half: dims.length / 2, radius: dims.width / 2,
       from: 0, to: 0, seg: this.lineSeg(...this.graph.edges[0]), d: 0, speed: 0, x: 0, z: 0, heading: 0,
-      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0,
+      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0, lane: LANE,
     };
     this.cars.push(car);
     this.group.add(root);
@@ -272,12 +286,13 @@ export class Traffic {
         const stopDist = (car.speed * car.speed) / (2 * DECEL);
         if (light === 'red' || (light === 'amber' && left > stopDist + 1)) {
           redStop = true;
-          allowed = Math.min(allowed, Math.sqrt(2 * DECEL * Math.max(0, left - 0.6)));
+          allowed = Math.min(allowed, Math.sqrt(2 * DECEL * Math.max(0, left - car.half - 1.6))); // front bumper just behind the stop line
         }
       }
       // Take turns at intersections: one car at a time crosses each one.
       if (car.seg.kind === 'line') {
-        if (left < 12 && car.holds !== car.to && !redStop) {
+        // (At crossings with traffic lights the lights take care of this.)
+        if (left < 12 && car.holds !== car.to && !redStop && !this.signals?.hasLights(car.to)) {
           const owner = this.owners.get(car.to);
           if (owner && owner !== car && !forced) allowed = Math.min(allowed, Math.sqrt(2 * DECEL * Math.max(0, left - 1)));
           else { this.owners.set(car.to, car); car.holds = car.to; }
@@ -294,13 +309,28 @@ export class Traffic {
       car.speed = Math.max(0, Math.min(car.speed, allowed + 0.01));
       car.waited = car.speed < 0.3 ? car.waited + dt : 0;
 
+      // Lanes: on an avenue, pick the turning lane well before a crossing with lights, else drive in the middle lane.
+      let laneGoal = car.lane;
+      if (car.seg.kind === 'line') {
+        const lanes = this.graph.lanesOf(car.from, car.to);
+        laneGoal = this.graph.cruiseLane(car.from, car.to);
+        if (lanes.length > 1 && left < 75 && this.signals?.hasLights(car.to)) {
+          const mv = moveOf(N[car.from], N[car.to], N[this.peekNext(car)]);
+          laneGoal = mv === 'left' ? lanes[0] : mv === 'right' ? lanes[lanes.length - 1] : lanes[1];
+        }
+      }
+      const laneStep = THREE.MathUtils.clamp(laneGoal - car.lane, -1.6 * dt, 1.6 * dt);
+      car.lane += laneStep;
+
       // Move along the segments.
       car.d += car.speed * dt;
       while (car.d >= car.seg.len) {
         car.d -= car.seg.len;
         if (car.seg.kind === 'line') {
-          car.seg = this.curveSeg(car.from, car.to, this.peekNext(car));
+          const next = this.peekNext(car);
+          car.seg = this.curveSeg(car.from, car.to, next, car.lane, this.exitLane(car.from, car.to, next, car.lane));
         } else {
+          car.lane = car.seg.laneOut;
           if (this.owners.get(car.to) === car) this.owners.delete(car.to);
           car.holds = -1;
           car.from = car.to;
@@ -310,10 +340,13 @@ export class Traffic {
         }
       }
       const p = this.sample(car.seg, car.d);
-      // Pulled over: shifted to the right of its lane (toward the curb).
-      const off = car.pull * PULL_OVER;
+      // On a straight part the car drives in its lane (curves already run lane to lane); pulled over: toward the curb.
+      const off = car.pull * PULL_OVER + (car.seg.kind === 'line' ? car.lane : 0);
       car.x = p.x - p.dir.z * off; car.z = p.z + p.dir.x * off;
-      const want = Math.atan2(p.dir.x, p.dir.z);
+      // Changing lanes: the car turns a little towards the side it moves to.
+      const side = car.seg.kind === 'line' && car.speed > 0.5 ? laneStep / dt : 0;
+      const fwdSpeed = Math.max(car.speed, 1); // standing still: just face along the road
+      const want = Math.atan2(p.dir.x * fwdSpeed - p.dir.z * side, p.dir.z * fwdSpeed + p.dir.x * side);
       car.heading += Math.atan2(Math.sin(want - car.heading), Math.cos(want - car.heading)) * Math.min(1, dt * 12);
 
       const visible = Math.hypot(car.x - focus.x, car.z - focus.z) < 170;

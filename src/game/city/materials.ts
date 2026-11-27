@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BLOCK_SPACING, HALF_CITY, ROAD_WIDTH } from './layout';
+import { BLOCK_SPACING, HALF_CITY, ROAD_WIDTH, WIDE_HALF } from './layout';
 
 /** Shared GLSL helpers: value noise + anti-aliased masks. */
 const NOISE = /* glsl */ `
@@ -195,12 +195,16 @@ export function createRoadMaterial() {
       .replace('#include <common>', `#include <common>
         const float SPACING = ${BLOCK_SPACING.toFixed(1)};
         const float HALF = ${HALF_CITY.toFixed(1)};
-        const float HW = ${(ROAD_WIDTH / 2).toFixed(2)};
-        float lineOffset(float v) { float g = v + HALF; return g - floor(g / SPACING + 0.5) * SPACING; }`)
+        const float SMALL = ${(ROAD_WIDTH / 2).toFixed(2)};
+        const float WIDE = ${WIDE_HALF.toFixed(2)};
+        float lineOffset(float v) { float g = v + HALF; return g - floor(g / SPACING + 0.5) * SPACING; }
+        // Every other grid line (the odd ones) is a wide avenue.
+        float halfOf(float v) { float i = floor((v + HALF) / SPACING + 0.5); return mod(i, 2.0) > 0.5 ? WIDE : SMALL; }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         float dx = lineOffset(vWorld.x), dz = lineOffset(vWorld.z);
+        float hx = halfOf(vWorld.x), hz = halfOf(vWorld.z);
         float ax = abs(dx), az = abs(dz);
-        bool inV = ax < HW, inH = az < HW;
+        bool inV = ax < hx, inH = az < hz;
         // asphalt texture
         diffuseColor.rgb *= 0.82 + 0.25 * fbm(vWorld.xz * 0.35) + 0.08 * vnoise(vWorld.xz * 9.0);
         float paint = 0.0;
@@ -208,16 +212,33 @@ export function createRoadMaterial() {
           float across = inV ? dx : dz;     // distance from the road's center line
           float along = inV ? vWorld.z : vWorld.x;
           float toCross = inV ? az : ax;    // distance to the nearest crossing road center
+          float HW = inV ? hx : hz;         // this road's half width
+          float HC = inV ? hz : hx;         // the crossing road's half width
           float aAcross = abs(across);
-          // dashed center line (not near crossings)
-          float dash = step(fract(along / 6.0), 0.5) * step(HW + 4.0, toCross);
-          paint = max(paint, aaLess(aAcross, 0.09) * dash);
+          float nearCross = step(toCross, HC + 30.0);
+          // The half of the road that drives towards the crossing ahead (right-hand traffic).
+          float approach = inV ? step(0.0, dx * dz) : step(dx * dz, 0.0);
+          if (HW > SMALL + 0.5) {
+            // Wide avenue: double line in the middle, lane lines (dashed, solid near crossings).
+            paint = max(paint, (aaLess(abs(aAcross - 0.25), 0.08)) * step(HC + 0.2, toCross));
+            float dashW = step(fract(along / 12.0), 0.25);
+            for (int k = 0; k < 2; k++) {
+              float lx = k == 0 ? 4.33 : 7.67;
+              paint = max(paint, aaLess(abs(aAcross - lx), 0.08) * step(HC + 4.5, toCross) * max(dashW, nearCross));
+            }
+          } else {
+            // Small road: dashed center line (not near crossings).
+            float dash = step(fract(along / 6.0), 0.5) * step(HC + 4.0, toCross);
+            paint = max(paint, aaLess(aAcross, 0.09) * dash);
+          }
           // solid edge lines
-          paint = max(paint, aaLess(abs(aAcross - (HW - 0.4)), 0.07) * step(HW + 0.2, toCross));
+          paint = max(paint, aaLess(abs(aAcross - (HW - 0.4)), 0.07) * step(HC + 0.2, toCross));
           // zebra crossing right before each crossing
-          float zebraBand = step(HW + 0.8, toCross) * (1.0 - step(HW + 3.6, toCross));
+          float zebraBand = step(HC + 0.8, toCross) * (1.0 - step(HC + 3.6, toCross));
           float stripes = aaLess(abs(fract(across / 1.1) - 0.5), 0.24);
           paint = max(paint, zebraBand * stripes * step(aAcross, HW - 0.7));
+          // stop line across the lanes that drive towards the crossing
+          paint = max(paint, step(HC + 4.0, toCross) * (1.0 - step(HC + 4.45, toCross)) * approach * step(0.5, aAcross) * step(aAcross, HW - 0.5));
         }
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92), paint);`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.6, paint);');
