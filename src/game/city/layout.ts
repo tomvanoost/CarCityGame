@@ -83,7 +83,8 @@ export interface CityLayout {
   pois: {
     spawn: { x: number; z: number; rot: number };
     gasStation: { x: number; z: number };
-    home: { x: number; z: number; door: { x: number; z: number } };
+    /** Your house; `garden` = your vegetable garden behind it (turned by `rot`, open side towards the house). */
+    home: { x: number; z: number; door: { x: number; z: number }; garden: { x: number; z: number; rot: number } };
     apartment: { x: number; z: number; door: { x: number; z: number } };
     /** Ice cream stand in the park: where it stands, and the spot in front of its counter (+Z side). */
     iceCream: { x: number; z: number; front: { x: number; z: number } };
@@ -231,7 +232,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     }
   };
 
-  let homeLot: { x: number; z: number; door: { x: number; z: number } } | null = null;
+  let homeLot: { x: number; z: number; door: { x: number; z: number }; garden: { x: number; z: number; rot: number } } | null = null;
   let apartment: { x: number; z: number; door: { x: number; z: number } } | null = null;
 
   for (const b of L.blocks) {
@@ -285,7 +286,8 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
             addSmall(gx, gz, rng.chance(0.75) ? rng.pick(BUSHES) : 'Flowers', 1.2);
             if (rng.chance(0.7)) addTree(s.ox + s.ax * (c - lotW * 0.38) - s.outX * (setback + 4), s.oz + s.az * (c - lotW * 0.38) - s.outZ * (setback + 4));
             if (!homeLot && b.bx === HOME_BLOCK[0] && b.bz === HOME_BLOCK[1] && ns && i === 1) {
-              homeLot = { x, z, door: { x: x + s.outX * (sz.z / 2 + 1.5), z: z + s.outZ * (sz.z / 2 + 1.5) } };
+              const back = sz.z / 2 + 4.5; // the garden behind the house, its open side facing the back door
+              homeLot = { x, z, door: { x: x + s.outX * (sz.z / 2 + 1.5), z: z + s.outZ * (sz.z / 2 + 1.5) }, garden: { x: x - s.outX * back, z: z - s.outZ * back, rot: Math.atan2(s.outX, s.outZ) } };
             }
           }
         }
@@ -482,6 +484,14 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   const gapHalf = 0.8;
   L.colliders.push({ x0: STREAM.x0, z0: STREAM.z0, x1: STREAM.x1, z1: FOOTBRIDGE.z - gapHalf, water: true });
   L.colliders.push({ x0: STREAM.x0, z0: FOOTBRIDGE.z + gapHalf, x1: STREAM.x1, z1: STREAM.z1, water: true });
+
+  // ---------- vegetable garden behind your house: no trees or bushes in it ----------
+  {
+    const gd = homeLot!.garden;
+    const inGarden = (x: number, z: number) => Math.abs(x - gd.x) < 4.5 && Math.abs(z - gd.z) < 4.5;
+    L.nature = L.nature.filter((n) => !inGarden(n.x, n.z));
+    L.colliders = L.colliders.filter((c) => !(c.knock && inGarden((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2)));
+  }
 
   // ---------- ice cream stand in the park, next to the fountain (on the grass, beside the paths) ----------
   const ic = { x: L.park.fountain.x + 10, z: L.park.fountain.z - 9 };

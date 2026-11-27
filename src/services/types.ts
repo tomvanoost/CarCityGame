@@ -57,6 +57,9 @@ export interface PlayerProfile {
   swimFloat: boolean;
   /** Has a kite (flies on the beach). */
   kite: boolean;
+  /** Vegetable garden: what's growing and since when (epoch ms), or null; and the harvest you carry to sell. */
+  garden: { crop: import('../game/play/garden').CropId; at: number } | null;
+  basket: Record<string, number>;
   /** Treasure hunt: the week of the treasure map you have, and the last week you found the chest (0 = none). */
   treasureMap: number;
   treasureFound: number;

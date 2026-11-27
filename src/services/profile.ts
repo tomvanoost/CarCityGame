@@ -40,6 +40,8 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     animalsFed: [],
     swimFloat: false,
     kite: false,
+    garden: null,
+    basket: {},
     treasureMap: 0,
     treasureFound: 0,
     quizDay: '',
@@ -84,6 +86,11 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   p.animalsFed = toArray(raw.animalsFed, []);
   p.swimFloat = p.swimFloat === true;
   p.kite = p.kite === true;
+  const gd = raw.garden as { crop?: unknown; at?: unknown } | null | undefined;
+  p.garden = gd && ['carrot', 'tomato', 'pumpkin'].includes(String(gd.crop)) && Number(gd.at) > 0 ? { crop: gd.crop as 'carrot', at: Number(gd.at) } : null;
+  const bk: Record<string, number> = {};
+  if (raw.basket && typeof raw.basket === 'object') for (const [k, v] of Object.entries(raw.basket as Record<string, unknown>)) if (['carrot', 'tomato', 'pumpkin'].includes(k) && Number(v) > 0) bk[k] = Math.floor(Number(v));
+  p.basket = bk;
   p.treasureMap = Number(p.treasureMap) || 0;
   p.treasureFound = Number(p.treasureFound) || 0;
   p.quizDay = typeof p.quizDay === 'string' ? p.quizDay : '';

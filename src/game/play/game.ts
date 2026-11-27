@@ -29,6 +29,7 @@ import { FunFair, RIDE_PRICE, type RideKind as FairRide } from './funFair';
 import { BALLOON_FRONT, BALLOON_PRICE, Balloon } from './balloon';
 import { BOAT_FRONT, BOAT_PRICE, Boat } from './boat';
 import { KITE_FRONT, KITE_PRICE, Kite, onBeach } from './kite';
+import { CROPS, Garden, HARVEST, cropOf, growth, type CropId } from './garden';
 import { SANDBOARD_END, SANDBOARD_FRONT, SANDBOARD_PRICE, SANDBOARD_TOP, Sandboard } from './sandboard';
 import { FIREWORKS_FRONT, FIREWORKS_PRICE, FIREWORKS_STAND, Fireworks } from './fireworks';
 import { Beach, FLOAT_FRONT, FLOAT_PRICE, floatGeometry } from './beach';
@@ -66,7 +67,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number };
+export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -142,7 +143,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks' | 'beach' | 'treasure' | 'sandboard' | 'quiz' | 'boat'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks' | 'beach' | 'treasure' | 'sandboard' | 'quiz' | 'boat' | 'garden'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
@@ -158,9 +159,9 @@ export interface GameEvents {
   /** Petting farm: you fed an animal. */
   onFed?(animal: FarmAnimalKind): void;
   /** Player walked into the house/apartment. */
-  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery' | 'library'): void;
+  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery' | 'library' | 'garden'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'kiteBought' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'kiteBought' | 'harvested' | 'gardenGrowing' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
   onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
   /** Photo mode: the interact key / controller A was pressed (take the picture). */
@@ -197,6 +198,7 @@ export class Game {
   private sandboard?: Sandboard;
   private boat?: Boat;
   private kite?: Kite;
+  private garden?: Garden;
   private kiteAwarded = false;
   private sandboardAnim: 'walk' | 'slide' | null = null;
   private turnLines?: THREE.Mesh;
@@ -413,6 +415,8 @@ export class Game {
     this.scene.add(this.boat.group);
     this.kite = new Kite();
     this.scene.add(this.kite.group);
+    this.garden = new Garden(city.layout);
+    this.scene.add(this.garden.group);
     this.balloon = new Balloon();
     this.scene.add(this.balloon.group);
     this.fireworks = new Fireworks((k) => sounds.firework(k));
@@ -748,6 +752,35 @@ export class Game {
     awardSticker('baker');
     return true;
   }
+
+  /** Vegetable garden: buy seeds and sow all four beds with one crop. */
+  sowGarden(crop: CropId): boolean {
+    const c = cropOf(crop)!, p = this.profile;
+    if (p.garden) return false;
+    if (p.money < c.price) { this.events.onMessage('needMoney', c.price - p.money); return false; }
+    const garden = { crop, at: Date.now() };
+    setProfile({ ...p, money: p.money - c.price, garden });
+    void updateProfile({ money: p.money - c.price, garden });
+    this.events.onMoney(-c.price, 'garden');
+    sounds.coin();
+    return true;
+  }
+
+  /** Supermarket: sell all the vegetables you harvested; returns the money earned. */
+  sellHarvest(): number {
+    const p = this.profile;
+    const total = CROPS.reduce((s, c) => s + (p.basket[c.id] ?? 0) * c.sell, 0);
+    if (!total) return 0;
+    setProfile({ ...p, money: p.money + total, basket: {} });
+    void updateProfile({ money: p.money + total, basket: {} });
+    this.events.onMoney(total, 'garden');
+    sounds.coin();
+    awardSticker('gardener');
+    return total;
+  }
+
+  /** The harvest you carry (crop → how many). */
+  get basket() { return this.profile.basket; }
 
   buySnack(id: SnackId): boolean {
     const item = SNACKS.find((q) => q.id === id)!;
@@ -1304,6 +1337,15 @@ export class Game {
     if (near(KITE_FRONT) && !this.profile.kite) return { kind: 'buyKite', price: KITE_PRICE };
     if (near(FIREWORKS_FRONT) && !this.fireworks?.active) return { kind: 'fireworks', price: FIREWORKS_PRICE };
     if (near(L.pois.home.door)) return { kind: 'home' };
+    // Vegetable garden: sow (empty), wait (growing) or harvest (ripe).
+    const gd = L.pois.home.garden;
+    if (Math.hypot(p.x - gd.x, p.z - gd.z) < 3.6) {
+      const g = this.profile.garden;
+      if (!g) return { kind: 'garden' };
+      const k = growth(g.crop, g.at);
+      if (k >= 1) return { kind: 'harvest', crop: g.crop };
+      return { kind: 'gardenWait', crop: g.crop, secs: Math.ceil((1 - k) * cropOf(g.crop)!.minutes * 60) };
+    }
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
     if (near(L.pois.postOffice.front)) return { kind: 'treasureMap' };
     if (this.chest && this.hasTreasureMap() && Math.hypot(p.x - this.chest.spot.x, p.z - this.chest.spot.z) < 2.6) return { kind: 'openTreasure' };
@@ -1348,6 +1390,7 @@ export class Game {
       case 'paintShop':
       case 'bakery':
       case 'library':
+      case 'garden':
         this.paused = true;
         this.events.onPlace(c.kind);
         break;
@@ -1374,6 +1417,19 @@ export class Game {
         this.events.onMoney(TREASURE_PRIZE, 'treasure');
         sounds.coin();
         awardSticker('treasure');
+        break;
+      }
+      case 'gardenWait':
+        this.events.onMessage('gardenGrowing');
+        break;
+      case 'harvest': {
+        const p = this.profile;
+        if (!p.garden) break;
+        const basket = { ...p.basket, [p.garden.crop]: (p.basket[p.garden.crop] ?? 0) + HARVEST };
+        setProfile({ ...p, garden: null, basket });
+        void updateProfile({ garden: null, basket });
+        sounds.coin();
+        this.events.onMessage('harvested'); // (8 vegetables: HARVEST)
         break;
       }
       case 'buyKite': {
@@ -1843,6 +1899,10 @@ export class Game {
     if (this.sandboard && (this.ride?.kind === 'sandboard' || Math.hypot(this.focus.x - SANDBOARD_FRONT.x, this.focus.z - SANDBOARD_FRONT.z) < 300)) this.sandboard.update(dt);
     this.fireworks?.update(dt);
     this.updateSwimming(dt);
+    if (this.garden && Math.hypot(this.focus.x - this.city.layout.pois.home.garden.x, this.focus.z - this.city.layout.pois.home.garden.z) < 150) {
+      const g = this.profile.garden;
+      this.garden.update(g?.crop ?? null, g ? growth(g.crop, g.at) : 0);
+    }
     // Kite: flies while you walk on the beach (not swimming, not on a ride); a minute up = sticker.
     if (this.kite && this.player && this.avatar) {
       const pl = this.player;
@@ -1988,6 +2048,7 @@ export class Game {
     this.sandboard?.dispose();
     this.boat?.dispose();
     this.kite?.dispose();
+    this.garden?.dispose();
     this.fireworks?.dispose();
     this.beach?.dispose();
     this.coins?.dispose();

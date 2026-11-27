@@ -23,8 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Vegetable garden at home** (feature): plant seeds (€5) in a small garden next to your house; they
-  grow over real time (a few minutes) and you sell the harvest at the supermarket.
 - [ ] **Draw-call diet** (performance): list the draw calls per object at the city spawn; merge the many
   small separate place meshes (stands, shop buildings, signs, boat, dune stand...) into shared
   vertex-color materials, and hide things far away (> ~400 m) that are still drawn. Target: city spawn
