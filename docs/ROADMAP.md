@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Car photo mode**: a 📷 button that hides the buttons and lets you turn the camera around your
-  car, then saves the picture (download) and puts it in a small photo album.
 - [ ] **Sledge hill in the desert dunes**: a sandboard rental (€10) to slide down the biggest dune,
   with a lift (a rope tow) back up.
 - [ ] **Library / quiz corner**: a little library in the lake town with picture quizzes about the game

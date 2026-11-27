@@ -158,6 +158,8 @@ export interface GameEvents {
   onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
   onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
+  /** Photo mode: the interact key / controller A was pressed (take the picture). */
+  onPhotoKey?(): void;
 }
 
 const ENTER_DISTANCE = 4;
@@ -275,6 +277,9 @@ export class Game {
   private blinkTurned = 0;
   /** Dashboard view: the camera sits in the driver's seat (F2 / View button / 🎥). */
   private cockpit = false;
+  /** 📷 Photo mode: the car / you stand still and the camera turns freely around (distance in meters). */
+  private photo = false;
+  private photoDist = 7;
   private cockpitYaw = 0;
   private cockpitPitch = 0;
   /** The rear-view mirror in the dashboard view: a small second view, looking back from the car's rear. */
@@ -1542,6 +1547,32 @@ export class Game {
 
   /** Close the house panel / map and continue playing. */
   resume() { this.paused = false; }
+
+  /** 📷 Photo mode on / off: everything stops, the camera turns around the car (or you) by dragging. */
+  setPhotoMode(on: boolean) {
+    this.photo = on;
+    this.photoDist = this.mode === 'driving' ? 7 : 4.5;
+    if (on) this.cockpit = false;
+  }
+  get photoMode() { return this.photo; }
+  /** Photo mode: camera closer (-1) or further away (+1). */
+  photoZoom(dir: number) { this.photoDist = THREE.MathUtils.clamp(this.photoDist + dir * 1.5, 2.5, 16); }
+
+  /**
+   * Takes the picture: renders the view once more and reads it back right away (same frame), as a big
+   * JPEG for downloading and a small one for the photo album.
+   */
+  takePhoto(): { full: string; thumb: string } {
+    this.renderer.render(this.scene, this.camera);
+    const src = this.renderer.domElement;
+    const scaled = (maxW: number, q: number) => {
+      const k = Math.min(1, maxW / src.width), c = document.createElement('canvas');
+      c.width = Math.round(src.width * k); c.height = Math.round(src.height * k);
+      c.getContext('2d')!.drawImage(src, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', q);
+    };
+    return { full: scaled(1920, 0.9), thumb: scaled(360, 0.75) };
+  }
   pause() { this.paused = true; }
 
   /** HUD buttons. (The E key does: context action first, otherwise get in/out.) */
@@ -1562,7 +1593,9 @@ export class Game {
     this.input.poll(dt); // game controllers / steering wheel
     const ctx = this.context();
     const key = this.input.takeInteract();
-    if (!this.paused) {
+    if (this.photo) {
+      if (key) this.events.onPhotoKey?.(); // E / controller A: take the picture
+    } else if (!this.paused) {
       if ((key || this.pendingContext) && ctx) this.doContext(ctx);
       else if ((key || this.pendingCar) && !this.ride) this.toggleCar();
     }
@@ -1603,7 +1636,7 @@ export class Game {
     if (p.fuel > 0.05) this.fuelWarned = false;
 
     const driveInput = this.input.drive();
-    const driving = this.mode === 'driving' && !this.paused;
+    const driving = this.mode === 'driving' && !this.paused && !this.photo;
     // Hold to honk: the sound plays (and repeats) while the horn is held, and stops when released.
     const honk = this.input.hornHeld() && this.mode === 'driving' && !this.paused;
     if (honk && !this.honking) {
@@ -1629,7 +1662,14 @@ export class Game {
     }
     v.cap = this.maxKmh ? this.maxKmh / 3.6 : Infinity;
     sounds.engine(driving, v.kmh, driving ? driveInput.throttle : 0, !!v.spec.electric, v.spec.topSpeed);
-    if (driving) {
+    if (this.photo) {
+      // Photo mode: the car rolls to a stop, the camera circles freely (drag / right stick).
+      v.update(dt, null, this.world);
+      if (this.mode === 'driving') this.focus.set(v.x, v.root.position.y + 1, v.z);
+      else this.focus.set(this.player.x, this.player.y + 1.1, this.player.z);
+      this.setCameraRange(false);
+      this.follow.update(dt, this.focus, { behindYaw: null, distance: this.photoDist, pitch: 0.2, blocked: this.blocked });
+    } else if (driving) {
       const before = { x: v.x, z: v.z };
       const h0 = v.heading;
       v.update(dt, driveInput, this.world); // you drive right through people: no stopping, no bump

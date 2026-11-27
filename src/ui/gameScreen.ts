@@ -19,6 +19,7 @@ import { CHAT_MAX, EMOTES, getCurrentSession, loadChatOn, setCurrentSession } fr
 import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
+import { addPhoto, downloadPhoto, loadPhotos } from './photos';
 import { BigMap, Minimap, renderBaseMap, type MapPlaces } from './cityMap';
 import { TouchControls } from './touchControls';
 import { missionText } from './missions';
@@ -99,6 +100,61 @@ export const gameScreen: Screen = (root, nav) => {
   const mirrorFrame = h('div', { class: 'mirror-frame', hidden: true });
   const viewBtn = h('button', { class: 'icon-btn view-btn', title: `${t('dashView')} (F2)`, 'aria-label': t('dashView') }, '🎥');
   viewBtn.addEventListener('click', () => input.queueView());
+  // 📷 Photo mode: all buttons hide, drag to turn the camera around the car, then take the picture.
+  const photoBtn = h('button', { class: 'icon-btn photo-btn', title: t('photoMode'), 'aria-label': t('photoMode') }, '📷');
+  const flash = h('div', { class: 'photo-flash', hidden: true });
+  const albumCount = h('span', { class: 'album-count' });
+  const snap = () => {
+    const shot = game.takePhoto();
+    addPhoto(shot.thumb);
+    downloadPhoto(shot.full);
+    sounds.coin();
+    flash.hidden = false;
+    flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
+    setTimeout(() => { flash.hidden = true; }, 450);
+    renderAlbumCount();
+    toast(t('photoSaved'));
+  };
+  const renderAlbumCount = () => { albumCount.textContent = String(loadPhotos().length); };
+  const closePhoto = () => { game.setPhotoMode(false); root.classList.remove('photo-mode'); document.body.classList.remove('photo-on'); render(); };
+  const photoBar = h('div', { class: 'photo-bar' },
+    h('div', { class: 'photo-hint' }, t('photoHint')),
+    h('div', { class: 'photo-row' },
+      h('button', { class: 'icon-btn photo-zoom', 'aria-label': t('photoCloser'), title: t('photoCloser'), onclick: () => game.photoZoom(-1) }, '➕'),
+      h('button', { class: 'btn btn-primary photo-snap', onclick: snap }, `📸 ${t('takePhoto')}`),
+      h('button', { class: 'icon-btn photo-zoom', 'aria-label': t('photoFurther'), title: t('photoFurther'), onclick: () => game.photoZoom(1) }, '➖'),
+      h('button', { class: 'btn photo-album-btn', onclick: () => openAlbum() }, '🖼️ ', albumCount),
+      h('button', { class: 'icon-btn close-btn photo-close', 'aria-label': t('back'), onclick: closePhoto }, '✕'),
+    ),
+  );
+  photoBtn.addEventListener('click', () => {
+    touch.reset();
+    game.setPhotoMode(true);
+    root.classList.add('photo-mode');
+    document.body.classList.add('photo-on');
+    renderAlbumCount();
+    render();
+  });
+  function openAlbum() {
+    const photos = loadPhotos();
+    const close = () => { panel.hidden = true; render(); };
+    panel.replaceChildren(h('div', { class: 'card place-card' },
+      h('div', { class: 'place-head' },
+        h('h2', {}, `🖼️ ${t('photoAlbum')}`),
+        h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
+      ),
+      photos.length
+        ? h('div', { class: 'album-grid' }, ...photos.map((p) => {
+          const b = h('button', { class: 'album-photo', title: t('photoDownload'), 'aria-label': t('photoDownload') }, h('img', { src: p.src, alt: '' }));
+          b.addEventListener('click', () => downloadPhoto(p.src, p.at));
+          return b;
+        }))
+        : h('p', { class: 'album-empty' }, t('albumEmpty')),
+      h('button', { class: 'btn btn-primary btn-big', onclick: close }, t('continuePlaying')),
+    ));
+    panel.hidden = false;
+    render();
+  }
   const renderSound = () => {
     soundBtn.replaceChildren(svgIcon(sounds.isMuted ? speakerOff : speakerOn, 22));
     soundBtn.classList.toggle('muted', sounds.isMuted);
@@ -170,7 +226,7 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, clockEl, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, mirrorFrame, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, clockEl, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, photoBtn, photoBar, flash, mirrorFrame, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
   let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, race: null, clock: '', job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false };
@@ -186,6 +242,7 @@ export const gameScreen: Screen = (root, nav) => {
     hornBtn.hidden = !driving || overlay;
     sirenBtn.hidden = !(driving && state.police) || overlay;
     viewBtn.hidden = !driving;
+    photoBtn.hidden = state.context?.kind === 'rideStop' || overlay;
     mirrorFrame.hidden = !state.cockpit;
     if (state.mp) mpPill.textContent = `🌐 ${state.mp.room} · 👥 ${state.mp.others + 1}`;
     blinkL.classList.toggle('on', state.blinker === 'left');
@@ -300,6 +357,7 @@ export const gameScreen: Screen = (root, nav) => {
     onJobDone: (job) => { if (job.kind === 'pizza') toast(job.hot ? t('pizzaHot') : t('pizzaThanks')); if (job.kind === 'bus') toast(`🚌 ${t('busDone')}`); },
     onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : place === 'paintShop' ? openPaintShop() : place === 'bakery' ? openBakery() : openPanel(place)),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
+    onPhotoKey: () => { if (panel.hidden) snap(); },
     onPlayer: (kind, name) => toast(t(kind === 'joined' ? 'mpJoined' : kind === 'left' ? 'mpLeft' : 'mpFound').replace('{name}', name)),
   });
 
@@ -660,6 +718,7 @@ export const gameScreen: Screen = (root, nav) => {
 
   return () => {
     window.removeEventListener('carcity-save', onUpdateSave);
+    document.body.classList.remove('photo-on');
     chatCleanup();
     window.removeEventListener('carcity-back', onBack);
     window.removeEventListener('keydown', onBack);
