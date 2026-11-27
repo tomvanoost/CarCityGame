@@ -181,9 +181,23 @@ export function desertAmount(x: number, z: number) {
 }
 
 /** Gentle dunes you can drive over (flat on and next to the roads and in the desert town). */
+/** The big dune for sandboarding (south of the east road): a round hill, the slope faces north (-z). */
+export const BIG_DUNE = { x: 1250, z: 430, r: 75, h: 17 };
+/** Height of the big dune (0 outside it): a smooth round hill. */
+export function bigDuneHeight(x: number, z: number) {
+  const d = Math.hypot(x - BIG_DUNE.x, z - BIG_DUNE.z);
+  return d >= BIG_DUNE.r ? 0 : BIG_DUNE.h * 0.5 * (1 + Math.cos((Math.PI * d) / BIG_DUNE.r));
+}
+
 export function duneHeight(x: number, z: number) {
   const a = desertAmount(x, z);
   if (a <= 0) return 0;
+  const big = bigDuneHeight(x, z);
+  if (big > 0) return Math.max(big, duneWaves(x, z, a));
+  return duneWaves(x, z, a);
+}
+
+function duneWaves(x: number, z: number, a: number) {
   // How far outside the desert town (0 inside): flat in town, dunes start 40 m out.
   const out = Math.max(DESERT_TOWN.x0 - x, x - DESERT_TOWN.x1, DESERT_TOWN.z0 - z, z - DESERT_TOWN.z1);
   const flat = Math.min(smooth(10, 45, outRoadDistance(x, z)), smooth(HW_HALF + 6, HW_HALF + 45, highwayDistance(x, z)), smooth(0, 40, out), smooth(RACE.half + 6, RACE.half + 40, raceDistance(x, z)), smooth(BALLOON.r + 8, BALLOON.r + 40, Math.hypot(x - BALLOON.x, z - BALLOON.z)));

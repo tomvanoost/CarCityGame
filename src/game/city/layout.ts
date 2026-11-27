@@ -1,6 +1,6 @@
 import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
-import { BALLOON, BRIDGE, DESERT, HIGHWAYS, FIREWORKS, FLOAT_STAND, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, PETTING, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
+import { BALLOON, BIG_DUNE, BRIDGE, DESERT, HIGHWAYS, FIREWORKS, FLOAT_STAND, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, PETTING, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
 import { buildingCollider, generateTowns, type TownsData } from './towns';
 
 /**
@@ -385,7 +385,8 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     }
   }
 
-  // ---------- desert: cacti and rocks (not on the road) ----------
+  // ---------- desert: cacti and rocks (not on the road; filtered off the big dune afterwards, so the
+  // random sequence for everything else stays the same) ----------
   for (let i = 0; i < 260; i++) {
     const x = rng.range(DESERT.x0 + 60, DESERT.x1 - 20), z = rng.range(DESERT.z0 + 30, DESERT.z1 - 30);
     if (onOutRoad(x, z, 8) || desertAmount(x, z) < 0.6 || inDesertTown(x, z, 25) || raceDistance(x, z) < RACE.half + 10 || Math.hypot(x - BALLOON.x, z - BALLOON.z) < BALLOON.r + 12) continue;
@@ -399,6 +400,14 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       if (s2 > 1.1) L.colliders.push({ x0: x - 0.8 * s2, z0: z - 0.8 * s2, x1: x + 0.8 * s2, z1: z + 0.8 * s2 });
     }
   }
+  // The big sandboard dune stays clear (the slide, the rope tow and the stand).
+  const onBigDune = (x: number, z: number) => Math.hypot(x - BIG_DUNE.x, z - BIG_DUNE.z) < BIG_DUNE.r + 25;
+  L.desert.cacti = L.desert.cacti.filter((c) => !onBigDune(c.x, c.z));
+  L.desert.rocks = L.desert.rocks.filter((c) => !onBigDune(c.x, c.z));
+  L.colliders = L.colliders.filter((c) => !onBigDune((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2));
+  // The sandboard rental stand at the foot of the dune (see SANDBOARD_STAND in play/sandboard.ts).
+  const sbX = BIG_DUNE.x - 9, sbZ = BIG_DUNE.z - BIG_DUNE.r - 6;
+  L.colliders.push({ x0: sbX - 1.6, z0: sbZ - 1.1, x1: sbX + 2.1, z1: sbZ + 1.1 });
 
   // ---------- towns and farmland outside the city ----------
   const T = generateTowns(rng);
