@@ -210,10 +210,13 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
         : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : 'rideCarousel')} ${euro(c.price)}`
         : c.kind === 'rideStop' ? `🚶 ${t('rideStop')}`
+        : c.kind === 'fish' ? `🎣 ${t('fishStart')}`
+        : c.kind === 'fishReel' ? (c.bite ? `❗ ${t('fishReel')}` : `🎣 ${t('fishWaiting')}`)
         : c.kind === 'raceStart' ? `🏁 ${t('raceStart')}`
         : c.kind === 'raceStop' ? `✋ ${t('raceStop')}`
         : c.kind === 'buyApartment' ? `🏢 ${t('buyApartment')} ${euro(c.price)}` : `🏠 ${t('goInside')}`;
-      ctxBtn.classList.toggle('busy', state.refueling || state.washing);
+      ctxBtn.classList.toggle('busy', state.refueling || state.washing || (c.kind === 'fishReel' && !c.bite));
+      ctxBtn.classList.toggle('alert', c.kind === 'fishReel' && c.bite);
     }
     // Job card: what to do and how far.
     jobCard.hidden = !state.job && !state.dest;
@@ -274,8 +277,9 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : reason === 'fish' ? 'fishShort' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : t('pickedPassenger')),
+    onFish: (f, isNew) => toast(`${f.emoji} ${t('fishCaught').replace('{fish}', t(`fish_${f.id}` as TKey))}${isNew ? ` ${t('fishNew')}` : ''}`),
     onRaceDone: (r) => toast(`${r.medal === 'gold' ? '🥇' : r.medal === 'silver' ? '🥈' : '🥉'} ${t(r.medal === 'gold' ? 'medalGold' : r.medal === 'silver' ? 'medalSilver' : 'medalBronze')} ${raceTime(r.time)}${r.record ? ` — ${t('raceRecord')}` : ` (${t('raceBest')} ${raceTime(r.best)})`}`),
     onCoin: (n, total) => toast(`🪙 ${t('coinFound')} ${n}/${total}`),
     onMission: (m) => toast(`${m.emoji} ${t('missionDone')} ${missionText(m)}`),

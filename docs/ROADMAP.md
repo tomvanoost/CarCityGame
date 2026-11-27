@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Fishing at the lake**: a small wooden jetty; tap to cast, tap again when the float dips to
-  catch a fish (catch and release), €5–25 per fish, a little fish album.
 - [ ] **Bakery**: a bakery in the lake town; buy a croissant, a cake or a cookie (hold it like the ice
   cream, a small boost) and a "baker" sticker.
 

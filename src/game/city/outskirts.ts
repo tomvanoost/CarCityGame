@@ -167,6 +167,12 @@ export function bridgeHeight(z: number) {
   return b.h * Math.min(smooth(b.z0, b.z0 + b.ramp, z), 1 - smooth(b.z1 - b.ramp, b.z1, z));
 }
 
+/** Fishing jetty on the lake's north shore: from the grass (z0) out over the water (z1). */
+export const JETTY = { x: -160, z0: 784, z1: 814, half: 1.3, h: 0.45 };
+export const onJetty = (x: number, z: number) => Math.abs(x - JETTY.x) < JETTY.half && z > JETTY.z0 && z < JETTY.z1;
+/** Jetty deck height: a short ramp up from the grass, then flat. */
+export const jettyHeight = (z: number) => JETTY.h * smooth(JETTY.z0, JETTY.z0 + 4, z);
+
 export const onBridge = (x: number, z: number) => Math.abs(x - BRIDGE.x) < BRIDGE.half && z > BRIDGE.z0 && z < BRIDGE.z1;
 export const onFootbridge = (x: number, z: number) => x > FOOTBRIDGE.x0 && x < FOOTBRIDGE.x1 && Math.abs(z - FOOTBRIDGE.z) < FOOTBRIDGE.half;
 
@@ -180,6 +186,7 @@ export function footbridgeHeight(x: number) {
 export function outskirtsHeight(x: number, z: number) {
   if (onBridge(x, z)) return bridgeHeight(z);
   if (onFootbridge(x, z)) return footbridgeHeight(x);
+  if (onJetty(x, z)) return jettyHeight(z);
   if (x > DESERT.x0 && z > DESERT.z0 && z < DESERT.z1) return duneHeight(x, z);
   return 0;
 }

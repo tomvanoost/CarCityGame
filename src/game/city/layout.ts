@@ -1,6 +1,6 @@
 import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
-import { BRIDGE, DESERT, FOOTBRIDGE, LAKE, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
+import { BRIDGE, DESERT, FOOTBRIDGE, JETTY, LAKE, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
 import { buildingCollider, generateTowns, type TownsData } from './towns';
 
 /**
@@ -421,6 +421,18 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       L.colliders.push({ x0: LAKE.x - w, z0: z, x1: LAKE.x - gap, z1: z + 6, water: true });
       L.colliders.push({ x0: LAKE.x + gap, z0: z, x1: LAKE.x + w, z1: z + 6, water: true });
     }
+  }
+  // The fishing jetty: cut a walkway out of the water, with railings along its sides.
+  {
+    const jx0 = JETTY.x - JETTY.half, jx1 = JETTY.x + JETTY.half;
+    L.colliders = L.colliders.flatMap((c) => {
+      if (!c.water || c.x1 <= jx0 || c.x0 >= jx1 || c.z1 <= JETTY.z0 || c.z0 >= JETTY.z1 - 0.5) return [c];
+      const out: Collider[] = [];
+      if (c.x0 < jx0) out.push({ ...c, x1: jx0 });
+      if (c.x1 > jx1) out.push({ ...c, x0: jx1 });
+      if (c.z1 > JETTY.z1 - 0.5) out.push({ ...c, x0: Math.max(c.x0, jx0), x1: Math.min(c.x1, jx1), z0: JETTY.z1 - 0.5 });
+      return out;
+    });
   }
   // Bridge railings (you can't drive off the bridge).
   for (const side of [-1, 1]) {

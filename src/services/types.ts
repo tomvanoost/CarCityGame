@@ -46,6 +46,8 @@ export interface PlayerProfile {
   vehicleHorns: Record<string, string>;
   /** Desert race: best lap time (seconds) per vehicle. */
   raceBest: Record<string, number>;
+  /** Fish album: how many of each kind you caught (and let go again). */
+  fish: Record<string, number>;
   /** Today's daily missions progress (see game/missions.ts); reset when the day changes. */
   missions?: { day: string; progress: Partial<Record<import('../game/missions').MissionId, number>>; done: import('../game/missions').MissionId[] };
 }

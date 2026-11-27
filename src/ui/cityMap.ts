@@ -1,7 +1,7 @@
 import type { CityLayout, District } from '../game/city/layout';
 import type { MapState } from '../game/play/game';
 import type { P, RoadGraph } from '../game/play/roads';
-import { BRIDGE, DESERT, DESERT_TOWN, FARM, FOOTBRIDGE, LAKE, LAKE_TOWN, OUT_ROADS, PATH, RACE, STREAM, racePoints } from '../game/city/outskirts';
+import { BRIDGE, DESERT, DESERT_TOWN, FARM, FOOTBRIDGE, LAKE, LAKE_TOWN, JETTY, OUT_ROADS, PATH, RACE, STREAM, racePoints } from '../game/city/outskirts';
 
 /** World extent shown on the maps: -E..E meters on both axes (city, desert, lake, countryside). */
 const E = 2350;
@@ -14,6 +14,7 @@ const OUT_PLACES: [P, string, string][] = [
   [{ x: LAKE.x, z: LAKE.z }, '🌉', '#2f8bff'],
   [{ x: (FARM.x0 + FARM.x1) / 2, z: (FARM.z0 + FARM.z1) / 2 }, '🚜', '#16b862'],
   [{ x: RACE.access.x, z: RACE.z + RACE.rz + 30 }, '🏁', '#1c1d20'],
+  [{ x: JETTY.x, z: JETTY.z0 - 14 }, '🎣', '#2f8bff'],
 ];
 /** Base map resolution: pixels per meter (the whole world must fit in a canvas tablets allow). */
 const K = 0.7;

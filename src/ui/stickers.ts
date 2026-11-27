@@ -1,6 +1,7 @@
 import { getSticker, newlyEarned, STICKERS, type StickerId } from '../game/stickers';
 import { sounds } from '../game/play/sounds';
 import { COIN_COUNT } from '../game/play/coins';
+import { FISH } from '../game/play/fishing';
 import { t, type TKey } from '../i18n';
 import { getProfile, onProfileChange, updateProfile } from '../services/session';
 import { h } from './dom';
@@ -80,6 +81,10 @@ export function openStickerBook(onClose?: () => void) {
         h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
       ),
       h('div', { class: 'coin-count' }, `🪙 ${t('coinHunt')}: ${p.coins.length}/${COIN_COUNT}`),
+      h('div', { class: 'fish-album' }, h('b', {}, `🎣 ${t('fishAlbum')}`), ...FISH.map((f) => {
+        const n = p.fish?.[f.id] ?? 0;
+        return h('span', { class: `fish-chip ${n ? '' : 'locked'}`, title: n ? t(`fish_${f.id}` as TKey) : '?' }, n ? `${f.emoji} ${n}` : '❔');
+      })),
       grid,
     ),
   );

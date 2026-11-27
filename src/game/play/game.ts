@@ -27,6 +27,7 @@ import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { HORNS, isHorn, type HornId } from '../horns';
 import { CHECKPOINTS, MEDAL_PRIZE, RaceTrack, medalFor, type Medal } from './raceTrack';
 import { RACE } from '../city/outskirts';
+import { BITE_TIME, FISH, FISH_SPOT, FLOAT, FishingJetty, randomFish, rodGeometry } from './fishing';
 import { missionDay, todaysMissions, type Mission, type MissionId } from '../missions';
 import { applyRims, applyStripe } from '../vehicles/carStyle';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
@@ -49,7 +50,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' };
+export type ContextAction = { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -121,19 +122,21 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
   onCoin?(found: number, total: number): void;
   /** Desert race finished. */
+  /** Fishing: caught something (`isNew` = first of its kind). */
+  onFish?(fish: (typeof FISH)[number], isNew: boolean): void;
   onRaceDone?(r: { medal: Medal; time: number; best: number; record: boolean; prize: number }): void;
   onJobStart(job: ActiveJob): void;
   onJobDone?(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
   onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
 }
@@ -170,6 +173,9 @@ export class Game {
   private funFair?: FunFair;
   private coins?: Coins;
   private raceTrack?: RaceTrack;
+  private jetty?: FishingJetty;
+  /** Fishing at the end of the jetty: waiting for a bite, or the float is under (tap now!). */
+  private fishing: { phase: 'wait' | 'bite'; t: number } | null = null;
   /** The race you're driving: countdown first, then the lap time; `next` = the gate to drive through (0 = finish). */
   private race: { count: number; t: number; next: number; passed: number } | null = null;
   /** Riding the Ferris wheel or the carousel (as a passenger: no walking). */
@@ -344,6 +350,8 @@ export class Game {
     this.scene.add(this.coins.group);
     this.raceTrack = new RaceTrack();
     this.scene.add(this.raceTrack.group);
+    this.jetty = new FishingJetty();
+    this.scene.add(this.jetty.group);
     this.setPet(this.profile.activePet);
     this.lamps = new StreetLamps(city.layout);
     this.scene.add(this.lamps.group);
@@ -530,7 +538,7 @@ export class Game {
     if (list.every((x) => next.done.includes(x.id))) awardSticker('missions');
   }
 
-  private addMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'km' | 'mission' | 'coin' | 'race') {
+  private addMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'km' | 'mission' | 'coin' | 'race' | 'fish') {
     const p = this.profile;
     setProfile({ ...p, money: Math.max(0, p.money + amount) });
     this.dirty = true;
@@ -742,6 +750,50 @@ export class Game {
     a.setTallGear(false);
     a.play('SitDown', { once: true, fade: 0.2, then: null });
     this.mode = 'driving';
+  }
+
+  private startFishing() {
+    const p = this.player, a = this.avatar;
+    if (!p || !a) return;
+    this.iceCreamTimer = 0;
+    a.holdItem(rodGeometry());
+    p.heading = Math.atan2(FLOAT.x - p.x, FLOAT.z - p.z);
+    this.follow.yaw = Math.PI - 0.35; // camera a bit to the left, so the float shows next to you
+    this.fishing = { phase: 'wait', t: 3 + Math.random() * 5 };
+  }
+
+  private stopFishing() {
+    this.fishing = null;
+    this.avatar?.holdItem(null);
+  }
+
+  private catchFish() {
+    const fish = randomFish(), p = this.profile;
+    const isNew = !p.fish[fish.id];
+    const counts = { ...p.fish, [fish.id]: (p.fish[fish.id] ?? 0) + 1 };
+    setProfile({ ...this.profile, fish: counts });
+    void updateProfile({ fish: counts });
+    this.addMoney(fish.reward, 'fish');
+    this.events.onFish?.(fish, isNew);
+    awardSticker('fish');
+    if (FISH.every((f) => counts[f.id])) awardSticker('fishAll');
+    if (this.fishing) this.fishing = { phase: 'wait', t: 3 + Math.random() * 6 };
+  }
+
+  /** Fishing: wait for a bite, then the float stays under for a moment; walking away stops. */
+  private updateFishing(dt: number) {
+    const f = this.fishing, p = this.player, a = this.avatar;
+    if (!p || !a) return;
+    if (f && (this.mode !== 'walking' || Math.hypot(p.x - FISH_SPOT.x, p.z - FISH_SPOT.z) > 3.2)) this.stopFishing();
+    let tip: THREE.Vector3 | null = null;
+    if (this.fishing) {
+      const g = this.fishing;
+      g.t -= dt;
+      if (g.t <= 0 && g.phase === 'wait') { g.phase = 'bite'; g.t = BITE_TIME; sounds.blinkerTick(true); }
+      else if (g.t <= 0) { this.events.onMessage('fishGone'); g.phase = 'wait'; g.t = 3 + Math.random() * 5; }
+      tip = new THREE.Vector3(p.x + Math.sin(p.heading) * 1.7, p.y + 2.5, p.z + Math.cos(p.heading) * 1.7);
+    }
+    this.jetty?.update(dt, tip, this.fishing?.phase === 'bite');
   }
 
   private stopRace() {
@@ -1015,7 +1067,9 @@ export class Game {
       return null;
     }
     if (this.ride) return { kind: 'rideStop' };
+    if (this.fishing) return { kind: 'fishReel', bite: this.fishing.phase === 'bite' };
     const p = this.player;
+    if (Math.hypot(p.x - FISH_SPOT.x, p.z - FISH_SPOT.z) < 2.6) return { kind: 'fish' };
     const near = (d: { x: number; z: number }) => Math.hypot(p.x - d.x, p.z - d.z) < 3.2;
     if (near(L.pois.funFair.wheel.front)) return { kind: 'ride', ride: 'wheel', price: RIDE_PRICE };
     if (near(L.pois.funFair.carousel.front)) return { kind: 'ride', ride: 'carousel', price: RIDE_PRICE };
@@ -1061,6 +1115,13 @@ export class Game {
         break;
       case 'ride':
         this.startRide(c.ride, c.price);
+        break;
+      case 'fish':
+        this.startFishing();
+        break;
+      case 'fishReel':
+        if (c.bite) this.catchFish();
+        else this.events.onMessage('fishWait');
         break;
       case 'raceStart':
         this.race = { count: 2.999, t: 0, next: 1, passed: 0 };
@@ -1278,6 +1339,7 @@ export class Game {
       }
     }
     this.updateRace(dt);
+    this.updateFishing(dt);
     if (this.shineTimer > 0) {
       this.shineTimer = Math.max(0, this.shineTimer - dt);
       if (this.shineTimer === 0) this.setShine(false);
@@ -1514,6 +1576,7 @@ export class Game {
     this.funFair?.dispose();
     this.coins?.dispose();
     this.raceTrack?.dispose();
+    this.jetty?.dispose();
     this.pet?.dispose();
     this.garage?.dispose();
     this.lamps?.dispose();
