@@ -1,6 +1,6 @@
 import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
-import { BRIDGE, DESERT, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
+import { BRIDGE, DESERT, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, PETTING, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
 import { buildingCollider, generateTowns, type TownsData } from './towns';
 
 /**
@@ -428,6 +428,15 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
       L.colliders.push({ x0: LAKE.x - w, z0: z, x1: LAKE.x - gap, z1: z + 6, water: true });
       L.colliders.push({ x0: LAKE.x + gap, z0: z, x1: LAKE.x + w, z1: z + 6, water: true });
     }
+  }
+  // The petting farm: fence (with a gate gap on the road side), nothing else growing inside.
+  {
+    const P = PETTING, x0 = P.x - P.w / 2, x1 = P.x + P.w / 2, z0 = P.z - P.d / 2, z1 = P.z + P.d / 2, t = 0.25;
+    const inside = (x: number, z: number) => x > x0 - 3 && x < x1 + 3 && z > z0 - 3 && z < z1 + 3;
+    L.nature = L.nature.filter((n) => !inside(n.x, n.z));
+    L.colliders = L.colliders.filter((c) => !inside((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2));
+    L.colliders.push({ x0, z0: z0 - t, x1, z1: z0 + t }, { x0, z0: z1 - t, x1, z1: z1 + t }, { x0: x0 - t, z0, x1: x0 + t, z1 });
+    L.colliders.push({ x0: x1 - t, z0, x1: x1 + t, z1: P.z - P.gate / 2 }, { x0: x1 - t, z0: P.z + P.gate / 2, x1: x1 + t, z1 });
   }
   // The fishing jetty: cut a walkway out of the water, with railings along its sides.
   {

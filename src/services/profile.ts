@@ -35,6 +35,7 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     vehicleHorns: {},
     raceBest: {},
     fish: {},
+    animalsFed: [],
     vehicleDents: {},
   };
 }
@@ -70,6 +71,7 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   if (!p.vehicleHorns || typeof p.vehicleHorns !== 'object') p.vehicleHorns = {};
   if (!p.raceBest || typeof p.raceBest !== 'object') p.raceBest = {};
   if (!p.fish || typeof p.fish !== 'object') p.fish = {};
+  p.animalsFed = toArray(raw.animalsFed, []);
   // Dents: keep only well-formed ones (the database may turn arrays into objects).
   const dents: Record<string, Dent[]> = {};
   if (raw.vehicleDents && typeof raw.vehicleDents === 'object') {

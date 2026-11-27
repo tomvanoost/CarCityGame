@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Petting farm**: a small petting zoo on the farm (goats, sheep, rabbits, a pony); walk up and tap
-  to feed an animal (€2, it happily hops / wiggles), a sticker for feeding them all.
 - [ ] **Neon & spoilers at the garage**: underglow lights in 5 colors (they shine in the evening) and a
   spoiler for each car, €100–200, saved per car and shown to other players.
 - [ ] **Hot air balloon ride**: a balloon field next to the desert road; a €20 ride slowly up over the

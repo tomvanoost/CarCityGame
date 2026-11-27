@@ -167,6 +167,9 @@ export function bridgeHeight(z: number) {
   return b.h * Math.min(smooth(b.z0, b.z0 + b.ramp, z), 1 - smooth(b.z1 - b.ramp, b.z1, z));
 }
 
+/** Petting farm: a fenced paddock next to the farm road (gate on the east side, towards the road). */
+export const PETTING = { x: 1812, z: 1000, w: 26, d: 20, gate: 4 };
+
 /** Fishing jetty on the lake's north shore: from the grass (z0) out over the water (z1). */
 export const JETTY = { x: -160, z0: 784, z1: 814, half: 1.3, h: 0.45 };
 export const onJetty = (x: number, z: number) => Math.abs(x - JETTY.x) < JETTY.half && z > JETTY.z0 && z < JETTY.z1;

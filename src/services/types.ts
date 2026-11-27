@@ -48,6 +48,8 @@ export interface PlayerProfile {
   raceBest: Record<string, number>;
   /** Fish album: how many of each kind you caught (and let go again). */
   fish: Record<string, number>;
+  /** Petting farm: the kinds of animals you fed. */
+  animalsFed: string[];
   /** Dents per vehicle (from bumping into cars); the garage repairs them. */
   vehicleDents: Record<string, import('../game/vehicles/dents').Dent[]>;
   /** Today's daily missions progress (see game/missions.ts); reset when the day changes. */

@@ -23,13 +23,14 @@ import { FURNITURE } from '../furniture';
 import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
 import { PizzeriaBuilding } from './pizzeria';
 import { BusShelters } from './busStops';
+import { FEED_PRICE, PettingFarm, type FarmAnimalKind } from './pettingFarm';
 import { BAKERY, BAKERY_TIME, BakeryBuilding, bakeryGeometry, type BakeryId } from './bakery';
 import { FunFair, RIDE_PRICE, type RideKind } from './funFair';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { HORNS, isHorn, type HornId } from '../horns';
 import { MAX_DENTS, REPAIR_PRICE, addDentMesh, clearDents, dentCount, findDent } from '../vehicles/dents';
 import { CHECKPOINTS, MEDAL_PRIZE, RaceTrack, medalFor, type Medal } from './raceTrack';
-import { RACE } from '../city/outskirts';
+import { PETTING, RACE } from '../city/outskirts';
 import { BITE_TIME, FISH, FISH_SPOT, FLOAT, FishingJetty, randomFish, rodGeometry } from './fishing';
 import { missionDay, todaysMissions, type Mission, type MissionId } from '../missions';
 import { applyRims, applyStripe } from '../vehicles/carStyle';
@@ -53,7 +54,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean };
+export type ContextAction = { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -125,7 +126,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
@@ -138,6 +139,8 @@ export interface GameEvents {
   onJobDone?(job: ActiveJob): void;
   /** Bus route: people got on at stop `stop` of `stops`. */
   onBusStop?(stop: number, stops: number): void;
+  /** Petting farm: you fed an animal. */
+  onFed?(animal: FarmAnimalKind): void;
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery'): void;
   /** Short message (i18n key + optional number). */
@@ -176,6 +179,7 @@ export class Game {
   private paintShop?: PaintShopBuilding;
   private pizzeria?: PizzeriaBuilding;
   private busShelters?: BusShelters;
+  private farm?: PettingFarm;
   private bakery?: BakeryBuilding;
   private funFair?: FunFair;
   private coins?: Coins;
@@ -347,6 +351,8 @@ export class Game {
     this.scene.add(this.pizzeria.group);
     this.busShelters = new BusShelters(city.layout);
     this.scene.add(this.busShelters.group);
+    this.farm = new PettingFarm();
+    this.scene.add(this.farm.group);
     this.bakery = new BakeryBuilding(city.layout);
     this.scene.add(this.bakery.group);
     this.funFair = new FunFair(city.layout);
@@ -1156,6 +1162,8 @@ export class Game {
     if (Math.hypot(p.x - L.pois.supermarket.front.x, p.z - L.pois.supermarket.front.z) < 4) return { kind: 'supermarket' };
     if (near(L.pois.petShop.front)) return { kind: 'petShop' };
     if (near(L.pois.bakery.front)) return { kind: 'bakery' };
+    const animal = this.farm?.nearest(p.x, p.z);
+    if (animal) return { kind: 'feed', animal: animal.kind, price: FEED_PRICE };
     const parked = this.garage?.near(p.x, p.z);
     if (parked) return { kind: 'takeCar', id: parked.id };
     if (near(L.pois.apartment.door)) return this.profile.ownsApartment ? { kind: 'apartment' } : { kind: 'buyApartment', price: APARTMENT_PRICE };
@@ -1196,6 +1204,20 @@ export class Game {
       case 'ride':
         this.startRide(c.ride, c.price);
         break;
+      case 'feed': {
+        const p = this.profile, pl = this.player!, a = this.farm?.nearest(pl.x, pl.z);
+        if (!a || a.happy > 0) break;
+        if (p.money < c.price) { this.events.onMessage('needMoney', c.price - p.money); break; }
+        const animalsFed = p.animalsFed.includes(a.kind) ? p.animalsFed : [...p.animalsFed, a.kind];
+        setProfile({ ...p, money: p.money - c.price, animalsFed });
+        void updateProfile({ money: p.money - c.price, animalsFed });
+        this.events.onMoney(-c.price, 'farm');
+        this.farm!.feed(a, pl.x, pl.z);
+        sounds.coin();
+        this.events.onFed?.(a.kind);
+        if (['goat', 'sheep', 'rabbit', 'pony'].every((k) => animalsFed.includes(k))) awardSticker('farmFriend');
+        break;
+      }
       case 'fish':
         this.startFishing();
         break;
@@ -1534,6 +1556,7 @@ export class Game {
     // In the dashboard view your own driver is hidden, so you look over the real dashboard.
     this.avatar.root.visible = !(this.cockpit && this.mode === 'driving');
     this.funFair?.update(dt);
+    if (this.farm && Math.hypot(this.focus.x - PETTING.x, this.focus.z - PETTING.z) < 400) this.farm.update(dt);
     this.coins?.update(dt, this.ride ? null : pos, this.mode === 'driving' ? 3.5 : 2);
     this.avatar.update(dt);
     this.updatePet(dt);
@@ -1655,6 +1678,7 @@ export class Game {
     this.paintShop?.dispose();
     this.pizzeria?.dispose();
     this.busShelters?.dispose();
+    this.farm?.dispose();
     this.bakery?.dispose();
     this.funFair?.dispose();
     this.coins?.dispose();
