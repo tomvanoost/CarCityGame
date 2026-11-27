@@ -22,6 +22,7 @@ import { Pet, PetShopBuilding, getPet } from './pets';
 import { FURNITURE } from '../furniture';
 import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
 import { PizzeriaBuilding } from './pizzeria';
+import { BAKERY, BAKERY_TIME, BakeryBuilding, bakeryGeometry, type BakeryId } from './bakery';
 import { FunFair, RIDE_PRICE, type RideKind } from './funFair';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { HORNS, isHorn, type HornId } from '../horns';
@@ -51,7 +52,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean };
+export type ContextAction = { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -123,7 +124,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
@@ -135,7 +136,7 @@ export interface GameEvents {
   onJobStart(job: ActiveJob): void;
   onJobDone?(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
-  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop'): void;
+  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery'): void;
   /** Short message (i18n key + optional number). */
   onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
@@ -171,6 +172,7 @@ export class Game {
   private petShop?: PetShopBuilding;
   private paintShop?: PaintShopBuilding;
   private pizzeria?: PizzeriaBuilding;
+  private bakery?: BakeryBuilding;
   private funFair?: FunFair;
   private coins?: Coins;
   private raceTrack?: RaceTrack;
@@ -339,6 +341,8 @@ export class Game {
     this.scene.add(this.paintShop.group);
     this.pizzeria = new PizzeriaBuilding(city.layout);
     this.scene.add(this.pizzeria.group);
+    this.bakery = new BakeryBuilding(city.layout);
+    this.scene.add(this.bakery.group);
     this.funFair = new FunFair(city.layout);
     this.scene.add(this.funFair.group);
     this.coins = new Coins(city.layout, this.profile.coins, (c) => {
@@ -617,6 +621,26 @@ export class Game {
   }
 
   /** Buy a snack at the supermarket (juice: run faster, banana: jump higher, chocolate: hold it). */
+  /** Bakery: buy a treat; you hold it for a minute and it gives a small boost. */
+  buyBakery(id: BakeryId): boolean {
+    const item = BAKERY.find((q) => q.id === id)!;
+    const p = this.profile;
+    if (p.money < item.price) { this.events.onMessage('needMoney', item.price - p.money); return false; }
+    setProfile({ ...p, money: p.money - item.price });
+    void updateProfile({ money: p.money - item.price });
+    this.events.onMoney(-item.price, 'bakery');
+    if (this.player) {
+      if (id === 'croissant') this.player.speedBoost = BAKERY_TIME;
+      if (id === 'cake') this.player.jumpBoost = BAKERY_TIME;
+      if (id === 'cookie') { this.player.speedBoost = BAKERY_TIME / 2; this.player.jumpBoost = BAKERY_TIME / 2; }
+    }
+    this.avatar?.holdItem(bakeryGeometry(id).scale(1.6, 1.6, 1.6));
+    this.iceCreamTimer = BAKERY_TIME;
+    sounds.coin();
+    awardSticker('baker');
+    return true;
+  }
+
   buySnack(id: SnackId): boolean {
     const item = SNACKS.find((q) => q.id === id)!;
     const p = this.profile;
@@ -1123,6 +1147,7 @@ export class Game {
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
     if (Math.hypot(p.x - L.pois.supermarket.front.x, p.z - L.pois.supermarket.front.z) < 4) return { kind: 'supermarket' };
     if (near(L.pois.petShop.front)) return { kind: 'petShop' };
+    if (near(L.pois.bakery.front)) return { kind: 'bakery' };
     const parked = this.garage?.near(p.x, p.z);
     if (parked) return { kind: 'takeCar', id: parked.id };
     if (near(L.pois.apartment.door)) return this.profile.ownsApartment ? { kind: 'apartment' } : { kind: 'buyApartment', price: APARTMENT_PRICE };
@@ -1156,6 +1181,7 @@ export class Game {
       case 'supermarket':
       case 'petShop':
       case 'paintShop':
+      case 'bakery':
         this.paused = true;
         this.events.onPlace(c.kind);
         break;
@@ -1620,6 +1646,7 @@ export class Game {
     this.petShop?.dispose();
     this.paintShop?.dispose();
     this.pizzeria?.dispose();
+    this.bakery?.dispose();
     this.funFair?.dispose();
     this.coins?.dispose();
     this.raceTrack?.dispose();

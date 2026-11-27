@@ -16,7 +16,15 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Bakery**: a bakery in the lake town; buy a croissant, a cake or a cookie (hold it like the ice
-  cream, a small boost) and a "baker" sticker.
+- [ ] **Bus driver job**: a bus at a depot; drive a route along 5 bus stops where little groups of
+  people wait (they hop on/off when you stop), €15 per stop and a bonus for the whole route.
+- [ ] **Petting farm**: a small petting zoo on the farm (goats, sheep, rabbits, a pony); walk up and tap
+  to feed an animal (€2, it happily hops / wiggles), a sticker for feeding them all.
+- [ ] **Neon & spoilers at the garage**: underglow lights in 5 colors (they shine in the evening) and a
+  spoiler for each car, €100–200, saved per car and shown to other players.
+- [ ] **Hot air balloon ride**: a balloon field next to the desert road; a €20 ride slowly up over the
+  desert and the lake with a camera view from the basket, like the Ferris wheel.
+- [ ] **Fireworks at the lake**: in the evening, tap the fireworks button on the beach (€25) for a
+  colorful (quiet, soft-popping) fireworks show over the water.
 
 (Add new ideas here, in order, for the next runs.)

@@ -23,6 +23,7 @@ import { BigMap, Minimap, renderBaseMap, type MapPlaces } from './cityMap';
 import { TouchControls } from './touchControls';
 import { missionText } from './missions';
 import { HORNS } from '../game/horns';
+import { BAKERY } from '../game/play/bakery';
 import { REPAIR_PRICE } from '../game/vehicles/dents';
 import { sounds } from '../game/play/sounds';
 
@@ -208,6 +209,7 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'iceCream' ? `🍦 ${t('buyIceCream')} ${euro(c.price)}`
         : c.kind === 'supermarket' ? `🛒 ${t('goShopping')}`
         : c.kind === 'petShop' ? `🐾 ${t('visitPetShop')}`
+        : c.kind === 'bakery' ? `🥐 ${t('visitBakery')}`
         : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
         : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : 'rideCarousel')} ${euro(c.price)}`
         : c.kind === 'rideStop' ? `🚶 ${t('rideStop')}`
@@ -278,14 +280,14 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : reason === 'fish' ? 'fishShort' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : reason === 'fish' ? 'fishShort' : reason === 'bakery' ? 'bakery' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : t('pickedPassenger')),
     onFish: (f, isNew) => toast(`${f.emoji} ${t('fishCaught').replace('{fish}', t(`fish_${f.id}` as TKey))}${isNew ? ` ${t('fishNew')}` : ''}`),
     onRaceDone: (r) => toast(`${r.medal === 'gold' ? '🥇' : r.medal === 'silver' ? '🥈' : '🥉'} ${t(r.medal === 'gold' ? 'medalGold' : r.medal === 'silver' ? 'medalSilver' : 'medalBronze')} ${raceTime(r.time)}${r.record ? ` — ${t('raceRecord')}` : ` (${t('raceBest')} ${raceTime(r.best)})`}`),
     onCoin: (n, total) => toast(`🪙 ${t('coinFound')} ${n}/${total}`),
     onMission: (m) => toast(`${m.emoji} ${t('missionDone')} ${missionText(m)}`),
     onJobDone: (job) => { if (job.kind === 'pizza') toast(job.hot ? t('pizzaHot') : t('pizzaThanks')); },
-    onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : place === 'paintShop' ? openPaintShop() : openPanel(place)),
+    onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : place === 'paintShop' ? openPaintShop() : place === 'bakery' ? openBakery() : openPanel(place)),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
     onPlayer: (kind, name) => toast(t(kind === 'joined' ? 'mpJoined' : kind === 'left' ? 'mpLeft' : 'mpFound').replace('{name}', name)),
   });
@@ -376,7 +378,7 @@ export const gameScreen: Screen = (root, nav) => {
     if (!minimap && game.roads && game.city) {
       const L = game.city.layout;
       const base = renderBaseMap(L, game.roads);
-      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front, pizzeria: L.pois.pizzeria.front, funFair: L.pois.funFair.wheel.front };
+      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front, pizzeria: L.pois.pizzeria.front, funFair: L.pois.funFair.wheel.front, bakery: L.pois.bakery.front };
       minimap = new Minimap(base, places, openMap, (id) => {
         const name = game.navigateToPlayer(id);
         if (name) toast(t('mpNavTo').replace('{name}', name));
@@ -436,6 +438,29 @@ export const gameScreen: Screen = (root, nav) => {
           h('b', {}, `${t(`sn_${sn.id}`)} ${euro(sn.price)}`),
           h('small', {}, t(`sn_${sn.id}_info`)));
         b.addEventListener('click', () => { if (game.buySnack(sn.id)) { close(); toast(t('snackBought')); } });
+        return b;
+      })),
+      h('button', { class: 'btn btn-primary btn-big', onclick: close }, t('continuePlaying')),
+    ));
+    panel.hidden = false;
+    render();
+  }
+
+  function openBakery() {
+    touch.reset();
+    const close = () => { panel.hidden = true; game.resume(); render(); };
+    panel.replaceChildren(h('div', { class: 'card place-card' },
+      h('div', { class: 'place-head' },
+        h('h2', {}, `🥐 ${t('bakery')}`),
+        h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
+      ),
+      h('h3', {}, t('pickTreat')),
+      h('div', { class: 'tiles' }, ...BAKERY.map((it) => {
+        const b = h('button', { class: 'tile snack-tile' },
+          h('span', { class: 'tile-emoji' }, it.emoji),
+          h('b', {}, `${t(`bk_${it.id}` as TKey)} ${euro(it.price)}`),
+          h('small', {}, t(`bk_${it.id}_info` as TKey)));
+        b.addEventListener('click', () => { if (game.buyBakery(it.id)) { close(); toast(t('treatBought')); } });
         return b;
       })),
       h('button', { class: 'btn btn-primary btn-big', onclick: close }, t('continuePlaying')),

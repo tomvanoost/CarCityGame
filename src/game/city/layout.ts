@@ -1,6 +1,6 @@
 import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
-import { BRIDGE, DESERT, FOOTBRIDGE, JETTY, LAKE, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
+import { BRIDGE, DESERT, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
 import { buildingCollider, generateTowns, type TownsData } from './towns';
 
 /**
@@ -88,6 +88,8 @@ export interface CityLayout {
       wheel: { x: number; z: number; front: { x: number; z: number } };
       carousel: { x: number; z: number; front: { x: number; z: number } };
     };
+    /** Bakery on the lake town square (turned by `rot`; `front` = the spot by its door). */
+    bakery: { x: number; z: number; rot: number; front: { x: number; z: number } };
     /** Pizzeria kiosk at the front corner of the supermarket parking lot (counter = +Z, towards the road). */
     pizzeria: { x: number; z: number; front: { x: number; z: number } };
     /** Paint shop garage on the other side of the supermarket (door = +Z); drive up to `front`. */
@@ -452,6 +454,11 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   L.colliders = L.colliders.filter((c) => !(c.knock && clear((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2)));
   L.colliders.push({ x0: ic.x - 1.5, z0: ic.z - 1.1, x1: ic.x + 1.5, z1: ic.z + 1.1 });
 
+  // ---------- bakery on the lake town square (north-west of the church, facing the north street) ----------
+  const bkX = LAKE_TOWN.x - 22, bkZ = LAKE_TOWN.z - 22;
+  L.colliders.push({ x0: bkX - 4.6, z0: bkZ - 3.6, x1: bkX + 4.6, z1: bkZ + 3.6 });
+  const bakery = { x: bkX, z: bkZ, rot: 0, front: { x: bkX + 1.5, z: bkZ + 5.6 } };
+
   // ---------- fun fair in the park's north-west corner (away from the pond and the paths) ----------
   const pr = L.park.rect;
   const wheel = { x: pr.x0 + 32, z: pr.z0 + 30, front: { x: pr.x0 + 32, z: pr.z0 + 34.5 } };
@@ -502,6 +509,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     paintShop,
     pizzeria,
     funFair,
+    bakery,
   };
   return L;
 }
