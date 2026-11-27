@@ -16,7 +16,16 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Daily missions**: three simple daily goals (drive 5 km, do 2 jobs, honk at 3 cars...) with
-  money and sticker rewards, shown in a small panel in the menu.
+- [ ] **Coin hunt**: 30 shiny golden coins hidden around the map (rooftops of low buildings, the park,
+  under the bridge, the desert, the lake town). Pick them up on foot or by car; a counter in the
+  sticker book, a sticker at 10 and at all 30. Saved in the profile.
+- [ ] **Horn shop at the garage**: buy fun horn sounds (duck, train, melody, bicycle bell, clown) for
+  €50–150; choose one per car. Synthesized with WebAudio (no new sound files).
+- [ ] **Desert race track**: a time-trial loop with checkpoint arches in the desert; bronze / silver /
+  gold medals and a best time per car, a big start button at the start line.
+- [ ] **Fishing at the lake**: a small wooden jetty; tap to cast, tap again when the float dips to
+  catch a fish (catch and release), €5–25 per fish, a little fish album.
+- [ ] **Bakery**: a bakery in the lake town; buy a croissant, a cake or a cookie (hold it like the ice
+  cream, a small boost) and a "baker" sticker.
 
 (Add new ideas here, in order, for the next runs.)

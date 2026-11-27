@@ -39,6 +39,8 @@ export interface PlayerProfile {
   activePet: string;
   /** Furniture in your apartment (ids from game/furniture.ts). */
   furniture: string[];
+  /** Today's daily missions progress (see game/missions.ts); reset when the day changes. */
+  missions?: { day: string; progress: Partial<Record<import('../game/missions').MissionId, number>>; done: import('../game/missions').MissionId[] };
 }
 
 /** Error codes the UI turns into friendly translated messages. */

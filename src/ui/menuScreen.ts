@@ -9,6 +9,7 @@ import type { Screen } from './screens';
 import { openStickerBook } from './stickers';
 import { openSettings } from './settings';
 import { STICKERS } from '../game/stickers';
+import { renderMissions } from './missions';
 
 /** Game menu: avatar (top-left), selected car in the showroom, shops and Play. */
 export const menuScreen: Screen = (root, nav) => {
@@ -35,6 +36,10 @@ export const menuScreen: Screen = (root, nav) => {
     money,
     stickerBtn,
   );
+
+  // --- today's missions ---
+  const missions = h('div', { class: 'card missions-card' });
+  renderMissions(missions, p);
 
   // --- car picker (only owned cars) ---
   const carName = h('div', { class: 'car-name' });
@@ -82,6 +87,7 @@ export const menuScreen: Screen = (root, nav) => {
   root.append(
     showroomCanvas,
     card,
+    missions,
     h('div', { class: 'drag-hint' }, t('dragToTurn')),
     picker,
     actions,
@@ -92,6 +98,7 @@ export const menuScreen: Screen = (root, nav) => {
   const offProfile = onProfileChange((np) => {
     money.lastElementChild!.textContent = euro(np.money);
     renderStickers();
+    renderMissions(missions, np);
   });
 
   return () => {

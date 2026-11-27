@@ -120,6 +120,19 @@ button, input { font: inherit; color: inherit; }
 
 .icon-btn { position: absolute; width: 44px; height: 44px; border-radius: 14px; border: 0; background: var(--card); color: var(--muted); display: grid; place-items: center; cursor: pointer; box-shadow: var(--shadow); }
 .icon-btn.logout { top: calc(max(12px, env(safe-area-inset-top)) + 46px); right: 12px; }
+.missions-card { position: absolute; top: calc(max(12px, env(safe-area-inset-top)) + 160px); right: 12px; width: 250px; padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
+.missions-title { font-weight: 900; font-size: 16px; color: var(--text, #1d2b44); }
+.mission { display: flex; align-items: center; gap: 9px; }
+.mission-emoji { font-size: 24px; width: 30px; text-align: center; flex: none; }
+.mission-body { flex: 1; min-width: 0; }
+.mission-text { font-weight: 800; font-size: 14px; line-height: 1.2; }
+.mission-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.mission-row small { font-size: 12px; color: var(--muted); font-weight: 800; white-space: nowrap; }
+.mission-bar { flex: 1; height: 8px; border-radius: 4px; background: #e3e9f2; overflow: hidden; }
+.mission-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ffb300, #ff8a2b); }
+.mission-reward { background: #fff6d6; color: #b07900; padding: 2px 8px; border-radius: 10px; font-weight: 900; font-size: 13px; white-space: nowrap; flex: none; }
+.mission.done .mission-text { color: #2f9e6a; }
+.mission.done .mission-reward { display: inline-block; margin-top: 3px; background: #dff5e9; color: #2f9e6a; }
 
 .toast { position: fixed; left: 50%; bottom: 140px; transform: translate(-50%, 20px); background: rgba(29, 43, 68, .92); color: #fff; padding: 12px 20px; border-radius: 16px; font-size: 16px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60; text-align: center; max-width: calc(100% - 32px); }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -135,6 +148,9 @@ button, input { font: inherit; color: inherit; }
   .btn-play { width: auto; flex: 1.2; height: 88px; font-size: 20px; }
   .car-picker { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 100px); }
   .car-name { font-size: 16px; padding: 6px 14px; }
+  .missions-card { width: 200px; top: calc(max(12px, env(safe-area-inset-top)) + 156px); padding: 10px; gap: 6px; }
+  .mission-text { font-size: 12.5px; }
+  .mission-emoji { font-size: 20px; width: 24px; }
 }
 
 @media (max-width: 520px) {

@@ -23,6 +23,7 @@ import { FURNITURE } from '../furniture';
 import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
 import { PizzeriaBuilding } from './pizzeria';
 import { FunFair, RIDE_PRICE, type RideKind } from './funFair';
+import { missionDay, todaysMissions, type Mission, type MissionId } from '../missions';
 import { applyRims, applyStripe } from '../vehicles/carStyle';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
 import { FLAVORS, ICE_CREAM_PRICE, ICE_CREAM_TIME, IceCreamStand, coneGeometry, type Flavor } from './iceCream';
@@ -114,7 +115,9 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission'): void;
+  /** A daily mission is finished (its reward was paid). */
+  onMission?(m: Mission): void;
   onJobStart(job: ActiveJob): void;
   onJobDone?(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
@@ -190,6 +193,9 @@ export class Game {
   private peopleCount = 24;
   private yieldTimer = 0;
   private meters = 0;
+  /** Meters driven / walked that still have to count for the daily missions. */
+  private missionDrive = 0;
+  private missionWalk = 0;
   private dirty = false;
   private lastSave = 0;
   private refueling = false;
@@ -325,6 +331,8 @@ export class Game {
         const p = this.profile;
         void updateProfile(job.kind === 'taxi' ? { taxiRides: p.taxiRides + 1 } : { deliveries: p.deliveries + 1 });
         if (job.kind === 'pizza') awardSticker('pizza');
+        this.mission('jobs');
+        if (job.kind === 'pizza' && job.hot) this.mission('pizza');
         this.events.onJobDone?.(job);
       },
     });
@@ -480,7 +488,25 @@ export class Game {
 
   // ---------------- money ----------------
 
-  private addMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'km') {
+  /** Daily missions: add progress; a finished mission pays its reward right away. */
+  private mission(id: MissionId, amount = 1) {
+    const list = todaysMissions();
+    const m = list.find((x) => x.id === id);
+    if (!m) return;
+    const st = missionDay(this.profile);
+    if (st.done.includes(id)) return;
+    const value = Math.min(m.goal, (st.progress[id] ?? 0) + amount);
+    const finished = value >= m.goal - 1e-6;
+    const next = { day: st.day, progress: { ...st.progress, [id]: Math.round(value * 100) / 100 }, done: finished ? [...st.done, id] : st.done };
+    setProfile({ ...this.profile, missions: next });
+    if (!finished) { this.dirty = true; return; }
+    void updateProfile({ missions: next });
+    this.addMoney(m.reward, 'mission');
+    this.events.onMission?.(m);
+    if (list.every((x) => next.done.includes(x.id))) awardSticker('missions');
+  }
+
+  private addMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'km' | 'mission') {
     const p = this.profile;
     setProfile({ ...p, money: Math.max(0, p.money + amount) });
     this.dirty = true;
@@ -508,6 +534,7 @@ export class Game {
     this.iceCreamTimer = ICE_CREAM_TIME;
     sounds.coin();
     awardSticker('iceCream');
+    this.mission('iceCream');
     return true;
   }
 
@@ -648,7 +675,7 @@ export class Game {
     this.lastSave = now;
     this.dirty = false;
     const p = this.profile;
-    updateProfile({ money: Math.round(p.money), fuel: Math.round(p.fuel * 1000) / 1000, km: Math.round(p.km * 10) / 10 });
+    updateProfile({ money: Math.round(p.money), fuel: Math.round(p.fuel * 1000) / 1000, km: Math.round(p.km * 10) / 10, ...(p.missions ? { missions: p.missions } : {}) });
   }
 
   // ---------------- car / walking ----------------
@@ -683,6 +710,7 @@ export class Game {
     a.play('SitDown', { once: true, fade: 0.2, then: null });
     this.ride = { kind, t: 0, dur: duration };
     awardSticker('funFair');
+    this.mission('funFair');
   }
 
   private endRide() {
@@ -914,6 +942,7 @@ export class Game {
         void updateProfile({ money: p.money - c.price });
         this.events.onMoney(-c.price, 'wash');
         this.washTimer = WASH_TIME;
+        this.mission('wash');
         break;
       }
       case 'takeCar': {
@@ -1155,6 +1184,8 @@ export class Game {
       sounds.hornStart();
       this.people?.honk(v.x, v.z);
       awardSticker('honk');
+      // Mission "honk at cars": counts when a traffic car is close by.
+      if (this.traffic?.cars.some((c) => Math.hypot(c.x - v.x, c.z - v.z) < 25)) this.mission('honk');
     } else if (!honk && this.honking) sounds.hornStop();
     this.honking = honk;
     // R / 🚨 / controller RB: siren on or off (police car only).
@@ -1196,6 +1227,8 @@ export class Game {
         setProfile({ ...this.profile, fuel, km: p.km + moved / 1000 });
         this.dirty = true;
         while (this.meters >= 100) { this.meters -= 100; this.addMoney(KM_REWARD, 'km'); }
+        this.missionDrive += moved;
+        if (this.missionDrive >= 100) { this.mission('drive', this.missionDrive / 1000); this.missionDrive = 0; }
       }
       this.focus.set(v.x, v.root.position.y + 1.3, v.z);
       if (v.bumped > 0.25) this.shake = 0.25;
@@ -1218,7 +1251,10 @@ export class Game {
         this.follow.update(dt, this.focus, { behindYaw: null, distance: this.ride.kind === 'wheel' ? 4.5 : 6, pitch: this.ride.kind === 'wheel' ? 0.2 : 0.35 });
         if (this.ride.t >= this.ride.dur) this.endRide();
       } else {
+        const wx = this.player.x, wz = this.player.z;
         if (!this.paused) this.player.update(dt, this.input.walk(), jump, this.follow.yaw, this.world);
+        this.missionWalk += Math.min(1, Math.hypot(this.player.x - wx, this.player.z - wz));
+        if (this.missionWalk >= 10) { this.mission('walk', this.missionWalk); this.missionWalk = 0; }
         this.focus.set(this.player.x, this.player.y + 1.4, this.player.z);
         this.setCameraRange(false);
         this.follow.update(dt, this.focus, { behindYaw: null, distance: 5.5, pitch: 0.32, blocked: this.blocked });

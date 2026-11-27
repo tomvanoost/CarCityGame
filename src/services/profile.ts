@@ -2,6 +2,7 @@ import { DEFAULT_VEHICLE, START_MONEY } from '../config';
 import { DEFAULT_OUTFIT } from '../game/avatar/clothes';
 import type { Gender, PlayerProfile } from './types';
 import { CLASSIC_FURNITURE, STARTER_FURNITURE } from '../game/furniture';
+import type { MissionId } from '../game/missions';
 
 export function newProfile(username: string, gender: Gender): PlayerProfile {
   return {
@@ -57,6 +58,13 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   p.activePet = typeof p.activePet === 'string' && p.pets.includes(p.activePet) ? p.activePet : '';
   // Before the furniture shop every apartment came fully furnished: keep that for existing players.
   p.furniture = raw.furniture === undefined && raw.ownsApartment ? [...CLASSIC_FURNITURE] : toArray(raw.furniture, STARTER_FURNITURE);
+  // Daily missions: keep only well-formed progress.
+  const m = raw.missions as { day?: unknown; progress?: unknown; done?: unknown } | undefined;
+  if (m && typeof m.day === 'string') {
+    const progress: Record<string, number> = {};
+    if (m.progress && typeof m.progress === 'object') for (const [k, v] of Object.entries(m.progress)) if (typeof v === 'number') progress[k] = v;
+    p.missions = { day: m.day, progress, done: toArray(m.done, []) as MissionId[] };
+  } else delete p.missions;
   return p;
 }
 
