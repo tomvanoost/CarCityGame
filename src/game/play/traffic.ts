@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { clearDents } from '../vehicles/dents';
 import { PAINT_COLORS, VEHICLES } from '../vehicles/catalog';
 import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
-import { headlightRig } from '../world/evening';
+import { TurnSignals, headlightRig } from '../world/evening';
 import { SEATED_SCALE, seatedRootPosition, type BuiltCar } from '../vehicles/carBuilder';
 import { loadVehicle, vehicleDims } from '../vehicles/factory';
 import type { VehicleSpec } from '../vehicles/types';
@@ -61,6 +61,10 @@ interface Car {
   pull: number;
   /** Seconds left in the overtaking lane on the highway (0 = keep right). */
   overtake: number;
+  /** Turn signals / hazard lights (hidden meshes when off, so no extra draw calls). */
+  signals: TurnSignals;
+  /** Seconds left with the hazard lights on (after braking hard on the highway). */
+  hazard: number;
   /** Node after `to`, chosen once when approaching the intersection. */
   nextNode?: number;
   /** Sideways position: distance from the road's middle to the right (the lane the car is in). */
@@ -172,7 +176,7 @@ export class Traffic {
       const lane = this.graph.cruiseLane(from, to);
       // On the highways cars come in at speed (fast cars keep leaving the area around you and come back).
       const speed = this.graph.isAutobahn(from, to) ? car.spec.topSpeed / 3.6 * 0.8 : this.graph.isHighway(from, to) ? this.highwaySpeed * 0.8 : CRUISE * 0.6;
-      Object.assign(car, { from, to, seg, d, lane, speed, x: p.x - p.dir.z * lane, z: p.z + p.dir.x * lane, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined, pull: 0, overtake: 0 });
+      Object.assign(car, { from, to, seg, d, lane, speed, x: p.x - p.dir.z * lane, z: p.z + p.dir.x * lane, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined, pull: 0, overtake: 0, hazard: 0 });
       return true;
     }
     return false;
@@ -193,10 +197,12 @@ export class Traffic {
     const head = headlightRig(dims.length, dims.width);
     head.visible = this.lights;
     root.add(head);
+    const signals = new TurnSignals(dims.length, dims.width);
+    root.add(signals.group);
     const car: Car = {
       spec, built, light: built, color, root, half: dims.length / 2, radius: dims.width / 2,
       from: 0, to: 0, seg: this.lineSeg(...this.graph.edges[0]), d: 0, speed: 0, x: 0, z: 0, heading: 0,
-      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0, overtake: 0, lane: LANE,
+      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0, overtake: 0, signals, hazard: 0, lane: LANE,
     };
     this.cars.push(car);
     this.group.add(root);
@@ -322,6 +328,19 @@ export class Traffic {
       if (car.pull > 0.05) allowed = Math.min(allowed, PULL_SPEED + (1 - car.pull) * CRUISE);
 
       const target = Math.min(allowed, cruise);
+      // Lights like real drivers: hazard lights when braking hard on the highway (a jam ahead) or when
+      // pulled over for a siren; otherwise the turn signal on the last stretch before turning.
+      const onHighway = autobahn || this.graph.isHighway(car.from, car.to);
+      if (onHighway && carAhead && car.speed > 16 && target < car.speed * 0.45) car.hazard = 5;
+      car.hazard = Math.max(0, car.hazard - dt);
+      let blinkSide: 'left' | 'right' | 'both' | null = null;
+      if (car.hazard > 0 || car.pull > 0.3) blinkSide = 'both';
+      else if (car.seg.kind === 'line' && left < 45 && !autobahn) { // (not for the autobahn's gentle bends)
+        const mv = moveOf(N[car.from], N[car.to], N[this.peekNext(car)]);
+        if (mv !== 'straight') blinkSide = mv;
+      } else if (car.seg.kind === 'curve' && !car.seg.straight) blinkSide = car.signals.side === 'both' ? null : car.signals.side;
+      car.signals.side = blinkSide;
+      car.signals.update(dt);
       car.speed += THREE.MathUtils.clamp(target - car.speed, -12 * dt, (autobahn ? 5 : 3) * dt);
       car.speed = Math.max(0, Math.min(car.speed, allowed + 0.01));
       car.waited = car.speed < 0.3 ? car.waited + dt : 0;
@@ -435,7 +454,7 @@ export class Traffic {
 
   dispose() {
     this.disposed = true;
-    for (const c of this.cars) { c.light.dispose(); c.full?.dispose(); }
+    for (const c of this.cars) { c.light.dispose(); c.full?.dispose(); c.signals.dispose(); }
     this.group.removeFromParent();
   }
 }
