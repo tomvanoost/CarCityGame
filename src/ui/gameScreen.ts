@@ -2,9 +2,9 @@ import { FLAVORS, ICE_CREAM_PRICE } from '../game/play/iceCream';
 import { SNACKS } from '../game/play/supermarket';
 import { PETS, getPet } from '../game/play/pets';
 import { FURNITURE } from '../game/furniture';
-import { EXTRA_PRICE, PAINT_PRICE } from '../game/play/paintShop';
+import { EXTRA_PRICE, NEON_PRICE, PAINT_PRICE, SPOILER_PRICE } from '../game/play/paintShop';
 import { PAINT_COLORS } from '../game/vehicles/catalog';
-import { EXTRA_PAINT, RIM_COLORS, STRIPE_COLORS } from '../game/vehicles/carStyle';
+import { EXTRA_PAINT, NEON_COLORS, RIM_COLORS, SPOILER_COLORS, STRIPE_COLORS } from '../game/vehicles/carStyle';
 import { isTouch } from '../engine/renderer';
 import { getClothes } from '../game/avatar/clothes';
 import { Game, type GameState } from '../game/play/game';
@@ -490,7 +490,7 @@ export const gameScreen: Screen = (root, nav) => {
     const close = () => { panel.hidden = true; game.resume(); render(); };
     const look = game.carLook();
     if (!look) return close();
-    const row = (part: 'color' | 'stripe' | 'rims', colors: string[], current: string, price: number) =>
+    const row = (part: 'color' | 'stripe' | 'rims' | 'neon' | 'spoiler', colors: string[], current: string, price: number) =>
       h('div', { class: 'swatches paint-swatches' }, ...colors.map((c) => {
         const b = h('button', { class: `swatch ${c === current ? 'active' : ''} ${c ? '' : 'swatch-none'}`, style: c ? `background:${c}` : '', 'aria-label': c || t('noPet') }, c ? '' : '🚫');
         b.addEventListener('click', () => { if (game.paintCar(part, c)) { toast(`🎨 ${t('painted')}`); openPaintShop(); } });
@@ -513,6 +513,10 @@ export const gameScreen: Screen = (root, nav) => {
       look.bike ? null : row('stripe', STRIPE_COLORS, look.stripe, EXTRA_PRICE),
       h('h3', {}, t('rimColor')),
       row('rims', RIM_COLORS, look.rims, EXTRA_PRICE),
+      look.bike ? null : h('h3', {}, `💡 ${t('neonTitle')}`),
+      look.bike ? null : row('neon', NEON_COLORS, look.neon, NEON_PRICE),
+      look.bike ? null : h('h3', {}, `🏎️ ${t('spoilerTitle')}`),
+      look.bike ? null : row('spoiler', SPOILER_COLORS, look.spoiler, SPOILER_PRICE),
       h('h3', {}, `📯 ${t('hornShop')}`),
       h('div', { class: 'horn-grid' }, ...HORNS.map((hn) => {
         const owned = hn.price === 0 || getProfile()!.horns.includes(hn.id);

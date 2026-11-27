@@ -23,6 +23,8 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     vehicleColors: {},
     vehicleStripes: {},
     vehicleRims: {},
+    vehicleNeon: {},
+    vehicleSpoiler: {},
     tutorialDone: false,
     stickers: [],
     deliveries: 0,
@@ -58,6 +60,8 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   if (!p.vehicleColors || typeof p.vehicleColors !== 'object') p.vehicleColors = {};
   if (!p.vehicleStripes || typeof p.vehicleStripes !== 'object') p.vehicleStripes = {};
   if (!p.vehicleRims || typeof p.vehicleRims !== 'object') p.vehicleRims = {};
+  if (!p.vehicleNeon || typeof p.vehicleNeon !== 'object') p.vehicleNeon = {};
+  if (!p.vehicleSpoiler || typeof p.vehicleSpoiler !== 'object') p.vehicleSpoiler = {};
   p.tutorialDone = p.tutorialDone === true;
   p.stickers = toArray(raw.stickers, []);
   p.deliveries = typeof p.deliveries === 'number' ? p.deliveries : 0;

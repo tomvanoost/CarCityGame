@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Neon & spoilers at the garage**: underglow lights in 5 colors (they shine in the evening) and a
-  spoiler for each car, €100–200, saved per car and shown to other players.
 - [ ] **Hot air balloon ride**: a balloon field next to the desert road; a €20 ride slowly up over the
   desert and the lake with a camera view from the basket, like the Ferris wheel.
 - [ ] **Fireworks at the lake**: in the evening, tap the fireworks button on the beach (€25) for a

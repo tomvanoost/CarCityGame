@@ -35,6 +35,9 @@ export interface PlayerState {
   /** Paint shop extras on the car: roof stripe and rim color ('' = none). */
   stripe?: string;
   rims?: string;
+  /** Garage extras: underglow and spoiler color ('' = none). */
+  neon?: string;
+  spoiler?: string;
 }
 
 export interface RemotePlayer extends PlayerState {

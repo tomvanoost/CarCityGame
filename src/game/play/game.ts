@@ -20,7 +20,7 @@ import { Wildlife } from './wildlife';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Pet, PetShopBuilding, getPet } from './pets';
 import { FURNITURE } from '../furniture';
-import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
+import { EXTRA_PRICE, NEON_PRICE, PAINT_PRICE, PaintShopBuilding, SPOILER_PRICE } from './paintShop';
 import { PizzeriaBuilding } from './pizzeria';
 import { BusShelters } from './busStops';
 import { FEED_PRICE, PettingFarm, type FarmAnimalKind } from './pettingFarm';
@@ -33,7 +33,7 @@ import { CHECKPOINTS, MEDAL_PRIZE, RaceTrack, medalFor, type Medal } from './rac
 import { PETTING, RACE } from '../city/outskirts';
 import { BITE_TIME, FISH, FISH_SPOT, FLOAT, FishingJetty, randomFish, rodGeometry } from './fishing';
 import { missionDay, todaysMissions, type Mission, type MissionId } from '../missions';
-import { applyRims, applyStripe } from '../vehicles/carStyle';
+import { applyNeon, applyRims, applySpoiler, applyStripe } from '../vehicles/carStyle';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
 import { FLAVORS, ICE_CREAM_PRICE, ICE_CREAM_TIME, IceCreamStand, coneGeometry, type Flavor } from './iceCream';
 import { Garage, type GarageSpot } from './garage';
@@ -559,6 +559,8 @@ export class Game {
     // Paint shop extras on this car.
     applyStripe(v.car, this.profile.vehicleStripes[id] ?? '', v.isBike);
     applyRims(v.car, this.profile.vehicleRims[id] ?? '');
+    applyNeon(v.car, this.profile.vehicleNeon[id] ?? '', v.isBike);
+    applySpoiler(v.car, this.profile.vehicleSpoiler[id] ?? '', v.isBike);
     for (const d of this.profile.vehicleDents[id] ?? []) addDentMesh(v.car.root, d);
     const wasSeated = this.mode === 'driving' && this.avatar?.root.parent === this.vehicle?.car.root;
     if (wasSeated) this.scene.add(this.avatar!.root);
@@ -674,18 +676,20 @@ export class Game {
    * Paint shop: new paint (EUR 50), a roof stripe or rim color (EUR 80 each) for the car you're in.
    * Choosing what the car already has is free. The car shines afterwards.
    */
-  paintCar(part: 'color' | 'stripe' | 'rims', value: string): boolean {
+  paintCar(part: 'color' | 'stripe' | 'rims' | 'neon' | 'spoiler', value: string): boolean {
     const v = this.vehicle, p = this.profile;
     if (!v) return false;
     const id = v.spec.id;
-    const current = part === 'color' ? p.vehicleColors[id] ?? v.spec.color : part === 'stripe' ? p.vehicleStripes[id] ?? '' : p.vehicleRims[id] ?? '';
+    const current = part === 'color' ? p.vehicleColors[id] ?? v.spec.color : part === 'stripe' ? p.vehicleStripes[id] ?? '' : part === 'neon' ? p.vehicleNeon[id] ?? '' : part === 'spoiler' ? p.vehicleSpoiler[id] ?? '' : p.vehicleRims[id] ?? '';
     if (current === value) return true;
-    const price = part === 'color' ? PAINT_PRICE : EXTRA_PRICE;
+    const price = part === 'color' ? PAINT_PRICE : part === 'neon' ? NEON_PRICE : part === 'spoiler' ? SPOILER_PRICE : EXTRA_PRICE;
     if (p.money < price) { this.events.onMessage('needMoney', price - p.money); return false; }
     const changes: Partial<PlayerProfile> = { money: p.money - price };
     if (part === 'color') { changes.vehicleColors = { ...p.vehicleColors, [id]: value }; v.car.setColor(value); }
     if (part === 'stripe') { changes.vehicleStripes = { ...p.vehicleStripes, [id]: value }; applyStripe(v.car, value, v.isBike); }
     if (part === 'rims') { changes.vehicleRims = { ...p.vehicleRims, [id]: value }; applyRims(v.car, value); }
+    if (part === 'neon') { changes.vehicleNeon = { ...p.vehicleNeon, [id]: value }; applyNeon(v.car, value, v.isBike); }
+    if (part === 'spoiler') { changes.vehicleSpoiler = { ...p.vehicleSpoiler, [id]: value }; applySpoiler(v.car, value, v.isBike); }
     setProfile({ ...p, ...changes });
     void updateProfile(changes);
     this.events.onMoney(-price, 'paintShop');
@@ -730,7 +734,7 @@ export class Game {
     const v = this.vehicle, p = this.profile;
     if (!v) return null;
     const id = v.spec.id;
-    return { dents: p.vehicleDents[id]?.length ?? 0, color: p.vehicleColors[id] ?? v.spec.color, stripe: p.vehicleStripes[id] ?? '', rims: p.vehicleRims[id] ?? '', paintable: SKETCHFAB_VEHICLES[id]?.paintable ?? true, bike: v.isBike };
+    return { neon: p.vehicleNeon[id] ?? '', spoiler: p.vehicleSpoiler[id] ?? '', dents: p.vehicleDents[id]?.length ?? 0, color: p.vehicleColors[id] ?? v.spec.color, stripe: p.vehicleStripes[id] ?? '', rims: p.vehicleRims[id] ?? '', paintable: SKETCHFAB_VEHICLES[id]?.paintable ?? true, bike: v.isBike };
   }
 
   /** Buy a piece of furniture for the apartment. False if there isn't enough money. */
@@ -1109,6 +1113,7 @@ export class Game {
       name: p.username, gender: p.gender, outfit: p.equipped.outfit, vehicle: v.spec.id,
       color: p.vehicleColors[v.spec.id] ?? v.spec.color, mode: this.mode,
       stripe: p.vehicleStripes[v.spec.id] ?? '', rims: p.vehicleRims[v.spec.id] ?? '',
+      neon: p.vehicleNeon[v.spec.id] ?? '', spoiler: p.vehicleSpoiler[v.spec.id] ?? '',
       x: driving ? v.x : pl.x, z: driving ? v.z : pl.z, h: driving ? v.heading : pl.heading,
       v: driving ? v.speed : pl.speed, siren: this.sirenOn, blink: driving ? this.signals?.side ?? null : null,
     });

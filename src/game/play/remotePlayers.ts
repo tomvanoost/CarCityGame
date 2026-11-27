@@ -8,7 +8,7 @@ import { loadVehicle, vehicleDims } from '../vehicles/factory';
 import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
 import { SirenLights, TurnSignals } from '../world/evening';
 import { groundHeight } from './collision';
-import { applyRims, applyStripe } from '../vehicles/carStyle';
+import { applyNeon, applyRims, applySpoiler, applyStripe } from '../vehicles/carStyle';
 
 interface Entry {
   target: RemotePlayer;
@@ -129,7 +129,7 @@ export class RemotePlayers {
   /** (Re)load the car and avatar when the player picks another car or outfit. */
   private async refresh(e: Entry) {
     const p = e.target;
-    const carKey = `${p.vehicle}/${p.color}/${p.stripe ?? ''}/${p.rims ?? ''}`, avatarKey = `${p.gender}/${p.outfit}`;
+    const carKey = `${p.vehicle}/${p.color}/${p.stripe ?? ''}/${p.rims ?? ''}/${p.neon ?? ''}/${p.spoiler ?? ''}`, avatarKey = `${p.gender}/${p.outfit}`;
     if (carKey !== e.carKey) {
       e.carKey = carKey;
       const id = ++e.carLoad;
@@ -146,6 +146,8 @@ export class RemotePlayers {
       const hex = (c: unknown) => (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : '');
       applyStripe(car, hex(p.stripe), !!sfv?.bike);
       applyRims(car, hex(p.rims));
+      applyNeon(car, hex(p.neon), !!sfv?.bike);
+      applySpoiler(car, hex(p.spoiler), !!sfv?.bike);
       const holder = new THREE.Group();
       holder.add(car.root);
       const dims = vehicleDims(spec);
@@ -177,7 +179,7 @@ export class RemotePlayers {
     const now = Date.now();
     for (const e of this.entries.values()) {
       const p = e.target;
-      if (`${p.vehicle}/${p.color}/${p.stripe ?? ''}/${p.rims ?? ''}` !== e.carKey || `${p.gender}/${p.outfit}` !== e.avatarKey) void this.refresh(e);
+      if (`${p.vehicle}/${p.color}/${p.stripe ?? ''}/${p.rims ?? ''}/${p.neon ?? ''}/${p.spoiler ?? ''}` !== e.carKey || `${p.gender}/${p.outfit}` !== e.avatarKey) void this.refresh(e);
       // Predict a little from the speed (updates arrive ~6 times a second), then glide there.
       const ahead = Math.min(0.4, (now - p.at) / 1000);
       const tx = p.x + Math.sin(p.h) * p.v * ahead, tz = p.z + Math.cos(p.h) * p.v * ahead;

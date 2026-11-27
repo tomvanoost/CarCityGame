@@ -27,6 +27,9 @@ export interface PlayerProfile {
   /** Paint shop extras per vehicle id: roof stripe color and rim color (missing = none). */
   vehicleStripes: Record<string, string>;
   vehicleRims: Record<string, string>;
+  /** Garage extras per vehicle: underglow and spoiler color ('' = none). */
+  vehicleNeon: Record<string, string>;
+  vehicleSpoiler: Record<string, string>;
   /** The first-time tutorial was shown (or skipped). */
   tutorialDone: boolean;
   /** Earned sticker ids (see game/stickers.ts). */

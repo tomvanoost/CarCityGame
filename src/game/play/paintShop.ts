@@ -5,6 +5,8 @@ import { groundHeight } from './collision';
 
 export const PAINT_PRICE = 50;
 export const EXTRA_PRICE = 80;
+export const NEON_PRICE = 150;
+export const SPOILER_PRICE = 100;
 
 const paint = (g: THREE.BufferGeometry, color: string) => {
   const geo = g.index ? g.toNonIndexed() : g;
