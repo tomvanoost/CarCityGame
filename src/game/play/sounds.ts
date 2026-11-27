@@ -1,5 +1,6 @@
 import { renderEngineLoop } from './engineSound';
 import type { HornId } from '../horns';
+import { prepareHornLoop, type HornLoop } from './hornLoop';
 /**
  * Friendly game sounds, synthesized with WebAudio (no audio files to download).
  * - engine: a rendered loop of a running 4-cylinder (engineSound.ts) pitched with the revs and a
@@ -33,6 +34,8 @@ class Sounds {
   private hornBus: { gain: GainNode; oscs: AudioScheduledSourceNode[] } | null = null;
   /** The recorded honk, loaded once audio is unlocked. */
   private hornBuffer: AudioBuffer | null = null;
+  /** The honk prepared for seamless looping (where the steady part starts and ends). */
+  private horn: HornLoop | null = null;
   private hornLoading = false;
 
   get isMuted() { return this.muted; }
@@ -69,7 +72,7 @@ class Sounds {
     fetch('/sounds/horn.mp3')
       .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
       .then((data) => ctx.decodeAudioData(data))
-      .then((buf) => { this.hornBuffer = buf; })
+      .then((buf) => { this.horn = prepareHornLoop(ctx, buf); this.hornBuffer = this.horn.buffer; })
       .catch(() => { this.hornLoading = false; }); // try again on the next tap
   }
 
@@ -269,7 +272,9 @@ class Sounds {
       // The real honk (it is recorded loud: play it at about half volume), looped while held.
       const src = ctx.createBufferSource();
       src.buffer = this.hornBuffer;
+      // The start of the honk plays once; then only its steady middle repeats, without a hearable seam.
       src.loop = true;
+      if (this.horn) { src.loopStart = this.horn.loopStart; src.loopEnd = this.horn.loopEnd; }
       src.connect(gain);
       oscs.push(src);
       gain.gain.value = 0.55;
