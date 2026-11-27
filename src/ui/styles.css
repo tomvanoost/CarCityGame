@@ -495,8 +495,8 @@ button, input { font: inherit; color: inherit; }
 .settings-choice.active { border-color: var(--blue); background: #e2eeff; }
 
 /* Rear-view mirror frame (dashboard view): the game renders the view behind the car inside it. */
-.mirror-frame { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); width: min(34vw, 420px); aspect-ratio: 10 / 3;
-  border: 5px solid #1b1d22; border-radius: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.15); pointer-events: none; z-index: 4; }
+.mirror-frame { position: absolute; top: 43%; left: 4%; width: min(19vw, 320px); aspect-ratio: 25 / 14;
+  border: 5px solid #1b1d22; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.15); pointer-events: none; z-index: 4; }
 .mirror-frame[hidden] { display: none; }
 
 /* New version deployed: countdown before the page reloads. */

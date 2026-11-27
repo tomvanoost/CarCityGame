@@ -1121,24 +1121,25 @@ export class Game {
   }
 
   /**
-   * Rear-view mirror (dashboard view only): the view behind the car, drawn into a strip at the top
-   * of the screen. Same size formula as the frame in the HUD (.mirror-frame): width min(34vw, 420px),
-   * height 30% of that, 70px from the top, centered.
+   * Mirror (dashboard view only): the view back along the left side of the car, drawn over the left
+   * wing mirror (so it doesn't hide the traffic lights ahead). Same size formula as the frame in the HUD
+   * (.mirror-frame): left 4%, top 43%, width min(19vw, 320px), height 56% of the width.
    */
   private renderMirror(v: Vehicle) {
     const r = this.renderer, canvas = r.domElement;
     const cssW = canvas.clientWidth, cssH = canvas.clientHeight;
     if (!cssW || !cssH) return;
-    const w = Math.min(cssW * 0.34, 420), h = w * 0.3, left = (cssW - w) / 2, top = 70;
+    const w = Math.min(cssW * 0.19, 320), h = w * 0.56, left = cssW * 0.04, top = cssH * 0.43;
     const sf = SKETCHFAB_VEHICLES[v.spec.id];
-    const back = new THREE.Vector3(0, (sf?.height ?? 1.4) * 0.85, -v.length / 2 - 0.1);
+    // From the left wing mirror (+x is the car's left side), looking back and a little outward.
+    const back = new THREE.Vector3(v.width / 2 + 0.25, (sf?.height ?? 1.4) * 0.75, v.length / 2 - 1.4);
     v.car.root.updateWorldMatrix(true, false);
     const from = back.clone().applyMatrix4(v.car.root.matrixWorld);
-    const yaw = v.heading + Math.PI;
+    const yaw = v.heading + Math.PI - 0.12;
     this.mirrorCam.aspect = w / h;
     this.mirrorCam.updateProjectionMatrix();
     this.mirrorCam.position.copy(from);
-    this.mirrorCam.lookAt(from.x + Math.sin(yaw) * 10, from.y - 0.9, from.z + Math.cos(yaw) * 10);
+    this.mirrorCam.lookAt(from.x + Math.sin(yaw) * 10, from.y - 0.6, from.z + Math.cos(yaw) * 10);
     r.setScissorTest(true);
     r.setScissor(left, cssH - top - h, w, h);
     r.setViewport(left, cssH - top - h, w, h);
