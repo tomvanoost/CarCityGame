@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Horn shop at the garage**: buy fun horn sounds (duck, train, melody, bicycle bell, clown) for
-  €50–150; choose one per car. Synthesized with WebAudio (no new sound files).
 - [ ] **Desert race track**: a time-trial loop with checkpoint arches in the desert; bronze / silver /
   gold medals and a best time per car, a big start button at the start line.
 - [ ] **Fishing at the lake**: a small wooden jetty; tap to cast, tap again when the float dips to

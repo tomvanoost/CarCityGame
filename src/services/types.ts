@@ -41,6 +41,9 @@ export interface PlayerProfile {
   furniture: string[];
   /** Coin hunt: ids of the coins you found (see game/play/coins.ts). */
   coins: string[];
+  /** Horn shop: horns you bought, and the horn chosen per vehicle (see game/horns.ts). */
+  horns: string[];
+  vehicleHorns: Record<string, string>;
   /** Today's daily missions progress (see game/missions.ts); reset when the day changes. */
   missions?: { day: string; progress: Partial<Record<import('../game/missions').MissionId, number>>; done: import('../game/missions').MissionId[] };
 }

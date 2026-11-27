@@ -22,6 +22,7 @@ import { toast } from './toast';
 import { BigMap, Minimap, renderBaseMap, type MapPlaces } from './cityMap';
 import { TouchControls } from './touchControls';
 import { missionText } from './missions';
+import { HORNS } from '../game/horns';
 import { sounds } from '../game/play/sounds';
 
 const TABLET_KEY = 'carcity.tablet';
@@ -459,6 +460,23 @@ export const gameScreen: Screen = (root, nav) => {
       look.bike ? null : row('stripe', STRIPE_COLORS, look.stripe, EXTRA_PRICE),
       h('h3', {}, t('rimColor')),
       row('rims', RIM_COLORS, look.rims, EXTRA_PRICE),
+      h('h3', {}, `📯 ${t('hornShop')}`),
+      h('div', { class: 'horn-grid' }, ...HORNS.map((hn) => {
+        const owned = hn.price === 0 || getProfile()!.horns.includes(hn.id);
+        const chosen = game.carHorn() === hn.id;
+        const b = h('button', { class: `horn-tile ${chosen ? 'active' : ''}` },
+          h('span', { class: 'horn-emoji' }, hn.emoji),
+          h('b', {}, t(`horn_${hn.id}` as TKey)),
+          h('small', {}, chosen ? `✓ ${t('hornChosen')}` : owned ? t('hornChoose') : euro(hn.price)),
+        );
+        b.addEventListener('click', () => {
+          game.previewHorn(hn.id);
+          if (chosen) return;
+          if (game.chooseHorn(hn.id)) { toast(`${hn.emoji} ${t('hornNew')}`); openPaintShop(); }
+        });
+        return b;
+      })),
+      h('div', { class: 'try-hint' }, t('hornHint')),
       h('button', { class: 'btn btn-primary btn-big', onclick: close }, t('continuePlaying')),
     ));
     panel.hidden = false;

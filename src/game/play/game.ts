@@ -24,6 +24,7 @@ import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
 import { PizzeriaBuilding } from './pizzeria';
 import { FunFair, RIDE_PRICE, type RideKind } from './funFair';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
+import { HORNS, isHorn, type HornId } from '../horns';
 import { missionDay, todaysMissions, type Mission, type MissionId } from '../missions';
 import { applyRims, applyStripe } from '../vehicles/carStyle';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
@@ -590,6 +591,34 @@ export class Game {
     this.shineTimer = 20;
     sounds.coin();
     awardSticker('paintShop');
+    return true;
+  }
+
+  /** The horn of the car you're in. */
+  carHorn(): HornId {
+    const id = this.vehicle ? this.profile.vehicleHorns[this.vehicle.spec.id] : undefined;
+    return isHorn(id) ? id : 'normal';
+  }
+
+  /** Horn shop: hear a horn for a moment. */
+  previewHorn(id: HornId) {
+    sounds.hornStart(id);
+    clearTimeout(this.previewTimer);
+    this.previewTimer = window.setTimeout(() => { if (!this.honking) sounds.hornStop(); }, 1400);
+  }
+  private previewTimer = 0;
+
+  /** Horn shop: buy a horn (once) and/or choose it for the car you're in. False if there isn't enough money. */
+  chooseHorn(id: HornId): boolean {
+    const v = this.vehicle, p = this.profile, horn = HORNS.find((x) => x.id === id);
+    if (!v || !horn) return false;
+    const owned = horn.price === 0 || p.horns.includes(id);
+    if (!owned && p.money < horn.price) { this.events.onMessage('needMoney', horn.price - p.money); return false; }
+    const changes: Partial<PlayerProfile> = { vehicleHorns: { ...p.vehicleHorns, [v.spec.id]: id } };
+    if (!owned) { changes.horns = [...p.horns, id]; changes.money = p.money - horn.price; }
+    setProfile({ ...p, ...changes });
+    void updateProfile(changes);
+    if (!owned) { this.events.onMoney(-horn.price, 'paintShop'); sounds.coin(); awardSticker('hornShop'); }
     return true;
   }
 
@@ -1193,7 +1222,7 @@ export class Game {
     // Hold to honk: the sound plays (and repeats) while the horn is held, and stops when released.
     const honk = this.input.hornHeld() && this.mode === 'driving' && !this.paused;
     if (honk && !this.honking) {
-      sounds.hornStart();
+      sounds.hornStart(this.carHorn());
       this.people?.honk(v.x, v.z);
       awardSticker('honk');
       // Mission "honk at cars": counts when a traffic car is close by.

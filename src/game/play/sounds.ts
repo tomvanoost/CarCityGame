@@ -1,4 +1,5 @@
 import { renderEngineLoop } from './engineSound';
+import type { HornId } from '../horns';
 /**
  * Friendly game sounds, synthesized with WebAudio (no audio files to download).
  * - engine: a rendered loop of a running 4-cylinder (engineSound.ts) pitched with the revs and a
@@ -180,6 +181,58 @@ class Sounds {
     return o;
   }
 
+  /**
+   * The fun horns from the horn shop. Each one is a short pattern that repeats for up to ~8 s
+   * (all scheduled at once); hornStop() fades the bus and stops everything early.
+   */
+  private funHorn(ctx: AudioContext, kind: Exclude<HornId, 'normal'>, out: GainNode, list: AudioScheduledSourceNode[], t0: number) {
+    const tone = (type: OscillatorType, f0: number, f1: number, start: number, dur: number, vol: number, dest: AudioNode = out) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(f0, start);
+      if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, start + dur);
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(vol, start + Math.min(0.02, dur / 4));
+      g.gain.setValueAtTime(vol, start + dur * 0.7);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      o.connect(g).connect(dest);
+      o.start(start);
+      o.stop(start + dur + 0.02);
+      list.push(o);
+    };
+    out.gain.value = 1;
+    if (kind === 'duck') {
+      // "Quack": a buzzy tone through a nasal filter, pitch dropping.
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 3;
+      f.connect(out);
+      for (let i = 0; i < 16; i++) tone('sawtooth', 620, 380, t0 + i * 0.45, 0.22, 0.35, f);
+    } else if (kind === 'bell') {
+      // Bicycle bell "tring-tring": two bright partials with a quick ring-out.
+      for (let i = 0; i < 12; i++) for (const s of [0, 0.13]) {
+        const at = t0 + i * 0.7 + s;
+        tone('sine', 2350, 2350, at, 0.35, 0.09);
+        tone('sine', 3720, 3720, at, 0.22, 0.04);
+      }
+    } else if (kind === 'clown') {
+      // Squeeze-bulb "honk-honk": a reedy tone that rises a little, with a wobble.
+      for (let i = 0; i < 10; i++) for (const s of [0, 0.3]) tone('sawtooth', 300, 360, t0 + i * 0.85 + s, 0.22, 0.12);
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = 1800;
+      out.disconnect(); out.connect(f).connect(this.master!);
+    } else if (kind === 'train') {
+      // Three-note train whistle chord, steady while held.
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = 1500;
+      f.connect(out);
+      for (const freq of [277, 349, 415]) tone('sawtooth', freq, freq, t0, 8, 0.05, f);
+    } else {
+      // A happy little tune (do-mi-sol-do-sol-mi), repeating.
+      const notes = [523, 659, 784, 1047, 784, 659];
+      for (let r = 0; r < 6; r++) notes.forEach((n, i) => tone('triangle', n, n, t0 + r * 1.35 + i * 0.2, 0.18, 0.12));
+    }
+  }
+
   /** Cuts the horn off with a very short fade (no click). */
   hornStop() {
     const ctx = this.ctx, old = this.hornBus;
@@ -197,7 +250,7 @@ class Sounds {
    * short toot, holding gives the whole honk and more. Uses the recorded honk once it has loaded,
    * a synthesized two-tone horn before that.
    */
-  hornStart() {
+  hornStart(kind: HornId = 'normal') {
     const ctx = this.ready();
     if (!ctx) return;
     this.hornStop();
@@ -205,6 +258,13 @@ class Sounds {
     const gain = ctx.createGain();
     gain.connect(this.master!);
     const oscs: AudioScheduledSourceNode[] = [];
+    if (kind !== 'normal') {
+      this.funHorn(ctx, kind, gain, oscs, t);
+      const bus = { gain, oscs };
+      this.hornBus = bus;
+      oscs[oscs.length - 1].onended = () => { gain.disconnect(); if (this.hornBus === bus) this.hornBus = null; };
+      return;
+    }
     if (this.hornBuffer) {
       // The real honk (it is recorded loud: play it at about half volume), looped while held.
       const src = ctx.createBufferSource();

@@ -512,3 +512,13 @@ button, input { font: inherit; color: inherit; }
 .paint-price { font-weight: 800; color: var(--muted); margin-left: 4px; }
 .paint-swatches .swatch { width: 44px; height: 44px; }
 .furniture-tile small { display: block; font-size: 12px; color: var(--muted); font-weight: 700; }
+
+/* Horn shop (in the paint shop panel) */
+.horn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.horn-tile { border: 3px solid transparent; background: #f2f5fa; border-radius: 16px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; font: inherit; cursor: pointer; color: inherit; }
+.horn-tile:active { transform: scale(.96); }
+.horn-tile.active { border-color: #2f9e6a; background: #e6f7ee; }
+.horn-emoji { font-size: 30px; line-height: 1.1; }
+.horn-tile b { font-size: 14px; }
+.horn-tile small { font-size: 12px; font-weight: 900; color: #b07900; }
+.horn-tile.active small { color: #2f9e6a; }
