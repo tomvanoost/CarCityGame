@@ -9,6 +9,7 @@ import type { VehicleSpec } from '../vehicles/types';
 import { groundHeight } from './collision';
 import type { Pedestrians } from './pedestrians';
 import { LANE, type P, type RoadGraph } from './roads';
+import { moveOf, type TrafficLights } from './trafficLights';
 import type { Vehicle } from './vehicle';
 
 /**
@@ -17,8 +18,8 @@ import type { Vehicle } from './vehicle';
  * player and for each other. Only cars near the player exist (recycled).
  */
 
-const CRUISE = 9.5; // m/s (~34 km/h)
-const TURN = 5;
+const CRUISE = 13.9; // m/s (50 km/h in the city)
+const TURN = 6;
 const DECEL = 7;
 const INSET = 7; // where the turn curve starts/ends, from the intersection center
 /** Police siren: cars this close pull over this far toward their curb (half onto the sidewalk) and crawl. */
@@ -70,6 +71,12 @@ export class Traffic {
   readonly cars: Car[] = [];
   private lights = false;
   private owners = new Map<number, Car>();
+  /** Traffic lights at the crossings (cars stop at red), and the highway speed now (m/s). */
+  private signals?: TrafficLights;
+  private highwaySpeed = 100 / 3.6;
+  setTrafficLights(l: TrafficLights) { this.signals = l; }
+  /** Highway speed limit: 100 km/h by day, 120 km/h at night. */
+  setHighwayKmh(kmh: number) { this.highwaySpeed = kmh / 3.6; }
   private pending: number;
   private building = false;
   private disposed = false;
@@ -225,13 +232,21 @@ export class Traffic {
 
       const fwd = { x: Math.sin(car.heading), z: Math.cos(car.heading) };
       const lateralMax = car.seg.kind === 'curve' ? 2.2 : 1.6;
-      let allowed = car.seg.kind === 'curve' && !car.seg.straight ? TURN : CRUISE;
-      const forced = car.waited > 8; // never stuck forever: ignore other cars after a long wait
+      const N = this.graph.nodes;
+      // City streets 50 km/h, the highway 100 / 120 km/h (curves always slow).
+      const highway = this.graph.isHighway(car.from, car.to) && (car.seg.kind === 'line' || car.seg.straight);
+      const cruise = highway ? this.highwaySpeed : CRUISE;
+      let allowed = car.seg.kind === 'curve' && !car.seg.straight ? TURN : cruise;
+      const left = car.seg.kind === 'line' ? car.seg.len - car.d : Infinity;
+      // Waiting at a red light is normal: only give up waiting for other cars after much longer there.
+      const nearLights = left < 60 && !!this.signals?.hasLights(car.to);
+      const forced = car.waited > (nearLights ? 50 : 8); // never stuck forever: ignore other cars after a long wait
+      const look = Math.max(32, (car.speed * car.speed) / (2 * DECEL) + 12); // fast cars look further ahead
       const check = (x: number, z: number, r: number, isCar: boolean) => {
         if (isCar && forced) return;
         const rx = x - car.x, rz = z - car.z;
         const ahead = rx * fwd.x + rz * fwd.z;
-        if (ahead <= 0 || ahead > 32) return;
+        if (ahead <= 0 || ahead > look) return;
         if (Math.abs(rx * fwd.z - rz * fwd.x) > lateralMax + r) return;
         const gap = ahead - car.half - r - 1.5;
         allowed = Math.min(allowed, gap <= 0 ? 0 : Math.sqrt(2 * DECEL * gap));
@@ -245,10 +260,24 @@ export class Traffic {
         const oo = o.half - o.radius;
         for (const k of [oo, 0, -oo]) check(o.x + Math.sin(o.heading) * k, o.z + Math.cos(o.heading) * k, o.radius, true);
       }
+      // Slow down in time before a sharp turn (the end of the highway).
+      if (left < 120 && car.speed > TURN) {
+        const next = this.peekNext(car);
+        if (moveOf(N[car.from], N[car.to], N[next]) !== 'straight') allowed = Math.min(allowed, Math.sqrt(TURN * TURN + 2 * DECEL * 0.6 * Math.max(0, left)));
+      }
+      // Traffic lights: stop at the line on red, and on amber when there's still room to stop.
+      let redStop = false;
+      if (left < 45 && this.signals && car.holds !== car.to) {
+        const light = this.signals.state(car.from, car.to, moveOf(N[car.from], N[car.to], N[this.peekNext(car)]));
+        const stopDist = (car.speed * car.speed) / (2 * DECEL);
+        if (light === 'red' || (light === 'amber' && left > stopDist + 1)) {
+          redStop = true;
+          allowed = Math.min(allowed, Math.sqrt(2 * DECEL * Math.max(0, left - 0.6)));
+        }
+      }
       // Take turns at intersections: one car at a time crosses each one.
       if (car.seg.kind === 'line') {
-        const left = car.seg.len - car.d;
-        if (left < 12 && car.holds !== car.to) {
+        if (left < 12 && car.holds !== car.to && !redStop) {
           const owner = this.owners.get(car.to);
           if (owner && owner !== car && !forced) allowed = Math.min(allowed, Math.sqrt(2 * DECEL * Math.max(0, left - 1)));
           else { this.owners.set(car.to, car); car.holds = car.to; }
@@ -260,7 +289,7 @@ export class Traffic {
       car.pull += THREE.MathUtils.clamp(wantPull - car.pull, -0.7 * dt, 1.1 * dt);
       if (car.pull > 0.05) allowed = Math.min(allowed, PULL_SPEED + (1 - car.pull) * CRUISE);
 
-      const target = Math.min(allowed, CRUISE);
+      const target = Math.min(allowed, cruise);
       car.speed += THREE.MathUtils.clamp(target - car.speed, -12 * dt, 3 * dt);
       car.speed = Math.max(0, Math.min(car.speed, allowed + 0.01));
       car.waited = car.speed < 0.3 ? car.waited + dt : 0;
@@ -354,4 +383,13 @@ export class Traffic {
     for (const c of this.cars) { c.light.dispose(); c.full?.dispose(); }
     this.group.removeFromParent();
   }
+}
+
+const TRAFFIC_KEY = 'carcity.traffic';
+/** ⚙️ Settings: traffic cars on or off (saved on this device; on by default). */
+export function loadTrafficOn(): boolean {
+  try { return localStorage.getItem(TRAFFIC_KEY) !== 'off'; } catch { return true; }
+}
+export function saveTrafficOn(on: boolean) {
+  try { localStorage.setItem(TRAFFIC_KEY, on ? 'on' : 'off'); } catch { /* private mode */ }
 }

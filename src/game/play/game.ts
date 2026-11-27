@@ -41,14 +41,16 @@ import { applyNeon, applyRims, applySpoiler, applyStripe } from '../vehicles/car
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
 import { FLAVORS, ICE_CREAM_PRICE, ICE_CREAM_TIME, IceCreamStand, coneGeometry, type Flavor } from './iceCream';
 import { Garage, type GarageSpot } from './garage';
-import { DAY, EVENING, headlightRig, loadEvening, saveEvening, SirenLights, StreetLamps, TurnSignals } from '../world/evening';
+import { DAY, headlightRig, lightAt, loadEvening, saveEvening, SirenLights, StreetLamps, TurnSignals } from '../world/evening';
 import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
 import type { MpSession } from '../../services/multiplayer';
 import { RemotePlayers } from './remotePlayers';
 import type { VehicleSpec } from '../vehicles/types';
 import { awardSticker } from '../../ui/stickers';
 import { RoadGraph, type P } from './roads';
-import { Traffic } from './traffic';
+import { loadTrafficOn, Traffic } from './traffic';
+import { TrafficLights } from './trafficLights';
+import { HighwaySigns } from './highwaySigns';
 import { Player } from './player';
 import { Vehicle } from './vehicle';
 import { cleanText } from '../../services/textFilter';
@@ -94,6 +96,8 @@ export interface GameState {
   context: ContextAction | null;
   /** Desert race: countdown (> 0 before the start), lap time, next gate (1..6, 0 = finish). */
   race: { countdown: number; time: number; gate: number; total: number } | null;
+  /** Game clock "HH:MM". */
+  clock: string;
   job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number; timeLeft?: number; stop?: number; stops?: number } | null;
   /** Navigation to a destination you picked on the map. */
   dest: { meters: number } | null;
@@ -209,8 +213,15 @@ export class Game {
   lamps?: StreetLamps;
   /** Soft evening light on (street lamps and headlights glow). */
   evening = loadEvening();
+  /** Game clock (minutes after midnight): one game minute per real second, so a day takes 24 minutes. */
+  clock = (loadEvening() ? 20 : 10) * 60;
+  private lightTimer = 0;
+  private bakedLook = '';
+  private sunDirShown = new THREE.Vector3();
   jobs?: Jobs;
   traffic?: Traffic;
+  private trafficLights?: TrafficLights;
+  private highwaySigns?: HighwaySigns;
   roads?: RoadGraph;
   private nav?: Navigator;
   /** Destination picked on the big map. */
@@ -389,7 +400,7 @@ export class Game {
     this.setPet(this.profile.activePet);
     this.lamps = new StreetLamps(city.layout);
     this.scene.add(this.lamps.group);
-    if (this.evening) this.applyLight();
+    this.applyLight(true);
     this.jobs = new Jobs(city.layout, {
       onStart: (job) => this.events.onJobStart(job),
       onBusStop: (stop, stops, pay) => { this.addMoney(pay, 'job'); this.events.onBusStop?.(stop, stops); },
@@ -409,7 +420,13 @@ export class Game {
     this.roads = new RoadGraph(city.layout);
     this.nav = new Navigator(this.roads);
     this.scene.add(this.nav.arrows);
-    this.traffic = new Traffic(this.roads, this.trafficCount, this.trafficDetail);
+    this.traffic = new Traffic(this.roads, loadTrafficOn() ? this.trafficCount : 0, this.trafficDetail);
+    // Dutch traffic lights at the crossings, and the highway signs on the loop roads.
+    this.trafficLights = new TrafficLights(this.roads);
+    this.scene.add(this.trafficLights.group);
+    this.traffic.setTrafficLights(this.trafficLights);
+    this.highwaySigns = new HighwaySigns(this.roads);
+    this.scene.add(this.highwaySigns.group);
     this.scene.add(this.traffic.group);
     this.traffic.setLights(this.evening);
   }
@@ -1377,32 +1394,60 @@ export class Game {
 
   /** 🌙 / ☀️ button: switch between day and the soft evening light (remembered on this device). */
   setEvening(on: boolean) {
-    this.evening = on;
+    // The 🌙 / ☀️ button skips the clock to the evening or the morning.
+    this.clock = (on ? 20 : 8) * 60;
     saveEvening(on);
-    this.applyLight();
+    this.applyLight(true);
   }
 
-  private applyLight() {
-    const L = this.evening ? EVENING : DAY;
-    SKY.zenith.set(L.zenith);
-    SKY.horizon.set(L.horizon);
-    SKY.sunDir.set(L.sunDir[0], L.sunDir[1], L.sunDir[2]).normalize();
+  /** "14:05" */
+  clockText() {
+    const m = Math.floor(this.clock) % 1440;
+    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  }
+
+  /**
+   * The light for the clock time: sky, sun, fog and hemisphere blend smoothly through the day. The
+   * expensive bits (sky reflections, shadows) are only redone when the light has really changed.
+   */
+  private applyLight(full = false) {
+    const L = lightAt(this.clock);
+    const hour = (this.clock / 60) % 24;
+    SKY.zenith.copy(L.zenith);
+    SKY.horizon.copy(L.horizon);
+    SKY.sunDir.copy(L.sunDir);
     (this.scene.fog as THREE.Fog).color.copy(SKY.horizon);
-    this.sun.light.color.set(L.sun);
+    this.sun.light.color.copy(L.sun);
     this.sun.light.intensity = L.sunI;
-    this.sun.hemi.color.set(L.hemiSky);
-    this.sun.hemi.groundColor.set(L.hemiGround);
+    this.sun.hemi.color.copy(L.hemiSky);
+    this.sun.hemi.groundColor.copy(L.hemiGround);
     this.sun.hemi.intensity = L.hemiI;
-    // Reflections come from the sky: bake them again for the new colors (only when switching).
-    const old = this.scene.environment;
-    this.scene.environment = skyEnvironment(this.renderer);
-    old?.dispose();
     this.scene.environmentIntensity = L.env;
-    this.sun.follow(this.focus, true);
-    if (this.lamps) this.lamps.group.visible = this.evening;
-    const head = this.vehicle?.root.getObjectByName('CCG_HEADLIGHTS');
-    if (head) head.visible = this.evening;
-    this.traffic?.setLights(this.evening);
+    // Reflections come from the sky: bake them again when its colors changed noticeably.
+    const look = `${L.zenith.getHexString().slice(0, 4)}${L.horizon.getHexString().slice(0, 4)}`;
+    if (full || look !== this.bakedLook) {
+      this.bakedLook = look;
+      const old = this.scene.environment;
+      this.scene.environment = skyEnvironment(this.renderer);
+      old?.dispose();
+    }
+    if (full || this.sunDirShown.angleTo(L.sunDir) > 0.03) {
+      this.sunDirShown.copy(L.sunDir);
+      this.sun.follow(this.focus, true);
+    }
+    // Evening and night: street lamps, headlights and traffic lights glow.
+    const evening = hour >= 18.5 || hour < 6.2;
+    if (full || evening !== this.evening) {
+      this.evening = evening;
+      if (this.lamps) this.lamps.group.visible = evening;
+      const head = this.vehicle?.root.getObjectByName('CCG_HEADLIGHTS');
+      if (head) head.visible = evening;
+      this.traffic?.setLights(evening);
+    }
+    // Highway: 100 km/h by day (6:00-18:00), 120 km/h at night.
+    const kmh = hour >= 6 && hour < 18 ? 100 : 120;
+    this.traffic?.setHighwayKmh(kmh);
+    this.highwaySigns?.setKmh(kmh);
   }
 
   swapVehicle(id: string, place: 'home' | 'apartment') {
@@ -1629,6 +1674,7 @@ export class Game {
     // In the dashboard view your own driver is hidden, so you look over the real dashboard.
     this.avatar.root.visible = !(this.cockpit && this.mode === 'driving');
     this.funFair?.update(dt);
+    this.trafficLights?.update(dt);
     this.balloon?.update(dt);
     this.fireworks?.update(dt);
     this.updateSwimming(dt);
@@ -1636,6 +1682,10 @@ export class Game {
     this.coins?.update(dt, this.ride ? null : pos, this.mode === 'driving' ? 3.5 : 2);
     this.avatar.update(dt);
     this.updatePet(dt);
+    // The clock runs on (one game minute per second); the light follows it.
+    this.clock = (this.clock + dt) % 1440;
+    this.lightTimer -= dt;
+    if (this.lightTimer <= 0) { this.lightTimer = 0.5; this.applyLight(); }
     this.sun.follow(this.focus);
     this.shareState();
     this.remote?.update(dt);
@@ -1689,6 +1739,7 @@ export class Game {
       job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round((this.nav?.remaining || Math.hypot(job.x - pos.x, job.z - pos.z)) / 10) * 10, timeLeft: job.timeLeft === undefined ? undefined : Math.ceil(job.timeLeft), stop: job.stop, stops: job.stops } : null,
       dest: !job && this.dest ? { meters: Math.round((this.nav?.remaining ?? 0) / 10) * 10 } : null,
       topSpeed: v.spec.topSpeed,
+      clock: this.clockText(),
       race: this.race ? { countdown: Math.ceil(this.race.count), time: this.race.t, gate: this.race.passed, total: CHECKPOINTS } : null,
       maxSpeed: this.maxKmh,
       blinker: this.mode === 'driving' ? this.signals?.side ?? null : null,
@@ -1766,6 +1817,8 @@ export class Game {
     this.pet?.dispose();
     this.garage?.dispose();
     this.lamps?.dispose();
+    this.trafficLights?.dispose();
+    this.highwaySigns?.dispose();
     // The sky colors are shared (also used by the menu backdrop): put the day colors back.
     SKY.zenith.set(DAY.zenith); SKY.horizon.set(DAY.horizon); SKY.sunDir.set(DAY.sunDir[0], DAY.sunDir[1], DAY.sunDir[2]).normalize();
     this.avatar?.dispose();

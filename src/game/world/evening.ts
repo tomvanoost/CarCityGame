@@ -27,6 +27,38 @@ export const EVENING = {
   sun: '#ffb27a', sunI: 1.5, hemiSky: '#9aa0e0', hemiGround: '#5e5a6c', hemiI: 0.85, env: 0.52,
 };
 
+/** Night: a deep blue sky, soft blue moonlight (still friendly, never pitch dark). */
+export const NIGHT = {
+  zenith: '#0f1a3d', horizon: '#2c3f70', sunDir: [-0.35, 0.55, 0.3] as const,
+  sun: '#a9bcff', sunI: 0.55, hemiSky: '#5a6cb0', hemiGround: '#2c2c3e', hemiI: 0.7, env: 0.32,
+};
+
+type Look = Omit<typeof DAY, 'sunDir'> & { sunDir: readonly [number, number, number] };
+/** Key moments of the day (hour → look); the light blends smoothly between them. */
+const DAY_KEYS: [number, Look][] = [[0, NIGHT], [5, NIGHT], [6.2, EVENING], [7.5, DAY], [17, DAY], [18.6, EVENING], [20, NIGHT], [24, NIGHT]];
+
+export interface LightNow {
+  zenith: THREE.Color; horizon: THREE.Color; sunDir: THREE.Vector3; sun: THREE.Color; sunI: number;
+  hemiSky: THREE.Color; hemiGround: THREE.Color; hemiI: number; env: number;
+}
+
+/** The light at a time of day (minutes after midnight), blended between the key moments. */
+export function lightAt(minutes: number): LightNow {
+  const h = ((minutes / 60) % 24 + 24) % 24;
+  let i = 0;
+  while (i < DAY_KEYS.length - 2 && h >= DAY_KEYS[i + 1][0]) i++;
+  const [h0, a] = DAY_KEYS[i], [h1, b] = DAY_KEYS[i + 1];
+  const t = h1 > h0 ? Math.min(1, Math.max(0, (h - h0) / (h1 - h0))) : 0;
+  const c = (x: string, y: string) => new THREE.Color(x).lerp(new THREE.Color(y), t);
+  const n = (x: number, y: number) => x + (y - x) * t;
+  return {
+    zenith: c(a.zenith, b.zenith), horizon: c(a.horizon, b.horizon),
+    sunDir: new THREE.Vector3(n(a.sunDir[0], b.sunDir[0]), n(a.sunDir[1], b.sunDir[1]), n(a.sunDir[2], b.sunDir[2])).normalize(),
+    sun: c(a.sun, b.sun), sunI: n(a.sunI, b.sunI), hemiSky: c(a.hemiSky, b.hemiSky), hemiGround: c(a.hemiGround, b.hemiGround),
+    hemiI: n(a.hemiI, b.hemiI), env: n(a.env, b.env),
+  };
+}
+
 /** Soft round light texture (white center fading out), shared by all glows. */
 let glowTex: THREE.Texture | null = null;
 function glowTexture() {

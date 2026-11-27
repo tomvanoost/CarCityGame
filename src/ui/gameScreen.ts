@@ -49,6 +49,7 @@ export const gameScreen: Screen = (root, nav) => {
   const back = h('button', { class: 'icon-btn back-btn', 'aria-label': t('back'), onclick: () => nav('menu') },
     svgIcon('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>', 24));
   const money = h('div', { class: 'hud-money game-money' }, svgIcon(icons.coin, 20), h('span', {}, euro(profile.money)));
+  const clockEl = h('div', { class: 'hud-clock' }, '🕐 --:--');
 
   // 🏁 Max speed: tap to set how fast your car may go (up to its real top speed).
   const speedBtn = h('button', { class: 'speed-limit-btn', 'aria-label': t('maxSpeed'), title: t('maxSpeed') }, '🏁 ', h('b', {}, 'MAX'));
@@ -169,10 +170,10 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, mirrorFrame, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, clockEl, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, mirrorFrame, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, race: null, job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, race: null, clock: '', job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false };
   const render = () => {
     const driving = state.mode === 'driving';
     if (!speedPop.hidden) showLimit(state.maxSpeed); else speedBtn.lastElementChild!.textContent = state.maxSpeed && state.maxSpeed < state.topSpeed ? String(state.maxSpeed) : 'MAX';
@@ -200,6 +201,8 @@ export const gameScreen: Screen = (root, nav) => {
     actionKey.hidden = tablet;
     tabletBtn.classList.toggle('active', tablet);
     yieldBubble.classList.toggle('show', state.yielding);
+    // Game clock (top left).
+    if (state.clock) clockEl.textContent = `${Number(state.clock.slice(0, 2)) >= 6 && Number(state.clock.slice(0, 2)) < 18 ? '☀️' : '🌙'} ${state.clock}`;
     // Context button: refuel / go inside / buy apartment.
     const c = state.context;
     ctxBtn.hidden = !c;

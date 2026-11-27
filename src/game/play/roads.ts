@@ -23,6 +23,12 @@ export class RoadGraph {
   readonly navEdges: [number, number][] = [];
   readonly navAdj: number[][] = [];
   private valid: boolean[] = [];
+  /** Highway road pieces (the long loop roads outside the city), as "a-b" keys both ways. */
+  private highway = new Set<string>();
+  /** The highway ends where you drive on / off it (for the blue signs). */
+  readonly highwayEnds: { node: number; towards: number }[] = [];
+
+  isHighway(a: number, b: number) { return this.highway.has(`${a}-${b}`); }
 
   constructor(layout: CityLayout) {
     const n = GRID_BLOCKS + 1;
@@ -53,9 +59,10 @@ export class RoadGraph {
     // The loop outside the city.
     const nearestNode = (x: number, z: number) => this.nodes.reduce((best, p, i) => (Math.hypot(p.x - x, p.z - z) < Math.hypot(this.nodes[best].x - x, this.nodes[best].z - z) ? i : best), 0);
     const add = (p: P) => { const id = this.nodes.length; this.nodes.push(p); this.adj[id] = []; this.navAdj[id] = []; return id; };
-    const join = (a: number, b: number) => {
+    const join = (a: number, b: number, highway = false) => {
       this.adj[a].push(b); this.adj[b].push(a); this.edges.push([a, b]);
       this.navAdj[a].push(b); this.navAdj[b].push(a); this.navEdges.push([a, b]);
+      if (highway) { this.highway.add(`${a}-${b}`); this.highway.add(`${b}-${a}`); }
     };
     // Lake town ring road: 16 points around the square (k = 0 east, 4 south, 8 west, 12 north).
     const ring: number[] = [];
@@ -67,10 +74,12 @@ export class RoadGraph {
     const cityEast = nearestNode(480, DESERT_TOWN.z), citySouth = nearestNode(SOUTH_ROAD.x, 480);
     const desertTown = add({ x: DESERT_TOWN.x, z: DESERT_TOWN.z });
     const farmCorner = add({ x: DESERT_TOWN.x, z: LINK_ROAD.z });
-    join(cityEast, desertTown);
-    join(desertTown, farmCorner);
-    join(farmCorner, ring[0]);
-    join(ring[12], citySouth);
+    // The loop roads are the highway (the lake town's ring road and the city streets are not).
+    join(cityEast, desertTown, true);
+    join(desertTown, farmCorner, true);
+    join(farmCorner, ring[0], true);
+    join(ring[12], citySouth, true);
+    this.highwayEnds.push({ node: cityEast, towards: desertTown }, { node: citySouth, towards: ring[12] }, { node: ring[0], towards: farmCorner }, { node: ring[12], towards: citySouth });
   }
 
   /** Closest point on any road center line. */

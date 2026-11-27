@@ -1,3 +1,4 @@
+import { loadTrafficOn, saveTrafficOn } from '../game/play/traffic';
 import { Gamepads, type PadKind } from '../game/play/gamepad';
 import { loadQualityChoice, saveQualityChoice, type QualityChoice } from '../game/world/quality';
 import { loadChatOn, saveChatOn } from '../services/multiplayer';
@@ -86,6 +87,19 @@ export function openSettings() {
   };
   renderEngine();
 
+  // Traffic cars on or off (for a quiet city, or slower tablets).
+  const trafficRow = h('div', { class: 'settings-chat' });
+  const renderTraffic = () => {
+    const on = loadTrafficOn();
+    const btn = (value: boolean, label: string) => {
+      const b = h('button', { class: `btn settings-choice ${on === value ? 'active' : ''}` }, label);
+      b.addEventListener('click', () => { saveTrafficOn(value); renderTraffic(); toast(t('qualitySaved')); });
+      return b;
+    };
+    trafficRow.replaceChildren(btn(true, `🚗 ${t('trafficOnBtn')}`), btn(false, `🚫 ${t('trafficOffBtn')}`));
+  };
+  renderTraffic();
+
   const overlay = h('div', { class: 'quality-picker' },
     h('div', { class: 'card quality-card settings-card' },
       h('div', { class: 'place-head' },
@@ -101,6 +115,8 @@ export function openSettings() {
       chatRow,
       h('h3', { class: 'settings-title' }, `🚗 ${t('engineSetting')}`),
       engineRow,
+      h('h3', { class: 'settings-title' }, `🚦 ${t('trafficSetting')}`),
+      trafficRow,
     ),
   );
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });

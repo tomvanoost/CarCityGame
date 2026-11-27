@@ -533,3 +533,9 @@ button, input { font: inherit; color: inherit; }
 .repair-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .repair-dents { font-size: 22px; letter-spacing: 2px; }
 .repair-btn { min-height: 52px; padding: 0 20px; font-size: 18px; }
+/* Game clock: top left, under the home button. */
+.hud-clock { position: absolute; top: calc(max(12px, env(safe-area-inset-top)) + 62px); left: 12px; height: 40px; display: flex; align-items: center; padding: 0 12px;
+  background: var(--card); border-radius: 14px; box-shadow: var(--shadow); font-weight: 900; font-size: 17px; font-variant-numeric: tabular-nums; z-index: 5; }
+.tablet .hud-clock { top: calc(max(12px, env(safe-area-inset-top)) + 62px); }
+.panel-open .hud-clock { display: none; }
+@media (max-width: 600px) { .hud-clock { top: calc(max(12px, env(safe-area-inset-top)) + 54px); height: 34px; font-size: 15px; } }
