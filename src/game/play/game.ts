@@ -22,6 +22,7 @@ import { Pet, PetShopBuilding, getPet } from './pets';
 import { FURNITURE } from '../furniture';
 import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
 import { PizzeriaBuilding } from './pizzeria';
+import { BusShelters } from './busStops';
 import { BAKERY, BAKERY_TIME, BakeryBuilding, bakeryGeometry, type BakeryId } from './bakery';
 import { FunFair, RIDE_PRICE, type RideKind } from './funFair';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
@@ -88,7 +89,7 @@ export interface GameState {
   context: ContextAction | null;
   /** Desert race: countdown (> 0 before the start), lap time, next gate (1..6, 0 = finish). */
   race: { countdown: number; time: number; gate: number; total: number } | null;
-  job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number; timeLeft?: number } | null;
+  job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number; timeLeft?: number; stop?: number; stops?: number } | null;
   /** Navigation to a destination you picked on the map. */
   dest: { meters: number } | null;
   /** The car's real top speed and the player's own max speed (🏁), km/h; null = no limit. */
@@ -135,6 +136,8 @@ export interface GameEvents {
   onRaceDone?(r: { medal: Medal; time: number; best: number; record: boolean; prize: number }): void;
   onJobStart(job: ActiveJob): void;
   onJobDone?(job: ActiveJob): void;
+  /** Bus route: people got on at stop `stop` of `stops`. */
+  onBusStop?(stop: number, stops: number): void;
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery'): void;
   /** Short message (i18n key + optional number). */
@@ -172,6 +175,7 @@ export class Game {
   private petShop?: PetShopBuilding;
   private paintShop?: PaintShopBuilding;
   private pizzeria?: PizzeriaBuilding;
+  private busShelters?: BusShelters;
   private bakery?: BakeryBuilding;
   private funFair?: FunFair;
   private coins?: Coins;
@@ -341,6 +345,8 @@ export class Game {
     this.scene.add(this.paintShop.group);
     this.pizzeria = new PizzeriaBuilding(city.layout);
     this.scene.add(this.pizzeria.group);
+    this.busShelters = new BusShelters(city.layout);
+    this.scene.add(this.busShelters.group);
     this.bakery = new BakeryBuilding(city.layout);
     this.scene.add(this.bakery.group);
     this.funFair = new FunFair(city.layout);
@@ -363,10 +369,12 @@ export class Game {
     if (this.evening) this.applyLight();
     this.jobs = new Jobs(city.layout, {
       onStart: (job) => this.events.onJobStart(job),
+      onBusStop: (stop, stops, pay) => { this.addMoney(pay, 'job'); this.events.onBusStop?.(stop, stops); },
       onDone: (job) => {
         this.addMoney(job.reward, 'job');
         const p = this.profile;
-        void updateProfile(job.kind === 'taxi' ? { taxiRides: p.taxiRides + 1 } : { deliveries: p.deliveries + 1 });
+        void updateProfile(job.kind === 'taxi' || job.kind === 'bus' ? { taxiRides: p.taxiRides + 1 } : { deliveries: p.deliveries + 1 });
+        if (job.kind === 'bus') awardSticker('bus');
         if (job.kind === 'pizza') awardSticker('pizza');
         this.mission('jobs');
         if (job.kind === 'pizza' && job.hot) this.mission('pizza');
@@ -1579,7 +1587,7 @@ export class Game {
       refueling: this.refueling,
       washing: this.washTimer > 0,
       context: ctx,
-      job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round((this.nav?.remaining || Math.hypot(job.x - pos.x, job.z - pos.z)) / 10) * 10, timeLeft: job.timeLeft === undefined ? undefined : Math.ceil(job.timeLeft) } : null,
+      job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round((this.nav?.remaining || Math.hypot(job.x - pos.x, job.z - pos.z)) / 10) * 10, timeLeft: job.timeLeft === undefined ? undefined : Math.ceil(job.timeLeft), stop: job.stop, stops: job.stops } : null,
       dest: !job && this.dest ? { meters: Math.round((this.nav?.remaining ?? 0) / 10) * 10 } : null,
       topSpeed: v.spec.topSpeed,
       race: this.race ? { countdown: Math.ceil(this.race.count), time: this.race.t, gate: this.race.passed, total: CHECKPOINTS } : null,
@@ -1646,6 +1654,7 @@ export class Game {
     this.petShop?.dispose();
     this.paintShop?.dispose();
     this.pizzeria?.dispose();
+    this.busShelters?.dispose();
     this.bakery?.dispose();
     this.funFair?.dispose();
     this.coins?.dispose();

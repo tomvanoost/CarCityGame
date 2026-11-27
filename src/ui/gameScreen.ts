@@ -238,8 +238,8 @@ export const gameScreen: Screen = (root, nav) => {
     } else if (state.job) {
       const j = state.job;
       jobCard.replaceChildren(
-        h('span', { class: 'job-icon' }, j.kind === 'delivery' ? '📦' : j.kind === 'pizza' ? '🍕' : '🚕'),
-        h('span', { class: 'job-text' }, `${t(j.kind === 'taxi' ? 'driveTo' : j.kind === 'pizza' ? 'pizzaTo' : 'deliverTo')} ${t(j.place)}`),
+        h('span', { class: 'job-icon' }, j.kind === 'delivery' ? '📦' : j.kind === 'pizza' ? '🍕' : j.kind === 'bus' ? '🚌' : '🚕'),
+        h('span', { class: 'job-text' }, j.kind === 'bus' ? `${t('busTo')} ${j.stop}/${j.stops}` : `${t(j.kind === 'taxi' ? 'driveTo' : j.kind === 'pizza' ? 'pizzaTo' : 'deliverTo')} ${t(j.place)}`),
         h('b', {}, `${j.meters} m`),
         h('span', { class: 'job-reward' }, euro(j.reward)),
       );
@@ -281,12 +281,13 @@ export const gameScreen: Screen = (root, nav) => {
       render();
     },
     onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : reason === 'fish' ? 'fishShort' : reason === 'bakery' ? 'bakery' : 'refuel')),
-    onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : t('pickedPassenger')),
+    onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : job.kind === 'bus' ? t('busStart') : t('pickedPassenger')),
+    onBusStop: (n, total) => toast(`🚌 ${t('busHopOn')} ${n}/${total}`),
     onFish: (f, isNew) => toast(`${f.emoji} ${t('fishCaught').replace('{fish}', t(`fish_${f.id}` as TKey))}${isNew ? ` ${t('fishNew')}` : ''}`),
     onRaceDone: (r) => toast(`${r.medal === 'gold' ? '🥇' : r.medal === 'silver' ? '🥈' : '🥉'} ${t(r.medal === 'gold' ? 'medalGold' : r.medal === 'silver' ? 'medalSilver' : 'medalBronze')} ${raceTime(r.time)}${r.record ? ` — ${t('raceRecord')}` : ` (${t('raceBest')} ${raceTime(r.best)})`}`),
     onCoin: (n, total) => toast(`🪙 ${t('coinFound')} ${n}/${total}`),
     onMission: (m) => toast(`${m.emoji} ${t('missionDone')} ${missionText(m)}`),
-    onJobDone: (job) => { if (job.kind === 'pizza') toast(job.hot ? t('pizzaHot') : t('pizzaThanks')); },
+    onJobDone: (job) => { if (job.kind === 'pizza') toast(job.hot ? t('pizzaHot') : t('pizzaThanks')); if (job.kind === 'bus') toast(`🚌 ${t('busDone')}`); },
     onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : place === 'paintShop' ? openPaintShop() : place === 'bakery' ? openBakery() : openPanel(place)),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
     onPlayer: (kind, name) => toast(t(kind === 'joined' ? 'mpJoined' : kind === 'left' ? 'mpLeft' : 'mpFound').replace('{name}', name)),
@@ -378,7 +379,7 @@ export const gameScreen: Screen = (root, nav) => {
     if (!minimap && game.roads && game.city) {
       const L = game.city.layout;
       const base = renderBaseMap(L, game.roads);
-      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front, pizzeria: L.pois.pizzeria.front, funFair: L.pois.funFair.wheel.front, bakery: L.pois.bakery.front };
+      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front, pizzeria: L.pois.pizzeria.front, funFair: L.pois.funFair.wheel.front, bakery: L.pois.bakery.front, busDepot: L.pois.busStops[0]?.stop ?? L.pois.spawn };
       minimap = new Minimap(base, places, openMap, (id) => {
         const name = game.navigateToPlayer(id);
         if (name) toast(t('mpNavTo').replace('{name}', name));

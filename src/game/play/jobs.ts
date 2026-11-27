@@ -6,11 +6,12 @@ import type { Block, CityLayout, District } from '../city/layout';
 import { Rng } from '../city/rng';
 import { groundHeight } from './collision';
 import { createBeacon, createIcon, disposeMarker, tickBeacon } from './markers';
+import { BUS_ROUTE_BONUS, BUS_STOP_PAY } from './busStops';
 
-export type JobKind = 'delivery' | 'taxi' | 'pizza';
+export type JobKind = 'delivery' | 'taxi' | 'pizza' | 'bus';
 
 /** Where a job goes, with a kid-friendly name (i18n key). */
-export type PlaceKey = 'placeHouse' | 'placeApartment' | 'placePark' | 'placeCenter' | 'placeShops' | 'placeGas';
+export type PlaceKey = 'placeBusStop' | 'placeHouse' | 'placeApartment' | 'placePark' | 'placeCenter' | 'placeShops' | 'placeGas';
 
 interface Offer {
   kind: JobKind;
@@ -31,6 +32,9 @@ export interface ActiveJob {
   timeLeft?: number;
   /** Pizza: delivered while still warm (gets the bonus). */
   hot?: boolean;
+  /** Bus route: the stop you're driving to (1..stops). */
+  stop?: number;
+  stops?: number;
 }
 
 /** Pizza delivered warm: this much extra. */
@@ -39,6 +43,8 @@ export const PIZZA_BONUS = 0.5;
 export interface JobEvents {
   onStart(job: ActiveJob): void;
   onDone(job: ActiveJob): void;
+  /** Bus route: people got on at a stop (not the last one). */
+  onBusStop?(stop: number, stops: number, pay: number): void;
 }
 
 const RING = 2.6;
@@ -109,13 +115,14 @@ export class Jobs {
 
   private makeOffer(kind: JobKind, px: number, pz: number) {
     const blocks = this.blocksNear(px, pz, 40, 320, kind === 'delivery' ? ['shops', 'townhouses', 'downtown', 'midrise'] : undefined);
-    if (!blocks.length && kind !== 'pizza') return;
-    // Pizza jobs always start at the pizzeria.
-    const spot = kind === 'pizza' ? { ...this.layout.pois.pizzeria.front, district: 'shops' as District } : this.spotOn(blocks);
+    if (!blocks.length && kind !== 'pizza' && kind !== 'bus') return;
+    // Pizza jobs always start at the pizzeria, bus routes at the depot stop.
+    const spot = kind === 'pizza' ? { ...this.layout.pois.pizzeria.front, district: 'shops' as District }
+      : kind === 'bus' ? { ...this.layout.pois.busStops[0].stop, district: 'shops' as District } : this.spotOn(blocks);
     const group = new THREE.Group();
     group.position.set(spot.x, groundHeight(spot.x, spot.z), spot.z);
-    const beacon = createBeacon(kind === 'delivery' ? '#3d9bff' : kind === 'pizza' ? '#ff5a3c' : '#ffc400', 1.8, 10);
-    const icon = createIcon(kind === 'delivery' ? '📦' : kind === 'pizza' ? '🍕' : '🚕', kind === 'delivery' ? '#2f8bff' : kind === 'pizza' ? '#e5484d' : '#ffb300', 0.05);
+    const beacon = createBeacon(kind === 'delivery' ? '#3d9bff' : kind === 'pizza' ? '#ff5a3c' : kind === 'bus' ? '#2f8bff' : '#ffc400', 1.8, 10);
+    const icon = createIcon(kind === 'delivery' ? '📦' : kind === 'pizza' ? '🍕' : kind === 'bus' ? '🚌' : '🚕', kind === 'delivery' ? '#2f8bff' : kind === 'pizza' ? '#e5484d' : kind === 'bus' ? '#1f6fe0' : '#ffb300', 0.05);
     icon.position.y = 6;
     group.add(beacon, icon);
     let mixer: THREE.AnimationMixer | undefined;
@@ -130,7 +137,57 @@ export class Jobs {
     this.offers.push({ kind, x: spot.x, z: spot.z, group, beacon, mixer });
   }
 
+  /** People waiting at the bus stop you're driving to (cheering when you arrive). */
+  private waiting: { group: THREE.Group; mixers: THREE.AnimationMixer[] } | null = null;
+
+  private showWaiting(stop: number) {
+    if (this.waiting) { disposeMarker(this.waiting.group); this.waiting = null; }
+    const s = this.layout.pois.busStops[stop];
+    if (!s || !this.passenger) return;
+    const group = new THREE.Group(), mixers: THREE.AnimationMixer[] = [];
+    const n = 2 + (stop % 2);
+    for (let i = 0; i < n; i++) {
+      const person = cloneSkinned(this.passenger.scene);
+      const m = new THREE.AnimationMixer(person);
+      m.clipAction(this.passenger.clip).play();
+      m.update(i * 0.37);
+      mixers.push(m);
+      // Next to the shelter, on the road side, facing the road.
+      const side = (i - (n - 1) / 2) * 0.9;
+      const fx = Math.sin(s.rot), fz = Math.cos(s.rot);
+      const x = s.x + fx * 1.3 + fz * side, z = s.z + fz * 1.3 - fx * side;
+      person.position.set(x, groundHeight(x, z), z);
+      person.rotation.y = s.rot;
+      person.scale.setScalar(0.85 + (i % 2) * 0.15);
+      group.add(person);
+    }
+    this.group.add(group);
+    this.waiting = { group, mixers };
+  }
+
+  private setTarget(x: number, z: number, emoji: string) {
+    if (this.target) disposeMarker(this.target);
+    this.target = new THREE.Group();
+    this.target.position.set(x, groundHeight(x, z), z);
+    this.target.add(createBeacon('#21d07a', 2.6, 18));
+    const icon = createIcon(emoji, '#16b862', 0.06);
+    icon.position.y = 8;
+    this.target.add(icon);
+    this.group.add(this.target);
+  }
+
   private startJob(o: Offer) {
+    if (o.kind === 'bus') {
+      const stops = this.layout.pois.busStops.length - 1, s = this.layout.pois.busStops[1];
+      if (!s) return;
+      this.active = { kind: 'bus', x: s.stop.x, z: s.stop.z, place: 'placeBusStop', reward: BUS_STOP_PAY, stop: 1, stops };
+      for (const off of this.offers) disposeMarker(off.group);
+      this.offers = [];
+      this.setTarget(s.stop.x, s.stop.z, '🚏');
+      this.showWaiting(1);
+      this.events.onStart(this.active);
+      return;
+    }
     const from = { x: o.x, z: o.z };
     const blocks = o.kind === 'delivery' || o.kind === 'pizza'
       ? this.blocksNear(from.x, from.z, 200, 650, ['residential', 'apartments'])
@@ -162,6 +219,29 @@ export class Jobs {
     if (this.active) {
       this.target!.children.forEach((c) => { if ((c as THREE.Mesh).isMesh) tickBeacon(c as THREE.Mesh, this.time); });
       if (this.active.timeLeft !== undefined) this.active.timeLeft = Math.max(0, this.active.timeLeft - dt);
+      if (this.waiting) for (const m of this.waiting.mixers) m.update(dt);
+      if (this.active.kind === 'bus') {
+        const job = this.active;
+        if (!inCar || Math.hypot(pos.x - job.x, pos.z - job.z) > 8 || kmh > 10) return;
+        // Everybody hops on.
+        if (this.waiting) { disposeMarker(this.waiting.group); this.waiting = null; }
+        if (job.stop! < job.stops!) {
+          this.events.onBusStop?.(job.stop!, job.stops!, BUS_STOP_PAY);
+          job.stop!++;
+          const s = this.layout.pois.busStops[job.stop!];
+          job.x = s.stop.x; job.z = s.stop.z;
+          this.setTarget(s.stop.x, s.stop.z, '🚏');
+          this.showWaiting(job.stop!);
+          return;
+        }
+        job.reward = BUS_STOP_PAY + BUS_ROUTE_BONUS;
+        this.active = null;
+        disposeMarker(this.target!);
+        this.target = undefined;
+        this.refill = 1.5;
+        this.events.onDone(job);
+        return;
+      }
       const d = Math.hypot(pos.x - this.active.x, pos.z - this.active.z);
       const ok = this.active.kind === 'taxi' ? inCar && d < 7 && kmh < 18 : (inCar ? d < 7 && kmh < 25 : d < 3);
       if (ok) {
@@ -192,11 +272,13 @@ export class Jobs {
       const n = (k: JobKind) => this.offers.filter((o) => o.kind === k).length;
       if (n('delivery') < 3) this.makeOffer('delivery', pos.x, pos.z);
       else if (n('taxi') < 2) this.makeOffer('taxi', pos.x, pos.z);
+      const depot = this.layout.pois.busStops[0];
+      if (depot && n('bus') < 1 && Math.hypot(depot.stop.x - pos.x, depot.stop.z - pos.z) < 600) this.makeOffer('bus', pos.x, pos.z);
       if (n('pizza') < 1 && Math.hypot(this.layout.pois.pizzeria.x - pos.x, this.layout.pois.pizzeria.z - pos.z) < 600) this.makeOffer('pizza', pos.x, pos.z);
     }
     for (const o of this.offers) {
       const d = Math.hypot(pos.x - o.x, pos.z - o.z);
-      const pick = o.kind === 'taxi' ? inCar && d < 6 && kmh < 15 : (inCar ? d < 6 && kmh < 20 : d < 2.2);
+      const pick = o.kind === 'taxi' || o.kind === 'bus' ? inCar && d < 6 && kmh < 15 : (inCar ? d < 6 && kmh < 20 : d < 2.2);
       if (pick) { this.startJob(o); break; }
     }
   }
@@ -205,6 +287,7 @@ export class Jobs {
   cancel() {
     if (!this.active) return;
     this.active = null;
+    if (this.waiting) { disposeMarker(this.waiting.group); this.waiting = null; }
     if (this.target) disposeMarker(this.target);
     this.target = undefined;
   }

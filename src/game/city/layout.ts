@@ -88,6 +88,11 @@ export interface CityLayout {
       wheel: { x: number; z: number; front: { x: number; z: number } };
       carousel: { x: number; z: number; front: { x: number; z: number } };
     };
+    /**
+     * Bus route: the depot (index 0) and 5 stops in a loop around downtown. `x/z` = the shelter on the
+     * sidewalk, `stop` = where the car stops on the road next to it, `rot` = the shelter's front (towards the road).
+     */
+    busStops: { x: number; z: number; rot: number; stop: { x: number; z: number } }[];
     /** Bakery on the lake town square (turned by `rot`; `front` = the spot by its door). */
     bakery: { x: number; z: number; rot: number; front: { x: number; z: number } };
     /** Pizzeria kiosk at the front corner of the supermarket parking lot (counter = +Z, towards the road). */
@@ -454,6 +459,34 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   L.colliders = L.colliders.filter((c) => !(c.knock && clear((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2)));
   L.colliders.push({ x0: ic.x - 1.5, z0: ic.z - 1.1, x1: ic.x + 1.5, z1: ic.z + 1.1 });
 
+  // ---------- bus stops: six blocks in a ring around the middle; a shelter on the sidewalk facing the road ----------
+  const busStops: { x: number; z: number; rot: number; stop: { x: number; z: number } }[] = [];
+  {
+    const used = new Set<Block>();
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2 + 0.3, tx = Math.cos(a) * 230, tz = Math.sin(a) * 230;
+      const b = L.blocks.filter((q) => !used.has(q) && q.district !== 'park' && q.district !== 'gas')
+        .sort((p, q) => Math.hypot((p.slab.x0 + p.slab.x1) / 2 - tx, (p.slab.z0 + p.slab.z1) / 2 - tz) - Math.hypot((q.slab.x0 + q.slab.x1) / 2 - tx, (q.slab.z0 + q.slab.z1) / 2 - tz))[0];
+      if (!b) continue;
+      used.add(b);
+      const s = b.slab, cx = (s.x0 + s.x1) / 2, cz = (s.z0 + s.z1) / 2;
+      // The side of the block that faces away from the middle of the city (outward normal), with the shelter 2 m in.
+      const sides = [
+        { x: cx, z: s.z0 + 2, nx: 0, nz: -1 }, { x: cx, z: s.z1 - 2, nx: 0, nz: 1 },
+        { x: s.x0 + 2, z: cz, nx: -1, nz: 0 }, { x: s.x1 - 2, z: cz, nx: 1, nz: 0 },
+      ];
+      const side = sides.sort((p, q) => (q.nx * cx + q.nz * cz) - (p.nx * cx + p.nz * cz))[0];
+      // Keep the sidewalk around the shelter clear.
+      const near = (x: number, z: number) => Math.hypot(x - side.x, z - side.z) < 3.5;
+      L.nature = L.nature.filter((n) => !near(n.x, n.z));
+      L.props = L.props.filter((n) => !near(n.x, n.z));
+      L.colliders = L.colliders.filter((c) => !near((c.x0 + c.x1) / 2, (c.z0 + c.z1) / 2));
+      const hw = side.nx ? 0.6 : 1.6, hd = side.nx ? 1.6 : 0.6;
+      L.colliders.push({ x0: side.x - hw, z0: side.z - hd, x1: side.x + hw, z1: side.z + hd });
+      busStops.push({ x: side.x, z: side.z, rot: Math.atan2(side.nx, side.nz), stop: { x: side.x + side.nx * 6, z: side.z + side.nz * 6 } });
+    }
+  }
+
   // ---------- bakery on the lake town square (north-west of the church, facing the north street) ----------
   const bkX = LAKE_TOWN.x - 22, bkZ = LAKE_TOWN.z - 22;
   L.colliders.push({ x0: bkX - 4.6, z0: bkZ - 3.6, x1: bkX + 4.6, z1: bkZ + 3.6 });
@@ -510,6 +543,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     pizzeria,
     funFair,
     bakery,
+    busStops,
   };
   return L;
 }

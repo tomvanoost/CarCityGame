@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Bus driver job**: a bus at a depot; drive a route along 5 bus stops where little groups of
-  people wait (they hop on/off when you stop), €15 per stop and a bonus for the whole route.
 - [ ] **Petting farm**: a small petting zoo on the farm (goats, sheep, rabbits, a pony); walk up and tap
   to feed an animal (€2, it happily hops / wiggles), a sticker for feeding them all.
 - [ ] **Neon & spoilers at the garage**: underglow lights in 5 colors (they shine in the evening) and a

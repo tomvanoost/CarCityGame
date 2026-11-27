@@ -12,7 +12,7 @@ export interface Sticker {
 }
 
 export type StickerId = 'firstDrive' | 'honk' | 'firstDelivery' | 'firstTaxi' | 'jobs10' | 'km10' | 'km50'
-  | 'newCar' | 'newClothes' | 'apartment' | 'saver' | 'carWash' | 'iceCream' | 'supermarket' | 'pet' | 'paintShop' | 'furniture' | 'pizza' | 'funFair' | 'missions' | 'coins10' | 'coins30' | 'hornShop' | 'race' | 'raceGold' | 'fish' | 'fishAll' | 'baker';
+  | 'newCar' | 'newClothes' | 'apartment' | 'saver' | 'carWash' | 'iceCream' | 'supermarket' | 'pet' | 'paintShop' | 'furniture' | 'pizza' | 'funFair' | 'missions' | 'coins10' | 'coins30' | 'hornShop' | 'race' | 'raceGold' | 'fish' | 'fishAll' | 'baker' | 'bus';
 
 const jobs = (p: PlayerProfile) => p.deliveries + p.taxiRides;
 
@@ -41,6 +41,7 @@ export const STICKERS: Sticker[] = [
   { id: 'fish', emoji: '🎣' },
   { id: 'fishAll', emoji: '🐡' },
   { id: 'baker', emoji: '🥐' },
+  { id: 'bus', emoji: '🚌' },
   { id: 'coins10', emoji: '🪙', check: (p) => (p.coins?.length ?? 0) >= 10 },
   { id: 'coins30', emoji: '👑', check: (p) => (p.coins?.length ?? 0) >= 30 },
   { id: 'furniture', emoji: '🛋️' },

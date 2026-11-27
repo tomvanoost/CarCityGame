@@ -148,7 +148,7 @@ function drawRoute(g: CanvasRenderingContext2D, path: P[], toX: (p: P) => [numbe
   }
 }
 
-export interface MapPlaces { home: P; apartment: P; gas: P; iceCream: P; supermarket: P; petShop: P; paintShop: P; pizzeria: P; funFair: P; bakery: P }
+export interface MapPlaces { home: P; apartment: P; gas: P; iceCream: P; supermarket: P; petShop: P; paintShop: P; pizzeria: P; funFair: P; bakery: P; busDepot: P }
 
 /** Small round map in the corner. It turns with you: forward is always up. */
 export class Minimap {
@@ -238,6 +238,7 @@ export class Minimap {
     icon(this.places.pizzeria, '🍕', '#e5484d');
     icon(this.places.funFair, '🎡', '#1f6fe0');
     icon(this.places.bakery, '🥐', '#a8642f');
+    icon(this.places.busDepot, '🚌', '#1f6fe0');
     icon(this.places.apartment, '🏢', '#8e5bd9');
     icon(this.places.home, '🏠', '#ff8a2b');
     icon(s.dest, '📍', '#16b862');
@@ -320,6 +321,7 @@ export class BigMap {
     badge(g, '🍕', ...at(this.places.pizzeria), big, '#e5484d');
     badge(g, '🎡', ...at(this.places.funFair), big, '#1f6fe0');
     badge(g, '🥐', ...at(this.places.bakery), big, '#a8642f');
+    badge(g, '🚌', ...at(this.places.busDepot), big, '#1f6fe0');
     badge(g, '🏢', ...at(this.places.apartment), big, '#8e5bd9');
     badge(g, '🏠', ...at(this.places.home), big, '#ff8a2b');
     if (s.job) badge(g, '⭐', ...at(s.job), big, '#16b862');
