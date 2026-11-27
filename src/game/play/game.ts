@@ -21,6 +21,7 @@ import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Pet, PetShopBuilding, getPet } from './pets';
 import { FURNITURE } from '../furniture';
 import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
+import { PizzeriaBuilding } from './pizzeria';
 import { applyRims, applyStripe } from '../vehicles/carStyle';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
 import { FLAVORS, ICE_CREAM_PRICE, ICE_CREAM_TIME, IceCreamStand, coneGeometry, type Flavor } from './iceCream';
@@ -76,7 +77,7 @@ export interface GameState {
   /** The car is in the car wash right now. */
   washing: boolean;
   context: ContextAction | null;
-  job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number } | null;
+  job: { kind: ActiveJob['kind']; place: PlaceKey; reward: number; meters: number; timeLeft?: number } | null;
   /** Navigation to a destination you picked on the map. */
   dest: { meters: number } | null;
   /** The car's real top speed and the player's own max speed (🏁), km/h; null = no limit. */
@@ -114,6 +115,7 @@ export interface GameEvents {
   /** Money earned (shown as a big "+€" popup). */
   onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture'): void;
   onJobStart(job: ActiveJob): void;
+  onJobDone?(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop'): void;
   /** Short message (i18n key + optional number). */
@@ -150,6 +152,7 @@ export class Game {
   private supermarket?: SupermarketBuilding;
   private petShop?: PetShopBuilding;
   private paintShop?: PaintShopBuilding;
+  private pizzeria?: PizzeriaBuilding;
   /** Your pet that comes along (follows you on foot, sits next to you in the car). */
   private pet?: Pet;
   /** Seconds left holding an ice cream (0 = none). */
@@ -303,6 +306,8 @@ export class Game {
     this.scene.add(this.petShop.group);
     this.paintShop = new PaintShopBuilding(city.layout);
     this.scene.add(this.paintShop.group);
+    this.pizzeria = new PizzeriaBuilding(city.layout);
+    this.scene.add(this.pizzeria.group);
     this.setPet(this.profile.activePet);
     this.lamps = new StreetLamps(city.layout);
     this.scene.add(this.lamps.group);
@@ -312,7 +317,9 @@ export class Game {
       onDone: (job) => {
         this.addMoney(job.reward, 'job');
         const p = this.profile;
-        void updateProfile(job.kind === 'delivery' ? { deliveries: p.deliveries + 1 } : { taxiRides: p.taxiRides + 1 });
+        void updateProfile(job.kind === 'taxi' ? { taxiRides: p.taxiRides + 1 } : { deliveries: p.deliveries + 1 });
+        if (job.kind === 'pizza') awardSticker('pizza');
+        this.events.onJobDone?.(job);
       },
     });
     this.scene.add(this.jobs.group);
@@ -1171,7 +1178,7 @@ export class Game {
     this.updateNav(dt, pos);
     this.updateArrow(dt, pos);
     // Carry the package in your arms while walking with a delivery.
-    if (this.mode === 'walking' && this.jobs?.active?.kind === 'delivery') {
+    if (this.mode === 'walking' && this.jobs?.active && this.jobs.active.kind !== 'taxi') {
       const n = this.avatar.currentName;
       if (n === 'Walk' || n === 'Run') this.avatar.play(n === 'Walk' ? 'Walk_Carry' : 'Run_Carry', { fade: 0.2 });
     }
@@ -1230,7 +1237,7 @@ export class Game {
       refueling: this.refueling,
       washing: this.washTimer > 0,
       context: ctx,
-      job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round((this.nav?.remaining || Math.hypot(job.x - pos.x, job.z - pos.z)) / 10) * 10 } : null,
+      job: job ? { kind: job.kind, place: job.place, reward: job.reward, meters: Math.round((this.nav?.remaining || Math.hypot(job.x - pos.x, job.z - pos.z)) / 10) * 10, timeLeft: job.timeLeft === undefined ? undefined : Math.ceil(job.timeLeft) } : null,
       dest: !job && this.dest ? { meters: Math.round((this.nav?.remaining ?? 0) / 10) * 10 } : null,
       topSpeed: v.spec.topSpeed,
       maxSpeed: this.maxKmh,
@@ -1295,6 +1302,7 @@ export class Game {
     this.supermarket?.dispose();
     this.petShop?.dispose();
     this.paintShop?.dispose();
+    this.pizzeria?.dispose();
     this.pet?.dispose();
     this.garage?.dispose();
     this.lamps?.dispose();

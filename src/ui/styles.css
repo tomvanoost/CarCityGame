@@ -247,6 +247,8 @@ button, input { font: inherit; color: inherit; }
 .job-icon { font-size: 26px; }
 .job-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .job-reward { background: #fff6d6; color: #b07900; padding: 3px 9px; border-radius: 10px; font-weight: 900; white-space: nowrap; }
+.job-timer { background: #ffe1d6; color: #c2410c; padding: 3px 9px; border-radius: 10px; font-weight: 900; white-space: nowrap; }
+.job-timer.cold { background: #dcecff; color: #2463b0; }
 .tablet .job-card { top: calc(max(6px, env(safe-area-inset-top)) + 100px); }
 .tablet.has-dash .job-card { top: calc(max(6px, env(safe-area-inset-top)) + 100px); }
 /* graphics quality (menu ⚙️) */

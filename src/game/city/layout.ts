@@ -83,6 +83,8 @@ export interface CityLayout {
     supermarket: { x: number; z: number; w: number; d: number; front: { x: number; z: number }; parking: Rect };
     /** Pet shop next to the supermarket (front = +Z). */
     petShop: { x: number; z: number; front: { x: number; z: number } };
+    /** Pizzeria kiosk at the front corner of the supermarket parking lot (counter = +Z, towards the road). */
+    pizzeria: { x: number; z: number; front: { x: number; z: number } };
     /** Paint shop garage on the other side of the supermarket (door = +Z); drive up to `front`. */
     paintShop: { x: number; z: number; front: { x: number; z: number } };
   };
@@ -451,6 +453,10 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   const pgX = lot.x1 - 10, pgZ = psZ;
   L.colliders.push({ x0: pgX - 7, z0: pgZ - 5.5, x1: pgX + 7, z1: pgZ + 5.5 });
   const paintShop = { x: pgX, z: pgZ, front: { x: pgX, z: pgZ + 10 } };
+  // Pizzeria kiosk at the front-left corner of the parking lot, facing the road.
+  const pzX = lot.x0 + 9, pzZ = lot.z1 - 10;
+  L.colliders.push({ x0: pzX - 3, z0: pzZ - 2.2, x1: pzX + 3, z1: pzZ + 2.2 });
+  const pizzeria = { x: pzX, z: pzZ, front: { x: pzX, z: pzZ + 4.5 } };
   const supermarket = { x: smX, z: smZ, w: smW, d: smD, front: { x: smX, z: smZ + smD / 2 + 2 }, parking: { x0: lot.x0 + 4, z0: smZ + smD / 2 + 4, x1: lot.x1 - 4, z1: lot.z1 - 2 } };
 
   // ---------- points of interest ----------
@@ -465,6 +471,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     supermarket,
     petShop,
     paintShop,
+    pizzeria,
   };
   return L;
 }

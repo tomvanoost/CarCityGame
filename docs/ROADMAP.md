@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Pizza delivery job**: pick up pizzas at a pizza shop and deliver them before they get cold
-  (a friendly timer, bonus money when fast, no penalty when late).
 - [ ] **Fun fair in the park**: a Ferris wheel and a carousel you can ride (camera view from the top
   of the Ferris wheel), €10 per ride.
 - [ ] **Daily missions**: three simple daily goals (drive 5 km, do 2 jobs, honk at 3 cars...) with

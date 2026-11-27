@@ -216,11 +216,14 @@ export const gameScreen: Screen = (root, nav) => {
     if (state.job) {
       const j = state.job;
       jobCard.replaceChildren(
-        h('span', { class: 'job-icon' }, j.kind === 'delivery' ? '📦' : '🚕'),
-        h('span', { class: 'job-text' }, `${t(j.kind === 'delivery' ? 'deliverTo' : 'driveTo')} ${t(j.place)}`),
+        h('span', { class: 'job-icon' }, j.kind === 'delivery' ? '📦' : j.kind === 'pizza' ? '🍕' : '🚕'),
+        h('span', { class: 'job-text' }, `${t(j.kind === 'taxi' ? 'driveTo' : j.kind === 'pizza' ? 'pizzaTo' : 'deliverTo')} ${t(j.place)}`),
         h('b', {}, `${j.meters} m`),
         h('span', { class: 'job-reward' }, euro(j.reward)),
       );
+      if (j.timeLeft !== undefined) {
+        jobCard.append(h('span', { class: `job-timer ${j.timeLeft > 0 ? '' : 'cold'}`, title: j.timeLeft > 0 ? t('pizzaWarm') : t('pizzaCold') }, j.timeLeft > 0 ? `🔥 ${j.timeLeft} s` : '❄️'));
+      }
     }
   };
 
@@ -256,7 +259,8 @@ export const gameScreen: Screen = (root, nav) => {
       render();
     },
     onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : 'refuel')),
-    onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : t('pickedPassenger')),
+    onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : t('pickedPassenger')),
+    onJobDone: (job) => { if (job.kind === 'pizza') toast(job.hot ? t('pizzaHot') : t('pizzaThanks')); },
     onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : place === 'paintShop' ? openPaintShop() : openPanel(place)),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
     onPlayer: (kind, name) => toast(t(kind === 'joined' ? 'mpJoined' : kind === 'left' ? 'mpLeft' : 'mpFound').replace('{name}', name)),
@@ -348,7 +352,7 @@ export const gameScreen: Screen = (root, nav) => {
     if (!minimap && game.roads && game.city) {
       const L = game.city.layout;
       const base = renderBaseMap(L, game.roads);
-      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front };
+      places = { home: L.pois.home.door, apartment: L.pois.apartment.door, gas: L.pois.gasStation, iceCream: L.pois.iceCream.front, supermarket: L.pois.supermarket.front, petShop: L.pois.petShop.front, paintShop: L.pois.paintShop.front, pizzeria: L.pois.pizzeria.front };
       minimap = new Minimap(base, places, openMap, (id) => {
         const name = game.navigateToPlayer(id);
         if (name) toast(t('mpNavTo').replace('{name}', name));

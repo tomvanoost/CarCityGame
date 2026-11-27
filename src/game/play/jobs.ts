@@ -7,7 +7,7 @@ import { Rng } from '../city/rng';
 import { groundHeight } from './collision';
 import { createBeacon, createIcon, disposeMarker, tickBeacon } from './markers';
 
-export type JobKind = 'delivery' | 'taxi';
+export type JobKind = 'delivery' | 'taxi' | 'pizza';
 
 /** Where a job goes, with a kid-friendly name (i18n key). */
 export type PlaceKey = 'placeHouse' | 'placeApartment' | 'placePark' | 'placeCenter' | 'placeShops' | 'placeGas';
@@ -27,7 +27,14 @@ export interface ActiveJob {
   z: number;
   place: PlaceKey;
   reward: number;
+  /** Pizza: seconds the pizzas stay warm (0 = cooled down, still paid normally). */
+  timeLeft?: number;
+  /** Pizza: delivered while still warm (gets the bonus). */
+  hot?: boolean;
 }
+
+/** Pizza delivered warm: this much extra. */
+export const PIZZA_BONUS = 0.5;
 
 export interface JobEvents {
   onStart(job: ActiveJob): void;
@@ -102,12 +109,13 @@ export class Jobs {
 
   private makeOffer(kind: JobKind, px: number, pz: number) {
     const blocks = this.blocksNear(px, pz, 40, 320, kind === 'delivery' ? ['shops', 'townhouses', 'downtown', 'midrise'] : undefined);
-    if (!blocks.length) return;
-    const spot = this.spotOn(blocks);
+    if (!blocks.length && kind !== 'pizza') return;
+    // Pizza jobs always start at the pizzeria.
+    const spot = kind === 'pizza' ? { ...this.layout.pois.pizzeria.front, district: 'shops' as District } : this.spotOn(blocks);
     const group = new THREE.Group();
     group.position.set(spot.x, groundHeight(spot.x, spot.z), spot.z);
-    const beacon = createBeacon(kind === 'delivery' ? '#3d9bff' : '#ffc400', 1.8, 10);
-    const icon = createIcon(kind === 'delivery' ? '📦' : '🚕', kind === 'delivery' ? '#2f8bff' : '#ffb300', 0.05);
+    const beacon = createBeacon(kind === 'delivery' ? '#3d9bff' : kind === 'pizza' ? '#ff5a3c' : '#ffc400', 1.8, 10);
+    const icon = createIcon(kind === 'delivery' ? '📦' : kind === 'pizza' ? '🍕' : '🚕', kind === 'delivery' ? '#2f8bff' : kind === 'pizza' ? '#e5484d' : '#ffb300', 0.05);
     icon.position.y = 6;
     group.add(beacon, icon);
     let mixer: THREE.AnimationMixer | undefined;
@@ -124,20 +132,22 @@ export class Jobs {
 
   private startJob(o: Offer) {
     const from = { x: o.x, z: o.z };
-    const blocks = o.kind === 'delivery'
+    const blocks = o.kind === 'delivery' || o.kind === 'pizza'
       ? this.blocksNear(from.x, from.z, 200, 650, ['residential', 'apartments'])
       : this.blocksNear(from.x, from.z, 220, 700);
     const dest = this.spotOn(blocks.length ? blocks : this.layout.blocks);
     const dist = Math.hypot(dest.x - from.x, dest.z - from.z);
-    const reward = Math.round((o.kind === 'taxi' ? 120 : 80) + dist * (o.kind === 'taxi' ? 0.55 : 0.45)) * 1;
+    const reward = Math.round((o.kind === 'taxi' ? 120 : o.kind === 'pizza' ? 90 : 80) + dist * (o.kind === 'taxi' ? 0.55 : o.kind === 'pizza' ? 0.5 : 0.45)) * 1;
     this.active = { kind: o.kind, x: dest.x, z: dest.z, place: DISTRICT_PLACE[dest.district], reward: Math.round(reward / 10) * 10 };
+    // Pizzas stay warm long enough for a calm drive (roads are longer than the straight line).
+    if (o.kind === 'pizza') this.active.timeLeft = Math.round(dist * 1.4 / 9 + 25);
     // Clear all offers: focus on this job.
     for (const off of this.offers) disposeMarker(off.group);
     this.offers = [];
     this.target = new THREE.Group();
     this.target.position.set(dest.x, groundHeight(dest.x, dest.z), dest.z);
     this.target.add(createBeacon('#21d07a', 2.6, 18));
-    const icon = createIcon(o.kind === 'delivery' ? '🏠' : '📍', '#16b862', 0.06);
+    const icon = createIcon(o.kind === 'taxi' ? '📍' : '🏠', '#16b862', 0.06);
     icon.position.y = 8;
     this.target.add(icon);
     this.group.add(this.target);
@@ -151,10 +161,12 @@ export class Jobs {
     this.time += dt;
     if (this.active) {
       this.target!.children.forEach((c) => { if ((c as THREE.Mesh).isMesh) tickBeacon(c as THREE.Mesh, this.time); });
+      if (this.active.timeLeft !== undefined) this.active.timeLeft = Math.max(0, this.active.timeLeft - dt);
       const d = Math.hypot(pos.x - this.active.x, pos.z - this.active.z);
       const ok = this.active.kind === 'taxi' ? inCar && d < 7 && kmh < 18 : (inCar ? d < 7 && kmh < 25 : d < 3);
       if (ok) {
         const job = this.active;
+        if (job.kind === 'pizza' && (job.timeLeft ?? 0) > 0) { job.hot = true; job.reward = Math.round(job.reward * (1 + PIZZA_BONUS) / 10) * 10; }
         this.active = null;
         disposeMarker(this.target!);
         this.target = undefined;
@@ -163,7 +175,7 @@ export class Jobs {
       }
       return;
     }
-    // Keep 3 delivery + 2 taxi offers around the player.
+    // Keep 3 delivery + 2 taxi offers around the player, plus the pizzeria's offer when it is near.
     this.refill -= dt;
     for (const o of this.offers) {
       o.mixer?.update(dt);
@@ -180,6 +192,7 @@ export class Jobs {
       const n = (k: JobKind) => this.offers.filter((o) => o.kind === k).length;
       if (n('delivery') < 3) this.makeOffer('delivery', pos.x, pos.z);
       else if (n('taxi') < 2) this.makeOffer('taxi', pos.x, pos.z);
+      if (n('pizza') < 1 && Math.hypot(this.layout.pois.pizzeria.x - pos.x, this.layout.pois.pizzeria.z - pos.z) < 600) this.makeOffer('pizza', pos.x, pos.z);
     }
     for (const o of this.offers) {
       const d = Math.hypot(pos.x - o.x, pos.z - o.z);
