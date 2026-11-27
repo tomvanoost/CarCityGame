@@ -1,5 +1,6 @@
 import { getSticker, newlyEarned, STICKERS, type StickerId } from '../game/stickers';
 import { sounds } from '../game/play/sounds';
+import { COIN_COUNT } from '../game/play/coins';
 import { t, type TKey } from '../i18n';
 import { getProfile, onProfileChange, updateProfile } from '../services/session';
 import { h } from './dom';
@@ -78,6 +79,7 @@ export function openStickerBook(onClose?: () => void) {
         h('h2', {}, `⭐ ${t('stickerBook')} ${have}/${STICKERS.length}`),
         h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
       ),
+      h('div', { class: 'coin-count' }, `🪙 ${t('coinHunt')}: ${p.coins.length}/${COIN_COUNT}`),
       grid,
     ),
   );

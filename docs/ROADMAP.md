@@ -16,9 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Coin hunt**: 30 shiny golden coins hidden around the map (rooftops of low buildings, the park,
-  under the bridge, the desert, the lake town). Pick them up on foot or by car; a counter in the
-  sticker book, a sticker at 10 and at all 30. Saved in the profile.
 - [ ] **Horn shop at the garage**: buy fun horn sounds (duck, train, melody, bicycle bell, clown) for
   €50–150; choose one per car. Synthesized with WebAudio (no new sound files).
 - [ ] **Desert race track**: a time-trial loop with checkpoint arches in the desert; bronze / silver /

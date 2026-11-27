@@ -29,6 +29,7 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     pets: [],
     activePet: '',
     furniture: [...STARTER_FURNITURE],
+    coins: [],
   };
 }
 
@@ -58,6 +59,7 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   p.activePet = typeof p.activePet === 'string' && p.pets.includes(p.activePet) ? p.activePet : '';
   // Before the furniture shop every apartment came fully furnished: keep that for existing players.
   p.furniture = raw.furniture === undefined && raw.ownsApartment ? [...CLASSIC_FURNITURE] : toArray(raw.furniture, STARTER_FURNITURE);
+  p.coins = toArray(raw.coins, []);
   // Daily missions: keep only well-formed progress.
   const m = raw.missions as { day?: unknown; progress?: unknown; done?: unknown } | undefined;
   if (m && typeof m.day === 'string') {

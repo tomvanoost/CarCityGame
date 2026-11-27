@@ -23,6 +23,7 @@ import { FURNITURE } from '../furniture';
 import { EXTRA_PRICE, PAINT_PRICE, PaintShopBuilding } from './paintShop';
 import { PizzeriaBuilding } from './pizzeria';
 import { FunFair, RIDE_PRICE, type RideKind } from './funFair';
+import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { missionDay, todaysMissions, type Mission, type MissionId } from '../missions';
 import { applyRims, applyStripe } from '../vehicles/carStyle';
 import { SNACKS, SNACK_TIME, SupermarketBuilding, chocolateGeometry, type SnackId } from './supermarket';
@@ -115,9 +116,11 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
+  /** Coin hunt: a coin was found (found = how many you have now). */
+  onCoin?(found: number, total: number): void;
   onJobStart(job: ActiveJob): void;
   onJobDone?(job: ActiveJob): void;
   /** Player walked into the house/apartment. */
@@ -158,6 +161,7 @@ export class Game {
   private paintShop?: PaintShopBuilding;
   private pizzeria?: PizzeriaBuilding;
   private funFair?: FunFair;
+  private coins?: Coins;
   /** Riding the Ferris wheel or the carousel (as a passenger: no walking). */
   private ride: { kind: RideKind; t: number; dur: number } | null = null;
   /** Your pet that comes along (follows you on foot, sits next to you in the car). */
@@ -320,6 +324,14 @@ export class Game {
     this.scene.add(this.pizzeria.group);
     this.funFair = new FunFair(city.layout);
     this.scene.add(this.funFair.group);
+    this.coins = new Coins(city.layout, this.profile.coins, (c) => {
+      const coins = [...new Set([...this.profile.coins, c.id])];
+      setProfile({ ...this.profile, coins });
+      void updateProfile({ coins });
+      this.addMoney(COIN_REWARD, 'coin');
+      this.events.onCoin?.(coins.length, COIN_COUNT);
+    });
+    this.scene.add(this.coins.group);
     this.setPet(this.profile.activePet);
     this.lamps = new StreetLamps(city.layout);
     this.scene.add(this.lamps.group);
@@ -506,7 +518,7 @@ export class Game {
     if (list.every((x) => next.done.includes(x.id))) awardSticker('missions');
   }
 
-  private addMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'km' | 'mission') {
+  private addMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'km' | 'mission' | 'coin') {
     const p = this.profile;
     setProfile({ ...p, money: Math.max(0, p.money + amount) });
     this.dirty = true;
@@ -1282,6 +1294,7 @@ export class Game {
     // In the dashboard view your own driver is hidden, so you look over the real dashboard.
     this.avatar.root.visible = !(this.cockpit && this.mode === 'driving');
     this.funFair?.update(dt);
+    this.coins?.update(dt, this.ride ? null : pos, this.mode === 'driving' ? 3.5 : 2);
     this.avatar.update(dt);
     this.updatePet(dt);
     this.sun.follow(this.focus);
@@ -1401,6 +1414,7 @@ export class Game {
     this.paintShop?.dispose();
     this.pizzeria?.dispose();
     this.funFair?.dispose();
+    this.coins?.dispose();
     this.pet?.dispose();
     this.garage?.dispose();
     this.lamps?.dispose();
