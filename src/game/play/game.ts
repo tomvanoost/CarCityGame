@@ -31,6 +31,7 @@ import { FIREWORKS_FRONT, FIREWORKS_PRICE, FIREWORKS_STAND, Fireworks } from './
 import { Beach, FLOAT_FRONT, FLOAT_PRICE, floatGeometry } from './beach';
 type RideKind = FairRide | 'balloon';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
+import { turnLinesMesh } from './turnLines';
 import { TREASURE_PRIZE, TREASURE_RADIUS, TreasureChest, postOfficeMesh, treasureSpot, weekNumber } from './treasure';
 import { HORNS, isHorn, type HornId } from '../horns';
 import { MAX_DENTS, REPAIR_PRICE, addDentMesh, clearDents, dentCount, findDent } from '../vehicles/dents';
@@ -188,6 +189,7 @@ export class Game {
   carWash?: CarWash;
   private iceStand?: IceCreamStand;
   private postOffice?: THREE.Mesh;
+  private turnLines?: THREE.Mesh;
   private chest?: TreasureChest;
   private week = weekNumber();
   private supermarket?: SupermarketBuilding;
@@ -441,6 +443,9 @@ export class Game {
     this.traffic.setTrafficLights(this.trafficLights);
     this.highwaySigns = new HighwaySigns(this.roads);
     this.scene.add(this.highwaySigns.group);
+    // Dashed turning lines across the crossings: where to start steering, and how much.
+    this.turnLines = turnLinesMesh(this.roads);
+    this.scene.add(this.turnLines);
     this.scene.add(this.traffic.group);
     this.traffic.setLights(this.evening);
   }
@@ -1899,6 +1904,7 @@ export class Game {
     this.garage?.dispose();
     this.lamps?.dispose();
     this.trafficLights?.dispose();
+    if (this.turnLines) { this.turnLines.geometry.dispose(); (this.turnLines.material as THREE.Material).dispose(); this.turnLines.removeFromParent(); }
     this.highwaySigns?.dispose();
     // The sky colors are shared (also used by the menu backdrop): put the day colors back.
     SKY.zenith.set(DAY.zenith); SKY.horizon.set(DAY.horizon); SKY.sunDir.set(DAY.sunDir[0], DAY.sunDir[1], DAY.sunDir[2]).normalize();
