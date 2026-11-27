@@ -41,7 +41,7 @@ import { TREASURE_PRIZE, TREASURE_RADIUS, TreasureChest, postOfficeMesh, treasur
 import { HORNS, isHorn, type HornId } from '../horns';
 import { MAX_DENTS, REPAIR_PRICE, addDentMesh, clearDents, dentCount, findDent } from '../vehicles/dents';
 import { CHECKPOINTS, MEDAL_PRIZE, RaceTrack, medalFor, type Medal } from './raceTrack';
-import { PETTING, RACE } from '../city/outskirts';
+import { BALLOON, BIG_DUNE, PETTING, RACE } from '../city/outskirts';
 import { BITE_TIME, FISH, FISH_SPOT, FLOAT, FishingJetty, randomFish, rodGeometry } from './fishing';
 import { missionDay, todaysMissions, type Mission, type MissionId } from '../missions';
 import { applyNeon, applyRims, applySpoiler, applyStripe } from '../vehicles/carStyle';
@@ -244,6 +244,9 @@ export class Game {
   traffic?: Traffic;
   private trafficLights?: TrafficLights;
   private highwaySigns?: HighwaySigns;
+  /** Places outside the city that aren't drawn when you're far away (saves draw calls): center, size. */
+  private farCull: { obj: THREE.Object3D; x: number; z: number; r: number; keep?: () => boolean; far?: number }[] = [];
+  private cullTimer = 0;
   roads?: RoadGraph;
   private nav?: Navigator;
   /** Destination picked on the big map. */
@@ -465,6 +468,7 @@ export class Game {
     this.traffic.setTrafficLights(this.trafficLights);
     this.highwaySigns = new HighwaySigns(this.roads);
     this.scene.add(this.highwaySigns.group);
+    this.setupFarCull();
     // Dashed turning lines across the crossings: where to start steering, and how much.
     this.turnLines = turnLinesMesh(this.roads);
     this.scene.add(this.turnLines);
@@ -488,6 +492,38 @@ export class Game {
   /** Multiplayer: everyone we've seen, and since when they're missing (0 = here). */
   private knownPlayers = new Map<string, { name: string; goneAt: number }>();
   private followTimer = 0;
+
+  /**
+   * Things far from you aren't drawn: each place outside the city (and each highway sign) gets a
+   * center and a size, and is hidden when you're more than ~450 m beyond it. Rides that move the
+   * place (boat, balloon, sandboard) and things in use (race, fireworks, your kite) always stay.
+   */
+  private setupFarCull() {
+    if (!this.city) return;
+    const L = this.city.layout, add = (obj: THREE.Object3D | undefined, x: number, z: number, r: number, keep?: () => boolean, far?: number) => { if (obj) this.farCull.push({ obj, x, z, r, keep, far }); };
+    add(this.farm?.group, PETTING.x, PETTING.z, 40);
+    add(this.sandboard?.group, BIG_DUNE.x, BIG_DUNE.z, 110, () => this.ride?.kind === 'sandboard');
+    add(this.boat?.group, -200, 1030, 260, () => this.ride?.kind === 'boat');
+    add(this.balloon?.group, BALLOON.x, BALLOON.z, 40, () => this.ride?.kind === 'balloon');
+    add(this.raceTrack?.group, RACE.x, RACE.z, 300, () => !!this.race);
+    add(this.fireworks?.group, FIREWORKS_STAND.x, FIREWORKS_STAND.z, 70, () => !!this.fireworks?.active);
+    add(this.beach?.group, FLOAT_FRONT.x, FLOAT_FRONT.z, 160);
+    add(this.kite?.group, FLOAT_FRONT.x, FLOAT_FRONT.z, 40, () => this.profile.kite && this.mode === 'walking');
+    add(this.library?.group, L.pois.library.x, L.pois.library.z, 15);
+    add(this.bakery?.group, L.pois.bakery.x, L.pois.bakery.z, 15);
+    add(this.garden?.group, L.pois.home.garden.x, L.pois.home.garden.z, 8);
+    for (const sign of this.highwaySigns?.group.children ?? []) add(sign, sign.position.x, sign.position.z, 5);
+    // In the city, buildings hide things sooner: the fun fair only within ~300 m (unless you're on a ride).
+    const fw = L.pois.funFair.wheel;
+    add(this.funFair?.group, fw.x, fw.z + 20, 30, () => this.ride?.kind === 'wheel' || this.ride?.kind === 'carousel', 300);
+  }
+
+  private updateFarCull(dt: number) {
+    this.cullTimer -= dt;
+    if (this.cullTimer > 0) return;
+    this.cullTimer = 0.5;
+    for (const c of this.farCull) c.obj.visible = (c.keep?.() ?? false) || Math.hypot(this.focus.x - c.x, this.focus.z - c.z) < c.r + (c.far ?? 450);
+  }
 
   /** You have this week's treasure map and haven't found the chest yet. */
   private hasTreasureMap() { return this.profile.treasureMap === this.week && this.profile.treasureFound !== this.week; }
@@ -1899,6 +1935,7 @@ export class Game {
     if (this.sandboard && (this.ride?.kind === 'sandboard' || Math.hypot(this.focus.x - SANDBOARD_FRONT.x, this.focus.z - SANDBOARD_FRONT.z) < 300)) this.sandboard.update(dt);
     this.fireworks?.update(dt);
     this.updateSwimming(dt);
+    this.updateFarCull(dt);
     if (this.garden && Math.hypot(this.focus.x - this.city.layout.pois.home.garden.x, this.focus.z - this.city.layout.pois.home.garden.z) < 150) {
       const g = this.profile.garden;
       this.garden.update(g?.crop ?? null, g ? growth(g.crop, g.at) : 0);

@@ -23,10 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Draw-call diet** (performance): list the draw calls per object at the city spawn; merge the many
-  small separate place meshes (stands, shop buildings, signs, boat, dune stand...) into shared
-  vertex-color materials, and hide things far away (> ~400 m) that are still drawn. Target: city spawn
-  under 280 draw calls.
 - [ ] **Prettier lake water** (graphics): sun glitter on the waves, a soft light band along the shore,
   gentle moving ripples, sky color in the water at sunset; one shader, no extra draw calls.
 - [ ] **Skate park in the city park** (feature): ramps and a half-pipe; walk onto them for a skateboard

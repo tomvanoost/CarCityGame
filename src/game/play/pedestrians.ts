@@ -364,7 +364,7 @@ export class Pedestrians {
       const moving = speed > 0 && d > 0.05;
       this.play(p, waving ? 'Victory' : !moving ? 'Idle' : speed > 2.5 ? 'Run' : 'Walk');
       if (p.actions.Walk) p.actions.Walk.timeScale = speed / (1.4 * p.root.scale.x);
-      const visible = dist < 95;
+      const visible = dist < 75; // further away they're only a few pixels tall (saves draw calls)
       p.root.visible = visible;
       if (visible) {
         p.mixer.update(dt);

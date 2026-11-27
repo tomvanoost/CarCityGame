@@ -182,13 +182,21 @@ export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepres
   const model = gltf.scene.clone(true);
   const own: THREE.Material[] = [];
   const paint: THREE.MeshStandardMaterial[] = [];
+  // Shadows only from the biggest parts (most vertices: body, glass, interior shell) and the wheels:
+  // the many small parts (seats, speakers, lamps, badges) don't change the shadow, and each would be
+  // an extra draw call in the shadow pass. (Parts are merged per material, so their size says little.)
+  const meshes: THREE.Mesh[] = [];
+  model.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
+  const big = new Set(meshes.filter((m) => !m.userData.wheelPart).sort((a, b) => b.geometry.getAttribute('position').count - a.geometry.getAttribute('position').count).slice(0, 8));
   model.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
-    mesh.castShadow = !(lod && mesh.userData.wheelPart);
+    mesh.castShadow = lod ? !mesh.userData.wheelPart : !!mesh.userData.wheelPart || big.has(mesh);
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const next = mats.map((m) => {
       const sm = m as THREE.MeshStandardMaterial;
+      // See-through two-sided parts (glass) in one pass instead of two: looks the same on a car, one draw call less each.
+      if (sm.transparent && sm.side === THREE.DoubleSide) sm.forceSinglePass = true;
       if (lod && !sm.vertexColors) {
         // Shared by all traffic cars of this model: colors are in the vertices. Older light models
         // have no normals stored: shade those flat (newer ones have smooth normals).
@@ -232,6 +240,11 @@ export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepres
   const wheels = info.bike || (lod && info.wheels)
     ? (() => { const f = pivot(0), r = pivot(1); return { fl: f, fr: f, rl: r, rr: r }; })()
     : { fl: pivot(0), fr: pivot(1), rl: pivot(2), rr: pivot(3) };
+  // (Also for glass made see-through above.)
+  root.traverse((o) => {
+    const mat = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+    for (const m of mat ? (Array.isArray(mat) ? mat : [mat]) : []) if (m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true;
+  });
   return {
     root,
     wheels,
