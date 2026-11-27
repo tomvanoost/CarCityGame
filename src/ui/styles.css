@@ -567,3 +567,19 @@ button, input { font: inherit; color: inherit; }
 .fuel-row .fuel { flex: 1; }
 .hazard-btn { width: 34px; height: 30px; border-radius: 10px; border: 0; background: rgba(255,255,255,.12); font-size: 17px; cursor: pointer; padding: 0; line-height: 1; filter: grayscale(.6); pointer-events: auto; touch-action: none; }
 .hazard-btn.on { background: #e5484d; filter: none; animation: blink-arrow .7s steps(1) infinite; }
+
+/* 📚 Library quiz: a big picture, the question and three big answer buttons. */
+.quiz-card { text-align: center; }
+.quiz-picture { font-size: 64px; line-height: 1.1; margin: 4px 0; }
+.quiz-question { font-size: 20px; margin: 6px 0 12px; }
+.quiz-answers { display: flex; flex-direction: column; gap: 10px; }
+.quiz-answer { min-height: 54px; font-size: 18px; font-weight: 800; background: #fff; border: 3px solid #d7dee8; border-radius: 16px; }
+.quiz-answer.right { background: #d9f7e3; border-color: #16b862; color: #0d6b38; }
+.quiz-answer.wrong { background: #fde2e2; border-color: #e5484d; color: #9b1c1f; }
+.quiz-answer:disabled { opacity: 1; cursor: default; }
+.quiz-feedback { min-height: 24px; font-weight: 800; font-size: 17px; margin: 10px 0 4px; }
+.quiz-next[hidden] { display: none; }
+.quiz-score { font-size: 56px; }
+.quiz-earned { font-size: 18px; font-weight: 800; }
+.quiz-done { margin-top: 8px; }
+.quiz-card h3 { text-transform: none; letter-spacing: 0; color: inherit; font-size: 20px; }

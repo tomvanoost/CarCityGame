@@ -58,6 +58,9 @@ export interface PlayerProfile {
   /** Treasure hunt: the week of the treasure map you have, and the last week you found the chest (0 = none). */
   treasureMap: number;
   treasureFound: number;
+  /** Library quiz: the day ("YYYY-MM-DD") and the questions answered right that day (each pays once a day). */
+  quizDay: string;
+  quizRight: number[];
   /** Dents per vehicle (from bumping into cars); the garage repairs them. */
   vehicleDents: Record<string, import('../game/vehicles/dents').Dent[]>;
   /** Today's daily missions progress (see game/missions.ts); reset when the day changes. */

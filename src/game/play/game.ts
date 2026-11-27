@@ -33,6 +33,7 @@ import { Beach, FLOAT_FRONT, FLOAT_PRICE, floatGeometry } from './beach';
 type RideKind = FairRide | 'balloon' | 'sandboard';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { turnLinesMesh } from './turnLines';
+import { LibraryBuilding, QUIZ_REWARD, today } from './library';
 import { TREASURE_PRIZE, TREASURE_RADIUS, TreasureChest, postOfficeMesh, treasureSpot, weekNumber } from './treasure';
 import { HORNS, isHorn, type HornId } from '../horns';
 import { MAX_DENTS, REPAIR_PRICE, addDentMesh, clearDents, dentCount, findDent } from '../vehicles/dents';
@@ -63,7 +64,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' };
+export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -139,7 +140,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks' | 'beach' | 'treasure' | 'sandboard'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks' | 'beach' | 'treasure' | 'sandboard' | 'quiz'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
@@ -155,7 +156,7 @@ export interface GameEvents {
   /** Petting farm: you fed an animal. */
   onFed?(animal: FarmAnimalKind): void;
   /** Player walked into the house/apartment. */
-  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery'): void;
+  onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery' | 'library'): void;
   /** Short message (i18n key + optional number). */
   onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
@@ -190,6 +191,7 @@ export class Game {
   carWash?: CarWash;
   private iceStand?: IceCreamStand;
   private postOffice?: THREE.Mesh;
+  private library?: LibraryBuilding;
   private sandboard?: Sandboard;
   private sandboardAnim: 'walk' | 'slide' | null = null;
   private turnLines?: THREE.Mesh;
@@ -396,6 +398,8 @@ export class Game {
     this.scene.add(this.farm.group);
     this.bakery = new BakeryBuilding(city.layout);
     this.scene.add(this.bakery.group);
+    this.library = new LibraryBuilding(city.layout);
+    this.scene.add(this.library.group);
     this.funFair = new FunFair(city.layout);
     this.scene.add(this.funFair.group);
     this.sandboard = new Sandboard();
@@ -700,6 +704,23 @@ export class Game {
 
   /** Buy a snack at the supermarket (juice: run faster, banana: jump higher, chocolate: hold it). */
   /** Bakery: buy a treat; you hold it for a minute and it gives a small boost. */
+  /**
+   * Library quiz: an answer was given. A right answer pays €10, once a day per question; returns the
+   * money earned (0 when wrong or already earned today).
+   */
+  answerQuiz(n: number, right: boolean): number {
+    if (!right) return 0;
+    const p = this.profile, day = today();
+    const done = p.quizDay === day ? p.quizRight : [];
+    if (done.includes(n)) return 0;
+    const quizRight = [...done, n];
+    setProfile({ ...p, money: p.money + QUIZ_REWARD, quizDay: day, quizRight });
+    void updateProfile({ money: p.money + QUIZ_REWARD, quizDay: day, quizRight });
+    this.events.onMoney(QUIZ_REWARD, 'quiz');
+    sounds.coin();
+    return QUIZ_REWARD;
+  }
+
   buyBakery(id: BakeryId): boolean {
     const item = BAKERY.find((q) => q.id === id)!;
     const p = this.profile;
@@ -1274,6 +1295,7 @@ export class Game {
     if (Math.hypot(p.x - L.pois.supermarket.front.x, p.z - L.pois.supermarket.front.z) < 4) return { kind: 'supermarket' };
     if (near(L.pois.petShop.front)) return { kind: 'petShop' };
     if (near(L.pois.bakery.front)) return { kind: 'bakery' };
+    if (near(L.pois.library.front)) return { kind: 'library' };
     const animal = this.farm?.nearest(p.x, p.z);
     if (animal) return { kind: 'feed', animal: animal.kind, price: FEED_PRICE };
     const parked = this.garage?.near(p.x, p.z);
@@ -1310,6 +1332,7 @@ export class Game {
       case 'petShop':
       case 'paintShop':
       case 'bakery':
+      case 'library':
         this.paused = true;
         this.events.onPlace(c.kind);
         break;
@@ -1924,6 +1947,7 @@ export class Game {
     this.busShelters?.dispose();
     this.farm?.dispose();
     this.bakery?.dispose();
+    this.library?.dispose();
     this.funFair?.dispose();
     this.balloon?.dispose();
     this.sandboard?.dispose();

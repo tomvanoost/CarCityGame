@@ -105,6 +105,8 @@ export interface CityLayout {
     busStops: { x: number; z: number; rot: number; stop: { x: number; z: number } }[];
     /** Bakery on the lake town square (turned by `rot`; `front` = the spot by its door). */
     bakery: { x: number; z: number; rot: number; front: { x: number; z: number } };
+    /** Library (quiz corner) on the lake town square, north-east of the church, opposite the bakery. */
+    library: { x: number; z: number; rot: number; front: { x: number; z: number } };
     /** Pizzeria kiosk at the front corner of the supermarket parking lot (counter = +Z, towards the road). */
     pizzeria: { x: number; z: number; front: { x: number; z: number } };
     /** Paint shop garage on the other side of the supermarket (door = +Z); drive up to `front`. */
@@ -527,6 +529,10 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   const bkX = LAKE_TOWN.x - 22, bkZ = LAKE_TOWN.z - 22;
   L.colliders.push({ x0: bkX - 4.6, z0: bkZ - 3.6, x1: bkX + 4.6, z1: bkZ + 3.6 });
   const bakery = { x: bkX, z: bkZ, rot: 0, front: { x: bkX + 1.5, z: bkZ + 5.6 } };
+  // ---------- library on the lake town square (north-east of the church, opposite the bakery) ----------
+  const lbX = LAKE_TOWN.x + 22, lbZ = LAKE_TOWN.z - 22;
+  L.colliders.push({ x0: lbX - 4.6, z0: lbZ - 3.6, x1: lbX + 4.6, z1: lbZ + 3.6 });
+  const library = { x: lbX, z: lbZ, rot: 0, front: { x: lbX, z: lbZ + 5.4 } };
 
   // ---------- fun fair in the park's north-west corner (away from the pond and the paths) ----------
   const pr = L.park.rect;
@@ -580,6 +586,7 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
     pizzeria,
     funFair,
     bakery,
+    library,
     busStops,
   };
   return L;

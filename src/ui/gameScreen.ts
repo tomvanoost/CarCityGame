@@ -20,6 +20,8 @@ import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { toast } from './toast';
 import { addPhoto, downloadPhoto, loadPhotos } from './photos';
+import { quizRound } from '../game/play/library';
+import { awardSticker } from './stickers';
 import { BigMap, Minimap, renderBaseMap, type MapPlaces } from './cityMap';
 import { TouchControls } from './touchControls';
 import { missionText } from './missions';
@@ -275,6 +277,7 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'supermarket' ? `🛒 ${t('goShopping')}`
         : c.kind === 'petShop' ? `🐾 ${t('visitPetShop')}`
         : c.kind === 'bakery' ? `🥐 ${t('visitBakery')}`
+        : c.kind === 'library' ? `📚 ${t('visitLibrary')}`
         : c.kind === 'treasureMap' ? `📮 ${t('treasureMapBtn')}`
         : c.kind === 'openTreasure' ? `💎 ${t('openTreasure')}`
         : c.kind === 'buyFloat' ? `🦆 ${t('buyFloat')} ${euro(c.price)}`
@@ -350,7 +353,7 @@ export const gameScreen: Screen = (root, nav) => {
       state = s;
       render();
     },
-    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : reason === 'fish' ? 'fishShort' : reason === 'bakery' ? 'bakery' : reason === 'farm' ? 'pettingFarm' : reason === 'balloon' ? 'rideBalloon' : reason === 'fireworks' ? 'fireworks' : reason === 'beach' ? 'buyFloat' : reason === 'treasure' ? 'treasureFound' : reason === 'sandboard' ? 'rideSandboard' : 'refuel')),
+    onMoney: (amount, reason) => popup(amount, t(reason === 'job' ? 'jobDone' : reason === 'daily' ? 'dailyBonus' : reason === 'apartment' ? 'apartmentBought' : reason === 'wash' ? 'carWash' : reason === 'iceCream' ? 'iceCreamShop' : reason === 'supermarket' ? 'supermarket' : reason === 'petShop' ? 'petShop' : reason === 'paintShop' ? 'paintShop' : reason === 'furniture' ? 'furnitureShop' : reason === 'funFair' ? 'funFair' : reason === 'mission' ? 'missionDone' : reason === 'coin' ? 'coinFound' : reason === 'race' ? 'raceFinish' : reason === 'fish' ? 'fishShort' : reason === 'bakery' ? 'bakery' : reason === 'farm' ? 'pettingFarm' : reason === 'balloon' ? 'rideBalloon' : reason === 'fireworks' ? 'fireworks' : reason === 'beach' ? 'buyFloat' : reason === 'treasure' ? 'treasureFound' : reason === 'sandboard' ? 'rideSandboard' : reason === 'quiz' ? 'quizRight' : 'refuel')),
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : job.kind === 'bus' ? t('busStart') : t('pickedPassenger')),
     onFed: (a) => toast(`${ANIMAL_EMOJI[a]} ${t(`fed_${a}` as TKey)}`),
     onBusStop: (n, total) => toast(`🚌 ${t('busHopOn')} ${n}/${total}`),
@@ -359,7 +362,7 @@ export const gameScreen: Screen = (root, nav) => {
     onCoin: (n, total) => toast(`🪙 ${t('coinFound')} ${n}/${total}`),
     onMission: (m) => toast(`${m.emoji} ${t('missionDone')} ${missionText(m)}`),
     onJobDone: (job) => { if (job.kind === 'pizza') toast(job.hot ? t('pizzaHot') : t('pizzaThanks')); if (job.kind === 'bus') toast(`🚌 ${t('busDone')}`); },
-    onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : place === 'paintShop' ? openPaintShop() : place === 'bakery' ? openBakery() : openPanel(place)),
+    onPlace: (place) => (place === 'iceCream' ? openIceCream() : place === 'supermarket' ? openSupermarket() : place === 'petShop' ? openPetShop() : place === 'paintShop' ? openPaintShop() : place === 'bakery' ? openBakery() : place === 'library' ? openLibrary() : openPanel(place)),
     onMessage: (key, n) => toast(n ? `${t(key)} ${euro(n)}` : t(key)),
     onPhotoKey: () => { if (panel.hidden) snap(); },
     onPlayer: (kind, name) => toast(t(kind === 'joined' ? 'mpJoined' : kind === 'left' ? 'mpLeft' : 'mpFound').replace('{name}', name)),
@@ -538,6 +541,65 @@ export const gameScreen: Screen = (root, nav) => {
       })),
       h('button', { class: 'btn btn-primary btn-big', onclick: close }, t('continuePlaying')),
     ));
+    panel.hidden = false;
+    render();
+  }
+
+  /** 📚 Library quiz: 5 picture questions about the game world, 3 big answer buttons each. */
+  function openLibrary() {
+    touch.reset();
+    const close = () => { panel.hidden = true; game.resume(); render(); };
+    const round = quizRound();
+    let i = 0, right = 0, earned = 0;
+    const show = () => {
+      if (i >= round.length) {
+        if (right === round.length) awardSticker('clever');
+        panel.replaceChildren(h('div', { class: 'card place-card quiz-card' },
+          h('div', { class: 'place-head' },
+            h('h2', {}, `📚 ${t('library')}`),
+            h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
+          ),
+          h('div', { class: 'quiz-score' }, right === round.length ? '🦉🎉' : right >= 3 ? '👏' : '🙂'),
+          h('h3', {}, t('quizScore').replace('{n}', String(right)).replace('{total}', String(round.length))),
+          h('p', { class: 'quiz-earned' }, earned ? `${t('quizEarned')} ${euro(earned)}` : t('quizNoMoney')),
+          h('button', { class: 'btn btn-primary btn-big', onclick: () => openLibrary() }, `🔁 ${t('quizAgain')}`),
+          h('button', { class: 'btn btn-big quiz-done', onclick: close }, t('continuePlaying')),
+        ));
+        return;
+      }
+      const q = round[i];
+      const key = (s: string) => `quiz_${q.n}_${s}` as TKey;
+      const next = h('button', { class: 'btn btn-primary btn-big quiz-next', hidden: true, onclick: () => { i++; show(); } }, `${t('quizNext')} ▶`);
+      const feedback = h('p', { class: 'quiz-feedback' });
+      const answers = q.order.map((a) => {
+        // (data-ok marks the right answer for the dev-only browser tests)
+        const b = h('button', { class: 'btn quiz-answer', 'data-ok': import.meta.env.DEV && a === 'a' ? '1' : '0' }, t(key(a)));
+        b.addEventListener('click', () => {
+          if (!next.hidden) return; // already answered
+          const ok = a === 'a';
+          b.classList.add(ok ? 'right' : 'wrong');
+          answers.forEach((x, k) => { if (q.order[k] === 'a') x.classList.add('right'); x.disabled = true; });
+          if (ok) right++;
+          const got = game.answerQuiz(q.n, ok);
+          earned += got;
+          feedback.textContent = ok ? (got ? `✅ ${t('quizRight')} +${euro(got)}` : `✅ ${t('quizRight')}`) : `❌ ${t('quizWrong')} ${t(key('a'))}`;
+          next.hidden = false;
+        });
+        return b;
+      });
+      panel.replaceChildren(h('div', { class: 'card place-card quiz-card' },
+        h('div', { class: 'place-head' },
+          h('h2', {}, `📚 ${t('library')} · ${i + 1}/${round.length}`),
+          h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
+        ),
+        h('div', { class: 'quiz-picture' }, q.emoji),
+        h('h3', { class: 'quiz-question' }, t(key('q'))),
+        h('div', { class: 'quiz-answers' }, ...answers),
+        feedback,
+        next,
+      ));
+    };
+    show();
     panel.hidden = false;
     render();
   }

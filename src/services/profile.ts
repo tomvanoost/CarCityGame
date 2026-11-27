@@ -41,6 +41,8 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     swimFloat: false,
     treasureMap: 0,
     treasureFound: 0,
+    quizDay: '',
+    quizRight: [],
     vehicleDents: {},
   };
 }
@@ -82,6 +84,8 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   p.swimFloat = p.swimFloat === true;
   p.treasureMap = Number(p.treasureMap) || 0;
   p.treasureFound = Number(p.treasureFound) || 0;
+  p.quizDay = typeof p.quizDay === 'string' ? p.quizDay : '';
+  p.quizRight = toArray(raw.quizRight, []).map(Number).filter((n) => n > 0);
   // Dents: keep only well-formed ones (the database may turn arrays into objects).
   const dents: Record<string, Dent[]> = {};
   if (raw.vehicleDents && typeof raw.vehicleDents === 'object') {
