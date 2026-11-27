@@ -26,7 +26,7 @@ function signTexture(): THREE.Texture {
   g.fillStyle = '#ffffff';
   g.font = '900 54px Nunito, Arial, sans-serif';
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText('🎨 SPUITERIJ', 256, 52);
+  g.fillText('🔧 GARAGE 🎨', 256, 52);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;

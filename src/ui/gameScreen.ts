@@ -23,6 +23,7 @@ import { BigMap, Minimap, renderBaseMap, type MapPlaces } from './cityMap';
 import { TouchControls } from './touchControls';
 import { missionText } from './missions';
 import { HORNS } from '../game/horns';
+import { REPAIR_PRICE } from '../game/vehicles/dents';
 import { sounds } from '../game/play/sounds';
 
 const TABLET_KEY = 'carcity.tablet';
@@ -468,9 +469,15 @@ export const gameScreen: Screen = (root, nav) => {
       }), h('span', { class: 'paint-price' }, euro(price)));
     panel.replaceChildren(h('div', { class: 'card place-card' },
       h('div', { class: 'place-head' },
-        h('h2', {}, `🎨 ${t('paintShop')}`),
+        h('h2', {}, `🔧 ${t('paintShop')} 🎨`),
         h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
       ),
+      look.dents ? h('h3', {}, `🔧 ${t('repairTitle')}`) : null,
+      look.dents ? h('div', { class: 'repair-row' },
+        h('span', { class: 'repair-dents' }, '💥'.repeat(Math.min(5, look.dents))),
+        h('button', { class: 'btn btn-primary repair-btn', onclick: () => { if (game.repairCar()) { toast(`🔧 ${t('repairDone')}`); openPaintShop(); } } }, `🔧 ${t('repairBtn')} ${euro(REPAIR_PRICE)}`),
+      ) : null,
+      look.dents ? h('div', { class: 'try-hint' }, t('repairHint')) : null,
       look.paintable ? h('h3', {}, t('paintColor')) : null,
       look.paintable ? row('color', [...PAINT_COLORS, ...EXTRA_PAINT], look.color, PAINT_PRICE) : null,
       look.bike ? null : h('h3', {}, t('roofStripe')),

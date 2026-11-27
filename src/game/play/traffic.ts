@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clearDents } from '../vehicles/dents';
 import { PAINT_COLORS, VEHICLES } from '../vehicles/catalog';
 import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
 import { headlightRig } from '../world/evening';
@@ -142,6 +143,7 @@ export class Traffic {
       if (dist < 50 || dist > 180) continue;
       if (this.cars.some((c) => c !== car && Math.hypot(c.x - p.x, c.z - p.z) < 16)) continue;
       if (car.holds >= 0 && this.owners.get(car.holds) === car) this.owners.delete(car.holds);
+      clearDents(car.root); // a 'new' car: no dents
       // nextNode must be cleared: a turn planned on the car's old road would send it across the blocks.
       Object.assign(car, { from, to, seg, d, speed: CRUISE * 0.6, x: p.x, z: p.z, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined, pull: 0 });
       return true;
@@ -181,12 +183,12 @@ export class Traffic {
   }
 
   /** Circles (x, z, r) covering each traffic car, for collisions. */
-  circles(): { x: number; z: number; r: number }[] {
-    const out: { x: number; z: number; r: number }[] = [];
+  circles(): { x: number; z: number; r: number; car: THREE.Object3D }[] {
+    const out: { x: number; z: number; r: number; car: THREE.Object3D }[] = [];
     for (const c of this.cars) {
       if (!c.root.visible) continue;
       const fx = Math.sin(c.heading), fz = Math.cos(c.heading), o = c.half - c.radius;
-      for (const k of [o, 0, -o]) out.push({ x: c.x + fx * k, z: c.z + fz * k, r: c.radius });
+      for (const k of [o, 0, -o]) out.push({ x: c.x + fx * k, z: c.z + fz * k, r: c.radius, car: c.root });
     }
     return out;
   }

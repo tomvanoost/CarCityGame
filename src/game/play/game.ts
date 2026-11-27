@@ -25,6 +25,7 @@ import { PizzeriaBuilding } from './pizzeria';
 import { FunFair, RIDE_PRICE, type RideKind } from './funFair';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { HORNS, isHorn, type HornId } from '../horns';
+import { MAX_DENTS, REPAIR_PRICE, addDentMesh, clearDents, dentCount, findDent } from '../vehicles/dents';
 import { CHECKPOINTS, MEDAL_PRIZE, RaceTrack, medalFor, type Medal } from './raceTrack';
 import { RACE } from '../city/outskirts';
 import { BITE_TIME, FISH, FISH_SPOT, FLOAT, FishingJetty, randomFish, rodGeometry } from './fishing';
@@ -136,7 +137,7 @@ export interface GameEvents {
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
   onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
 }
@@ -425,6 +426,7 @@ export class Game {
           if (d < min && d > 1e-4) {
             v.x += (dx / d) * (min - d);
             v.z += (dz / d) * (min - d);
+            if (Math.abs(v.speed) > 4 && this.crashTimer === 0) this.carCrash(c.car, Math.abs(v.speed));
             v.speed *= 0.5;
             if (Math.abs(v.speed) > 2) v.bumped = 0.3;
           }
@@ -437,6 +439,49 @@ export class Game {
         if (d < min && d > 1e-4) { p.x += (dx / d) * (min - d); p.z += (dz / d) * (min - d); }
       }
     }
+  }
+
+  /** No new crash (sound + dents) for a moment after one, so one bump is one crash. */
+  private crashTimer = 0;
+
+  /** You drove into a traffic car: a crunch, and a dent in both cars (yours stays until the garage repairs it). */
+  private carCrash(other: THREE.Object3D, speed: number) {
+    const v = this.vehicle!, id = v.spec.id;
+    this.crashTimer = 1.5;
+    sounds.carCrash(Math.min(1, speed / 18));
+    this.shake = 0.35;
+    if (dentCount(other) < 3) {
+      const od = findDent(other, v);
+      if (od) addDentMesh(other, od);
+    }
+    if (v.isBike) return;
+    const mine = this.profile.vehicleDents[id] ?? [];
+    if (mine.length >= MAX_DENTS) return;
+    const pos = other.getWorldPosition(new THREE.Vector3());
+    const d = findDent(v.car.root, pos);
+    if (!d) return;
+    addDentMesh(v.car.root, d);
+    const vehicleDents = { ...this.profile.vehicleDents, [id]: [...mine, d] };
+    setProfile({ ...this.profile, vehicleDents });
+    void updateProfile({ vehicleDents });
+    if (!mine.length) this.events.onMessage('dented', REPAIR_PRICE);
+  }
+
+  /** Garage: take all the dents out of the car you're in. False if there isn't enough money. */
+  repairCar(): boolean {
+    const v = this.vehicle, p = this.profile;
+    if (!v || !(p.vehicleDents[v.spec.id]?.length)) return false;
+    if (p.money < REPAIR_PRICE) { this.events.onMessage('needMoney', REPAIR_PRICE - p.money); return false; }
+    clearDents(v.car.root);
+    const vehicleDents = { ...p.vehicleDents, [v.spec.id]: [] };
+    setProfile({ ...p, money: p.money - REPAIR_PRICE, vehicleDents });
+    void updateProfile({ money: p.money - REPAIR_PRICE, vehicleDents });
+    this.events.onMoney(-REPAIR_PRICE, 'paintShop');
+    sounds.coin();
+    this.setShine(false);
+    this.setShine(true);
+    this.shineTimer = 20;
+    return true;
   }
 
   /** Decide where to navigate: a job first, then your map destination, then fuel. */
@@ -496,6 +541,7 @@ export class Game {
     // Paint shop extras on this car.
     applyStripe(v.car, this.profile.vehicleStripes[id] ?? '', v.isBike);
     applyRims(v.car, this.profile.vehicleRims[id] ?? '');
+    for (const d of this.profile.vehicleDents[id] ?? []) addDentMesh(v.car.root, d);
     const wasSeated = this.mode === 'driving' && this.avatar?.root.parent === this.vehicle?.car.root;
     if (wasSeated) this.scene.add(this.avatar!.root);
     this.setSiren(false);
@@ -646,7 +692,7 @@ export class Game {
     const v = this.vehicle, p = this.profile;
     if (!v) return null;
     const id = v.spec.id;
-    return { color: p.vehicleColors[id] ?? v.spec.color, stripe: p.vehicleStripes[id] ?? '', rims: p.vehicleRims[id] ?? '', paintable: SKETCHFAB_VEHICLES[id]?.paintable ?? true, bike: v.isBike };
+    return { dents: p.vehicleDents[id]?.length ?? 0, color: p.vehicleColors[id] ?? v.spec.color, stripe: p.vehicleStripes[id] ?? '', rims: p.vehicleRims[id] ?? '', paintable: SKETCHFAB_VEHICLES[id]?.paintable ?? true, bike: v.isBike };
   }
 
   /** Buy a piece of furniture for the apartment. False if there isn't enough money. */
@@ -1380,6 +1426,7 @@ export class Game {
       v.update(dt, driveInput, this.world); // you drive right through people: no stopping, no bump
       this.knockOver(v);
       this.bumpSoundTimer = Math.max(0, this.bumpSoundTimer - dt);
+      this.crashTimer = Math.max(0, this.crashTimer - dt);
       if (v.wallHit) {
         if (this.bumpSoundTimer === 0) sounds.bump(Math.min(1, v.wallHit / 15));
         this.bumpSoundTimer = 0.4; // sliding along a wall doesn't keep thudding

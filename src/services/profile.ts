@@ -3,6 +3,7 @@ import { DEFAULT_OUTFIT } from '../game/avatar/clothes';
 import type { Gender, PlayerProfile } from './types';
 import { CLASSIC_FURNITURE, STARTER_FURNITURE } from '../game/furniture';
 import type { MissionId } from '../game/missions';
+import type { Dent } from '../game/vehicles/dents';
 
 export function newProfile(username: string, gender: Gender): PlayerProfile {
   return {
@@ -34,6 +35,7 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     vehicleHorns: {},
     raceBest: {},
     fish: {},
+    vehicleDents: {},
   };
 }
 
@@ -68,6 +70,17 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   if (!p.vehicleHorns || typeof p.vehicleHorns !== 'object') p.vehicleHorns = {};
   if (!p.raceBest || typeof p.raceBest !== 'object') p.raceBest = {};
   if (!p.fish || typeof p.fish !== 'object') p.fish = {};
+  // Dents: keep only well-formed ones (the database may turn arrays into objects).
+  const dents: Record<string, Dent[]> = {};
+  if (raw.vehicleDents && typeof raw.vehicleDents === 'object') {
+    for (const [id, list] of Object.entries(raw.vehicleDents as Record<string, unknown>)) {
+      const arr = (Array.isArray(list) ? list : list && typeof list === 'object' ? Object.values(list) : []) as Dent[];
+      const ok = arr.filter((d) => d && [0, 1, 2].every((i) => typeof Object.values(d.p ?? {})[i] === 'number' && typeof Object.values(d.n ?? {})[i] === 'number'))
+        .map((d) => ({ p: Object.values(d.p).slice(0, 3) as Dent['p'], n: Object.values(d.n).slice(0, 3) as Dent['n'] }));
+      if (ok.length) dents[id] = ok.slice(0, 5);
+    }
+  }
+  p.vehicleDents = dents;
   // Daily missions: keep only well-formed progress.
   const m = raw.missions as { day?: unknown; progress?: unknown; done?: unknown } | undefined;
   if (m && typeof m.day === 'string') {

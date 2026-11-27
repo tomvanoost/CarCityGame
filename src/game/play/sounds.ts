@@ -401,6 +401,24 @@ class Sounds {
     }
   }
 
+  /** Two cars bump: a metal crunch with a little glass tinkle (k: 0..1, how hard). Loud enough, never harsh. */
+  carCrash(k = 1) {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const t = ctx.currentTime, v = 0.45 + k * 0.55;
+    this.noise(ctx, t, 0.09, 0.3 * v, 'bandpass', 1400, 0.8);                  // impact
+    this.tone(ctx, 'sine', 110, t, 0.3, 0.42 * v, 45);                          // heavy thud
+    this.noise(ctx, t + 0.01, 0.32, 0.22 * v, 'lowpass', 700, 0.9, 0.01, 260);  // sheet metal crumpling
+    this.tone(ctx, 'sawtooth', 190, t + 0.02, 0.16, 0.05 * v, 120);             // metal groan
+    this.noise(ctx, t + 0.12, 0.12, 0.1 * v, 'bandpass', 900, 1.4);             // second crunch
+    // Glass / plastic bits tinkling down.
+    for (let i = 0; i < 7; i++) {
+      const at = t + 0.08 + Math.random() * 0.45, f = 2600 + Math.random() * 3200;
+      this.tone(ctx, 'sine', f, at, 0.07 + Math.random() * 0.08, (0.035 + Math.random() * 0.03) * v, f * 0.97);
+    }
+    this.noise(ctx, t + 0.1, 0.4, 0.05 * v, 'highpass', 4500, 0.7, 0.02);
+  }
+
   /** Bumping into a wall: a soft rubbery thud (k: 0..1, how hard). */
   bump(k = 1) {
     const ctx = this.ready();

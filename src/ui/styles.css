@@ -530,3 +530,6 @@ button, input { font: inherit; color: inherit; }
 .fish-chip { background: #e6f2ff; color: #1f5fa8; border-radius: 12px; padding: 4px 10px; font-weight: 900; }
 .fish-chip.locked { background: #eef0f3; color: #9aa3ae; }
 .context-btn.alert { background: #e5484d; box-shadow: 0 4px 0 #b3262b; animation: pop .3s cubic-bezier(.2, 1.4, .4, 1); }
+.repair-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.repair-dents { font-size: 22px; letter-spacing: 2px; }
+.repair-btn { min-height: 52px; padding: 0 20px; font-size: 18px; }
