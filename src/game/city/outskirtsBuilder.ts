@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { CityLayout } from './layout';
 import {
-  BRIDGE, DESERT, DESERT_TOWN, FOOTBRIDGE, LAKE, LAKE_TOWN, OUT_ROADS, OUT_ROAD_HALF, PATH, STREAM,
+  BRIDGE, DESERT, DESERT_TOWN, FOOTBRIDGE, HIGHWAYS, HW_HALF, LAKE, LAKE_TOWN, OUT_ROADS, OUT_ROAD_HALF, PATH, STREAM,
   bridgeHeight, desertAmount, duneHeight, footbridgeHeight, outskirtsHeight,
 } from './outskirts';
 import type { Field, TownBuilding } from './towns';
@@ -70,14 +70,56 @@ function roadTexture(): THREE.Texture {
   return t;
 }
 
+/**
+ * Highway surface across its 18 m: hard shoulder with a solid line, two lanes with a dashed line between
+ * them (3 m dash, 9 m gap), a solid line along the median and the median strip itself; same on the other side.
+ */
+function highwayTexture(): THREE.Texture {
+  const W = 288, c = document.createElement('canvas');
+  c.width = W; c.height = 192;
+  const g = c.getContext('2d')!, px = (m: number) => ((m + HW_HALF) / (HW_HALF * 2)) * W;
+  g.fillStyle = '#34373c'; g.fillRect(0, 0, W, 192);
+  for (let i = 0; i < 2200; i++) { const v = 46 + Math.random() * 25; g.fillStyle = `rgb(${v},${v + 2},${v + 5})`; g.fillRect(Math.random() * W, Math.random() * 192, 2, 2); }
+  g.fillStyle = '#56595e'; g.fillRect(px(-1), 0, px(1) - px(-1), 192); // median
+  g.fillStyle = '#ebebeb';
+  for (const side of [-1, 1]) {
+    const line = (m: number, w = 0.18) => g.fillRect(px(side * m) - (w / (HW_HALF * 2)) * W / 2, 0, (w / (HW_HALF * 2)) * W, 192);
+    line(1.1); line(8.1, 0.22); // solid lines along the median and the hard shoulder
+    const x = px(side * 4.5) - 2;
+    g.fillRect(x, 0, 4, 48); // dashed lane line (3 m of every 12 m)
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.ClampToEdgeWrapping; t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/**
+ * One highway piece as a strip, lengthened at the ends where it meets another piece at an angle, so the
+ * corner has no gap (the outer corner of the bend gets filled).
+ */
+function highwayPiece(r: (typeof HIGHWAYS)[number]) {
+  const len = Math.hypot(r.bx - r.ax, r.bz - r.az), dx = (r.bx - r.ax) / len, dz = (r.bz - r.az) / len;
+  const extra = (x: number, z: number) => {
+    const o = HIGHWAYS.find((q) => q !== r && ((Math.hypot(q.ax - x, q.az - z) < 1) || (Math.hypot(q.bx - x, q.bz - z) < 1)));
+    if (!o) return 0;
+    const ol = Math.hypot(o.bx - o.ax, o.bz - o.az), cos = Math.abs((dx * (o.bx - o.ax) + dz * (o.bz - o.az)) / ol);
+    const half = Math.acos(Math.min(1, cos)) / 2;
+    return Math.min(HW_HALF, HW_HALF * Math.tan(half));
+  };
+  const ea = extra(r.ax, r.az), eb = extra(r.bx, r.bz);
+  return roadStrip(r.ax - dx * ea, r.az - dz * ea, r.bx + dx * eb, r.bz + dz * eb, outskirtsHeight, HW_HALF, 0.04);
+}
+
 /** A straight road strip from a to b (meters), following `height` along its length. */
-function roadStrip(ax: number, az: number, bx: number, bz: number, height: (x: number, z: number) => number): THREE.BufferGeometry {
+function roadStrip(ax: number, az: number, bx: number, bz: number, height: (x: number, z: number) => number, half = OUT_ROAD_HALF, lift = 0.025): THREE.BufferGeometry {
   const len = Math.hypot(bx - ax, bz - az), dx = (bx - ax) / len, dz = (bz - az) / len;
-  const nx = -dz * OUT_ROAD_HALF, nz = dx * OUT_ROAD_HALF;
+  const nx = -dz * half, nz = dx * half;
   const pos: number[] = [], uv: number[] = [], idx: number[] = [];
   const steps = Math.ceil(len / 4);
   for (let i = 0; i <= steps; i++) {
-    const s = (len * i) / steps, x = ax + dx * s, z = az + dz * s, y = height(x, z) + 0.025;
+    const s = (len * i) / steps, x = ax + dx * s, z = az + dz * s, y = height(x, z) + lift;
     pos.push(x + nx, y, z + nz, x - nx, y, z - nz);
     uv.push(0, s / 12, 1, s / 12);
     if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
@@ -152,6 +194,11 @@ export function buildOutskirts(layout: CityLayout, terrainMat: THREE.Material, w
   const roads = new THREE.Mesh(track(roadGeo), roadMat);
   roads.receiveShadow = true;
   roads.renderOrder = 1;
+  // Highways: wider strips on top of the roads they replace (one mesh, one highway texture).
+  const hwMat = track(new THREE.MeshStandardMaterial({ map: track(highwayTexture()), roughness: 0.9, metalness: 0, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }));
+  const highways = new THREE.Mesh(track(mergeGeometries(HIGHWAYS.map((r) => highwayPiece(r)))!), hwMat);
+  highways.receiveShadow = true;
+  highways.renderOrder = 2;
 
   // ---------- structures: car bridge, footbridge, road-end barriers ----------
   const st = new Tris();
@@ -181,6 +228,23 @@ export function buildOutskirts(layout: CityLayout, terrainMat: THREE.Material, w
   for (let z = LAKE.z - LAKE.rz + 10; z < LAKE.z + LAKE.rz; z += 36) {
     const h = bridgeHeight(z);
     st.box(BRIDGE.x, (h - 0.9 - 3) / 2, z, BRIDGE.half * 1.5, h - 0.9 + 3, 1.6, concrete);
+  }
+  // Highway median: a steel guardrail on posts (stops 14 m before the ends, where cars turn on and off).
+  for (const r of HIGHWAYS) {
+    const len = Math.hypot(r.bx - r.ax, r.bz - r.az), dx = (r.bx - r.ax) / len, dz = (r.bz - r.az) / len;
+    for (let s = 14; s < len - 14; s += 4) {
+      const x = r.ax + dx * s, z = r.az + dz * s, y = outskirtsHeight(x, z);
+      st.box(x, y + 0.35, z, 0.12, 0.7, 0.12, '#9aa0a8');
+      // 4 m of rail along the road (works for diagonal roads too): two sides and a top.
+      const e = Math.min(4, len - 14 - s), x1 = x + dx * e, z1 = z + dz * e, y1 = outskirtsHeight(x1, z1);
+      const nx = -dz * 0.07, nz = dx * 0.07, lo = 0.48, hi = 0.76;
+      for (const k of [-1, 1]) {
+        const A = [x + nx * k, y + lo, z + nz * k], B = [x1 + nx * k, y1 + lo, z1 + nz * k], C = [x1 + nx * k, y1 + hi, z1 + nz * k], D = [x + nx * k, y + hi, z + nz * k];
+        st.quad(A, B, C, D, '#c4c9cf'); st.quad(A, D, C, B, '#c4c9cf'); // both sides face out
+      }
+      const T = [[x - nx, y + hi, z - nz], [x + nx, y + hi, z + nz], [x1 + nx, y1 + hi, z1 + nz], [x1 - nx, y1 + hi, z1 - nz]];
+      st.quad(T[0], T[1], T[2], T[3], '#d6dade'); st.quad(T[0], T[3], T[2], T[1], '#d6dade');
+    }
   }
   // Footbridge: an arched wooden deck with railings.
   const fb = FOOTBRIDGE;
@@ -326,7 +390,7 @@ export function buildOutskirts(layout: CityLayout, terrainMat: THREE.Material, w
   placeSails();
   group.userData.update = (dt: number) => { spin -= dt * 0.6; placeSails(); };
 
-  group.add(groundMesh, roads, structures, water, overlay, sails, ...extras);
+  group.add(groundMesh, roads, highways, structures, water, overlay, sails, ...extras);
   return group;
 }
 

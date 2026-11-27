@@ -1,12 +1,12 @@
 import type { CityLayout, District } from '../game/city/layout';
 import type { MapState } from '../game/play/game';
 import type { P, RoadGraph } from '../game/play/roads';
-import { BALLOON, BRIDGE, DESERT, FIREWORKS, DESERT_TOWN, FARM, FOOTBRIDGE, LAKE, LAKE_TOWN, JETTY, OUT_ROADS, PATH, PETTING, RACE, STREAM, racePoints } from '../game/city/outskirts';
+import { BALLOON, BRIDGE, DESERT, FIREWORKS, DESERT_TOWN, FARM, FOOTBRIDGE, HIGHWAYS, HW_HALF, LAKE, LAKE_TOWN, JETTY, OUT_ROADS, PATH, PETTING, RACE, STREAM, racePoints } from '../game/city/outskirts';
 
 /** World extent shown on the maps: -E..E meters on both axes (city, desert, lake, countryside). */
 const E = 2350;
 /** What the big map shows: the city, the desert town (east), the lake town (south) and the farmland between. */
-const VIEW = { x0: -560, x1: 2120, z0: -560, z1: 2020 };
+const VIEW = { x0: -560, x1: 2120, z0: -1580, z1: 2020 }; // includes the A2 up north
 /** Places outside the city, with an icon on both maps. */
 const OUT_PLACES: [P, string, string][] = [
   [{ x: DESERT_TOWN.x, z: DESERT_TOWN.z }, '🏜️', '#d9a441'],
@@ -102,6 +102,14 @@ export function renderBaseMap(layout: CityLayout, roads: RoadGraph): HTMLCanvasE
     g.moveTo(X(LAKE_TOWN.x + LAKE_TOWN.ring), X(LAKE_TOWN.z));
     g.arc(X(LAKE_TOWN.x), X(LAKE_TOWN.z), LAKE_TOWN.ring * K, 0, Math.PI * 2);
     g.stroke();
+    // Highways (A1, A2) on top: wider and orange, like on a road map.
+    const keep = g.strokeStyle;
+    if (extra === 0) g.strokeStyle = '#f2a33a';
+    g.lineWidth = (HW_HALF * 2 + extra) * K; g.lineCap = 'round';
+    g.beginPath();
+    for (const r of HIGHWAYS) { g.moveTo(X(r.ax), X(r.az)); g.lineTo(X(r.bx), X(r.bz)); }
+    g.stroke();
+    g.strokeStyle = keep;
   }
   // The desert race track: a dirt loop with its access path.
   {

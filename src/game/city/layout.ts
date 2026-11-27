@@ -1,6 +1,6 @@
 import { APARTMENTS, BUSHES, HOUSES, PINES, SHOPS, TOWNHOUSES, TREES } from './models';
 import { Rng } from './rng';
-import { BALLOON, BRIDGE, DESERT, FIREWORKS, FLOAT_STAND, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, PETTING, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
+import { BALLOON, BRIDGE, DESERT, HIGHWAYS, FIREWORKS, FLOAT_STAND, FOOTBRIDGE, JETTY, LAKE, LAKE_TOWN, PETTING, STREAM, WORLD_EDGE, RACE, desertAmount, inDesertTown, noTrees, onOutRoad, raceDistance } from './outskirts';
 import { buildingCollider, generateTowns, type TownsData } from './towns';
 
 /**
@@ -428,6 +428,15 @@ export function generateCity(sizes: Sizes, seed = 2025): CityLayout {
   L.colliders.push({ x0: FIREWORKS.x - 1.3, z0: FIREWORKS.z - 0.8, x1: FIREWORKS.x + 1.3, z1: FIREWORKS.z + 0.8 });
   // The float stand's crate on the beach.
   L.colliders.push({ x0: FLOAT_STAND.x + 0.1, z0: FLOAT_STAND.z + 0.05, x1: FLOAT_STAND.x + 1.5, z1: FLOAT_STAND.z + 0.8 });
+  // Highway medians: the guardrail between the two directions (cars can't drive through it).
+  for (const r of HIGHWAYS) {
+    const len = Math.hypot(r.bx - r.ax, r.bz - r.az), dx = (r.bx - r.ax) / len, dz = (r.bz - r.az) / len;
+    const step = Math.abs(dx) < 0.01 || Math.abs(dz) < 0.01 ? 20 : 1.5;
+    for (let s = 14; s < len - 14; s += step) {
+      const e = Math.min(len - 14, s + step), x0 = r.ax + dx * s, z0 = r.az + dz * s, x1 = r.ax + dx * e, z1 = r.az + dz * e;
+      L.colliders.push({ x0: Math.min(x0, x1) - 0.25, z0: Math.min(z0, z1) - 0.25, x1: Math.max(x0, x1) + 0.25, z1: Math.max(z0, z1) + 0.25 });
+    }
+  }
   // The balloon basket on its launch pad.
   L.colliders.push({ x0: BALLOON.x - 0.9, z0: BALLOON.z - 0.9, x1: BALLOON.x + 0.9, z1: BALLOON.z + 0.9 });
   // The petting farm: fence (with a gate gap on the road side), nothing else growing inside.

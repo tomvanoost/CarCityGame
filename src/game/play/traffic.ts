@@ -21,6 +21,8 @@ import type { Vehicle } from './vehicle';
 const CRUISE = 13.9; // m/s (50 km/h in the city)
 const TURN = 6;
 const DECEL = 7;
+/** How fast a car may take a bend: straight on = no limit, a gentle 45° bend (the autobahn corners) ~90 km/h, a turn slowly. */
+const curveSpeed = (dot: number) => (dot > 0.9 ? Infinity : dot > 0.6 ? 25 : TURN);
 /** Police siren: cars this close pull over this far toward their curb (half onto the sidewalk) and crawl. */
 const SIREN_RANGE = 55;
 const PULL_OVER = 2.1; // car edge ~0.6 m over the curb, clear of the trees and lamps 1.3 m from it
@@ -28,7 +30,7 @@ const PULL_SPEED = 2.5;
 
 type Seg =
   | { kind: 'line'; a: P; b: P; len: number }
-  | { kind: 'curve'; p0: P; p1: P; p2: P; len: number; straight: boolean; laneOut: number };
+  | { kind: 'curve'; p0: P; p1: P; p2: P; len: number; straight: boolean; dot: number; laneOut: number };
 
 interface Car {
   spec: VehicleSpec;
@@ -57,6 +59,8 @@ interface Car {
   spin: number;
   /** 0..1: how far the car has pulled over to the curb for a police siren. */
   pull: number;
+  /** Seconds left in the overtaking lane on the highway (0 = keep right). */
+  overtake: number;
   /** Node after `to`, chosen once when approaching the intersection. */
   nextNode?: number;
   /** Sideways position: distance from the road's middle to the right (the lane the car is in). */
@@ -126,7 +130,7 @@ export class Traffic {
       : { x: p0.x + d1.x * along, z: p0.z + d1.z * along };
     const chord = Math.hypot(p2.x - p0.x, p2.z - p0.z);
     const len = (Math.hypot(p1.x - p0.x, p1.z - p0.z) + Math.hypot(p2.x - p1.x, p2.z - p1.z) + chord) / 2;
-    return { kind: 'curve', p0, p1, p2, len, straight: dot > 0.9, laneOut };
+    return { kind: 'curve', p0, p1, p2, len, straight: dot > 0.9, dot, laneOut };
   }
 
   private sample(seg: Seg, d: number) {
@@ -166,7 +170,9 @@ export class Traffic {
       clearDents(car.root); // a 'new' car: no dents
       // nextNode must be cleared: a turn planned on the car's old road would send it across the blocks.
       const lane = this.graph.cruiseLane(from, to);
-      Object.assign(car, { from, to, seg, d, lane, speed: CRUISE * 0.6, x: p.x - p.dir.z * lane, z: p.z + p.dir.x * lane, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined, pull: 0 });
+      // On the highways cars come in at speed (fast cars keep leaving the area around you and come back).
+      const speed = this.graph.isAutobahn(from, to) ? car.spec.topSpeed / 3.6 * 0.8 : this.graph.isHighway(from, to) ? this.highwaySpeed * 0.8 : CRUISE * 0.6;
+      Object.assign(car, { from, to, seg, d, lane, speed, x: p.x - p.dir.z * lane, z: p.z + p.dir.x * lane, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined, pull: 0, overtake: 0 });
       return true;
     }
     return false;
@@ -190,11 +196,17 @@ export class Traffic {
     const car: Car = {
       spec, built, light: built, color, root, half: dims.length / 2, radius: dims.width / 2,
       from: 0, to: 0, seg: this.lineSeg(...this.graph.edges[0]), d: 0, speed: 0, x: 0, z: 0, heading: 0,
-      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0, lane: LANE,
+      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0, overtake: 0, lane: LANE,
     };
     this.cars.push(car);
     this.group.add(root);
     if (!this.place(car, focus)) root.visible = false;
+  }
+
+  /** Is lane `lane` of this car's road free from a bit behind it to well ahead (to change into it)? */
+  private laneFree(car: Car, lane: number) {
+    return !this.cars.some((o) => o !== car && o.root.visible && o.from === car.from && o.to === car.to && o.seg.kind === 'line'
+      && Math.abs(o.lane - lane) < 1.8 && o.d > car.d - 18 && o.d < car.d + 30);
   }
 
   /** Evening: headlights on for every traffic car. */
@@ -247,10 +259,11 @@ export class Traffic {
       const fwd = { x: Math.sin(car.heading), z: Math.cos(car.heading) };
       const lateralMax = car.seg.kind === 'curve' ? 2.2 : 1.6;
       const N = this.graph.nodes;
-      // City streets 50 km/h, the highway 100 / 120 km/h (curves always slow).
-      const highway = this.graph.isHighway(car.from, car.to) && (car.seg.kind === 'line' || car.seg.straight);
-      const cruise = highway ? this.highwaySpeed : CRUISE;
-      let allowed = car.seg.kind === 'curve' && !car.seg.straight ? TURN : cruise;
+      // City streets 50 km/h, the A1 100 / 120 km/h, the autobahn (A2) as fast as the car can go.
+      const autobahn = this.graph.isAutobahn(car.from, car.to);
+      const cruise = autobahn ? Math.max(this.highwaySpeed, car.spec.topSpeed / 3.6) : this.graph.isHighway(car.from, car.to) ? this.highwaySpeed : CRUISE;
+      let allowed = car.seg.kind === 'curve' ? Math.min(cruise, curveSpeed(car.seg.dot)) : cruise;
+      let carAhead = false;
       const left = car.seg.kind === 'line' ? car.seg.len - car.d : Infinity;
       // Waiting at a red light is normal: only give up waiting for other cars after much longer there.
       const nearLights = left < 60 && !!this.signals?.hasLights(car.to);
@@ -263,7 +276,9 @@ export class Traffic {
         if (ahead <= 0 || ahead > look) return;
         if (Math.abs(rx * fwd.z - rz * fwd.x) > lateralMax + r) return;
         const gap = ahead - car.half - r - 1.5;
-        allowed = Math.min(allowed, gap <= 0 ? 0 : Math.sqrt(2 * DECEL * gap));
+        const v = gap <= 0 ? 0 : Math.sqrt(2 * DECEL * gap);
+        if (isCar && v < cruise * 0.9) carAhead = true;
+        allowed = Math.min(allowed, v);
       };
       for (const p of peds) check(p.x, p.z, p.r + 0.4, false);
       if (walker) check(walker.x, walker.z, 0.8, false);
@@ -274,10 +289,12 @@ export class Traffic {
         const oo = o.half - o.radius;
         for (const k of [oo, 0, -oo]) check(o.x + Math.sin(o.heading) * k, o.z + Math.cos(o.heading) * k, o.radius, true);
       }
-      // Slow down in time before a sharp turn (the end of the highway).
-      if (left < 120 && car.speed > TURN) {
-        const next = this.peekNext(car);
-        if (moveOf(N[car.from], N[car.to], N[next]) !== 'straight') allowed = Math.min(allowed, Math.sqrt(TURN * TURN + 2 * DECEL * 0.6 * Math.max(0, left)));
+      // Slow down in time before a bend or a turn (the end of the highway, the autobahn corners).
+      if (left < 250 && car.speed > TURN) {
+        const A = N[car.from], B = N[car.to], C = N[this.peekNext(car)];
+        const l1 = Math.hypot(B.x - A.x, B.z - A.z) || 1, l2 = Math.hypot(C.x - B.x, C.z - B.z) || 1;
+        const vb = curveSpeed(((B.x - A.x) * (C.x - B.x) + (B.z - A.z) * (C.z - B.z)) / (l1 * l2));
+        if (vb < car.speed) allowed = Math.min(allowed, Math.sqrt(vb * vb + 2 * DECEL * 0.6 * Math.max(0, left)));
       }
       // Traffic lights: stop at the line on red, and on amber when there's still room to stop.
       let redStop = false;
@@ -305,7 +322,7 @@ export class Traffic {
       if (car.pull > 0.05) allowed = Math.min(allowed, PULL_SPEED + (1 - car.pull) * CRUISE);
 
       const target = Math.min(allowed, cruise);
-      car.speed += THREE.MathUtils.clamp(target - car.speed, -12 * dt, 3 * dt);
+      car.speed += THREE.MathUtils.clamp(target - car.speed, -12 * dt, (autobahn ? 5 : 3) * dt);
       car.speed = Math.max(0, Math.min(car.speed, allowed + 0.01));
       car.waited = car.speed < 0.3 ? car.waited + dt : 0;
 
@@ -314,7 +331,12 @@ export class Traffic {
       if (car.seg.kind === 'line') {
         const lanes = this.graph.lanesOf(car.from, car.to);
         laneGoal = this.graph.cruiseLane(car.from, car.to);
-        if (lanes.length > 1 && left < 75 && this.signals?.hasLights(car.to)) {
+        if (this.graph.isHighway(car.from, car.to) || autobahn) {
+          // Highway: keep right, overtake a slower car on the left when the left lane is free, then go back.
+          car.overtake = Math.max(0, car.overtake - dt);
+          if (carAhead && left > 60 && this.laneFree(car, lanes[0])) car.overtake = 5;
+          if (car.overtake > 0 || (car.lane < laneGoal - 0.5 && !this.laneFree(car, laneGoal))) laneGoal = lanes[0];
+        } else if (lanes.length > 1 && left < 75 && this.signals?.hasLights(car.to)) {
           const mv = moveOf(N[car.from], N[car.to], N[this.peekNext(car)]);
           laneGoal = mv === 'left' ? lanes[0] : mv === 'right' ? lanes[lanes.length - 1] : lanes[1];
         }

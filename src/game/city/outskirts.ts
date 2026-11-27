@@ -44,6 +44,38 @@ export const OUT_ROADS: { ax: number; az: number; bx: number; bz: number }[] = [
   { ax: LAKE_TOWN.x, az: LAKE_TOWN.z - LAKE_TOWN.ring, bx: LAKE_TOWN.x, bz: LAKE_TOWN.z - LAKE_TOWN.square },
 ];
 
+/**
+ * Highways: divided roads (2 lanes each way, a median with a guardrail, hard shoulders), only joined to
+ * other roads at their ends. A1 = the loop roads between the towns (100 / 120 km/h); A2 = the Autobahn
+ * north and east of the city, where every car drives as fast as it can.
+ */
+export const HW_HALF = 9;
+/** Highway lane centers from the middle: the fast (left) lane and the normal (right) lane. */
+export const HW_LANES = [2.75, 6.25];
+export type HighwayName = 'A1' | 'A2';
+/** The A2: from the city's north avenue up north, east, and down into the desert town (45° bends at the corners). */
+export const A2_POINTS = [
+  { x: 0, z: -480 }, { x: 0, z: -1420 }, { x: 80, z: -1500 }, { x: 1770, z: -1500 }, { x: 1850, z: -1420 }, { x: 1850, z: -230 },
+];
+export const HIGHWAYS: { name: HighwayName; ax: number; az: number; bx: number; bz: number }[] = [
+  { name: 'A1', ax: CITY_EDGE + 20, az: 0, bx: DESERT_TOWN.x0 - 20, bz: 0 },
+  { name: 'A1', ax: DESERT_TOWN.x, az: DESERT_TOWN.z1 + 20, bx: DESERT_TOWN.x, bz: LAKE_TOWN.z },
+  { name: 'A1', ax: LAKE_TOWN.x + LAKE_TOWN.r + 10, az: LAKE_TOWN.z, bx: DESERT_TOWN.x, bz: LAKE_TOWN.z },
+  { name: 'A1', ax: 0, az: CITY_EDGE + 20, bx: 0, bz: LAKE_TOWN.z - LAKE_TOWN.r - 10 },
+  ...A2_POINTS.slice(0, -1).map((p, i) => ({ name: 'A2' as const, ax: p.x, az: i === 0 ? -CITY_EDGE - 20 : p.z, bx: A2_POINTS[i + 1].x, bz: A2_POINTS[i + 1].z })),
+];
+
+/** Distance from (x, z) to the nearest highway's center line. */
+export function highwayDistance(x: number, z: number) {
+  let best = Infinity;
+  for (const r of HIGHWAYS) {
+    const dx = r.bx - r.ax, dz = r.bz - r.az, len2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((x - r.ax) * dx + (z - r.az) * dz) / len2));
+    best = Math.min(best, Math.hypot(x - (r.ax + dx * t), z - (r.az + dz * t)));
+  }
+  return best;
+}
+
 /** The desert (sand from here; it fades in over the first 80 m). Edges on the 80 m ground grid. */
 export const DESERT = { x0: 640, x1: 2400, z0: -800, z1: 800 };
 const DESERT_FADE = 80;
@@ -55,7 +87,7 @@ export const FARM = { x0: 560, x1: 1800, z0: 840, z1: 1700 };
 export const LAKE = { x: 0, z: 1010, rx: 420, rz: 230 };
 
 /** The car bridge over the lake (along the south road): ramps up, a long flat deck, ramps down. */
-export const BRIDGE = { x: 0, half: 5.6, z0: 700, z1: 1320, ramp: 60, h: 3.2 };
+export const BRIDGE = { x: 0, half: HW_HALF + 0.6, z0: 700, z1: 1320, ramp: 60, h: 3.2 };
 
 /** A small stream that runs into the lake from the north, west of the south road. */
 export const STREAM = { x0: -62, x1: -50, z0: 540, z1: 800 };
@@ -63,7 +95,7 @@ export const STREAM = { x0: -62, x1: -50, z0: 540, z1: 800 };
 /** A wooden footbridge over the stream (people only: the gap between the bollards is too narrow for cars). */
 export const FOOTBRIDGE = { z: 660, half: 1.3, x0: -71, x1: -41, h: 0.9 };
 /** Gravel path from the south road to the footbridge and a bit beyond. */
-export const PATH = { z: 660, half: 1.4, x0: -95, x1: -OUT_ROAD_HALF };
+export const PATH = { z: 660, half: 1.4, x0: -95, x1: -HW_HALF };
 
 const smooth = (a: number, b: number, v: number) => {
   const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
@@ -99,7 +131,7 @@ export const ringDistance = (x: number, z: number) => Math.abs(Math.hypot(x - LA
 
 /** On one of the roads outside the city (incl. the car bridge and the ring road). m: extra margin. */
 export function onOutRoad(x: number, z: number, m = 0) {
-  return outRoadDistance(x, z) < OUT_ROAD_HALF + m || ringDistance(x, z) < OUT_ROAD_HALF + m;
+  return outRoadDistance(x, z) < OUT_ROAD_HALF + m || ringDistance(x, z) < OUT_ROAD_HALF + m || highwayDistance(x, z) < HW_HALF + m;
 }
 
 export const onPath = (x: number, z: number, m = 0) => x > PATH.x0 - m && x < PATH.x1 + m && Math.abs(z - PATH.z) < PATH.half + m;
@@ -154,7 +186,7 @@ export function duneHeight(x: number, z: number) {
   if (a <= 0) return 0;
   // How far outside the desert town (0 inside): flat in town, dunes start 40 m out.
   const out = Math.max(DESERT_TOWN.x0 - x, x - DESERT_TOWN.x1, DESERT_TOWN.z0 - z, z - DESERT_TOWN.z1);
-  const flat = Math.min(smooth(10, 45, outRoadDistance(x, z)), smooth(0, 40, out), smooth(RACE.half + 6, RACE.half + 40, raceDistance(x, z)), smooth(BALLOON.r + 8, BALLOON.r + 40, Math.hypot(x - BALLOON.x, z - BALLOON.z)));
+  const flat = Math.min(smooth(10, 45, outRoadDistance(x, z)), smooth(HW_HALF + 6, HW_HALF + 45, highwayDistance(x, z)), smooth(0, 40, out), smooth(RACE.half + 6, RACE.half + 40, raceDistance(x, z)), smooth(BALLOON.r + 8, BALLOON.r + 40, Math.hypot(x - BALLOON.x, z - BALLOON.z)));
   if (flat <= 0) return 0;
   const n = Math.sin(x * 0.045 + Math.sin(z * 0.02) * 2) * 0.6 + Math.sin(z * 0.06 + x * 0.013) * 0.4;
   return Math.max(0, (n * 0.5 + 0.5)) * 3.8 * a * flat;

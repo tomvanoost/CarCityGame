@@ -1,5 +1,5 @@
 import { GRID_BLOCKS, LINES, WIDE_LANES, roadHalf, type CityLayout } from '../city/layout';
-import { DESERT_TOWN, LAKE_TOWN, LINK_ROAD, SOUTH_ROAD } from '../city/outskirts';
+import { A2_POINTS, DESERT_TOWN, HW_HALF, HW_LANES, LAKE_TOWN, LINK_ROAD, SOUTH_ROAD, type HighwayName } from '../city/outskirts';
 
 export interface P { x: number; z: number }
 
@@ -23,12 +23,14 @@ export class RoadGraph {
   readonly navEdges: [number, number][] = [];
   readonly navAdj: number[][] = [];
   private valid: boolean[] = [];
-  /** Highway road pieces (the long loop roads outside the city), as "a-b" keys both ways. */
-  private highway = new Set<string>();
+  /** Highway road pieces ("a-b" keys both ways): A1 (100 / 120 km/h) or A2 (no limit). */
+  private highway = new Map<string, HighwayName>();
   /** The highway ends where you drive on / off it (for the blue signs). */
-  readonly highwayEnds: { node: number; towards: number }[] = [];
+  readonly highwayEnds: { node: number; towards: number; name: HighwayName }[] = [];
 
-  isHighway(a: number, b: number) { return this.highway.has(`${a}-${b}`); }
+  isHighway(a: number, b: number) { return this.highway.get(`${a}-${b}`) === 'A1'; }
+  /** The A2 Autobahn: every car drives as fast as it can. */
+  isAutobahn(a: number, b: number) { return this.highway.get(`${a}-${b}`) === 'A2'; }
 
   /** Grid line numbers of a city node (null for nodes outside the city grid). */
   private gridIJ(node: number) {
@@ -38,6 +40,7 @@ export class RoadGraph {
 
   /** Half width of the road between nodes a and b (wide avenues 11 m, small roads 5 m). */
   halfOf(a: number, b: number) {
+    if (this.highway.has(`${a}-${b}`)) return HW_HALF;
     const A = this.gridIJ(a), B = this.gridIJ(b);
     if (!A || !B) return 5;
     return A.j === B.j ? roadHalf(A.j) : roadHalf(A.i);
@@ -51,10 +54,13 @@ export class RoadGraph {
   }
 
   /** Lane centers (from the road's middle, on the right-hand side) of the road a-b. */
-  lanesOf(a: number, b: number): readonly number[] { return this.halfOf(a, b) > 6 ? WIDE_LANES : [LANE]; }
+  lanesOf(a: number, b: number): readonly number[] {
+    if (this.highway.has(`${a}-${b}`)) return HW_LANES;
+    return this.halfOf(a, b) > 6 ? WIDE_LANES : [LANE];
+  }
 
   /** The lane cars normally drive in: the middle lane of an avenue, the only lane of a small road. */
-  cruiseLane(a: number, b: number) { const l = this.lanesOf(a, b); return l[Math.floor(l.length / 2)]; }
+  cruiseLane(a: number, b: number) { const l = this.lanesOf(a, b); return this.highway.has(`${a}-${b}`) ? l[l.length - 1] : l[Math.floor(l.length / 2)]; }
 
   /** Where the crossing at `node` begins on the road (node, other): the turn curve starts here. */
   insetAt(node: number, other: number) { return this.crossHalf(node, other) + 2.5; }
@@ -88,10 +94,10 @@ export class RoadGraph {
     // The loop outside the city.
     const nearestNode = (x: number, z: number) => this.nodes.reduce((best, p, i) => (Math.hypot(p.x - x, p.z - z) < Math.hypot(this.nodes[best].x - x, this.nodes[best].z - z) ? i : best), 0);
     const add = (p: P) => { const id = this.nodes.length; this.nodes.push(p); this.adj[id] = []; this.navAdj[id] = []; return id; };
-    const join = (a: number, b: number, highway = false) => {
+    const join = (a: number, b: number, highway?: HighwayName) => {
       this.adj[a].push(b); this.adj[b].push(a); this.edges.push([a, b]);
       this.navAdj[a].push(b); this.navAdj[b].push(a); this.navEdges.push([a, b]);
-      if (highway) { this.highway.add(`${a}-${b}`); this.highway.add(`${b}-${a}`); }
+      if (highway) { this.highway.set(`${a}-${b}`, highway); this.highway.set(`${b}-${a}`, highway); }
     };
     // Lake town ring road: 16 points around the square (k = 0 east, 4 south, 8 west, 12 north).
     const ring: number[] = [];
@@ -103,12 +109,26 @@ export class RoadGraph {
     const cityEast = nearestNode(480, DESERT_TOWN.z), citySouth = nearestNode(SOUTH_ROAD.x, 480);
     const desertTown = add({ x: DESERT_TOWN.x, z: DESERT_TOWN.z });
     const farmCorner = add({ x: DESERT_TOWN.x, z: LINK_ROAD.z });
-    // The loop roads are the highway (the lake town's ring road and the city streets are not).
-    join(cityEast, desertTown, true);
-    join(desertTown, farmCorner, true);
-    join(farmCorner, ring[0], true);
-    join(ring[12], citySouth, true);
-    this.highwayEnds.push({ node: cityEast, towards: desertTown }, { node: citySouth, towards: ring[12] }, { node: ring[0], towards: farmCorner }, { node: ring[12], towards: citySouth });
+    // The loop roads are the A1 highway between the towns; inside the towns they are normal streets.
+    const dtWest = add({ x: DESERT_TOWN.x0 - 20, z: DESERT_TOWN.z });
+    const dtSouth = add({ x: DESERT_TOWN.x, z: DESERT_TOWN.z1 + 20 });
+    const ltEast = add({ x: LAKE_TOWN.x + LAKE_TOWN.r + 10, z: LAKE_TOWN.z });
+    const ltNorth = add({ x: SOUTH_ROAD.x, z: LAKE_TOWN.z - LAKE_TOWN.r - 10 });
+    join(cityEast, dtWest, 'A1'); join(dtWest, desertTown);
+    join(desertTown, dtSouth); join(dtSouth, farmCorner, 'A1');
+    join(farmCorner, ltEast, 'A1'); join(ltEast, ring[0]);
+    join(ring[12], ltNorth); join(ltNorth, citySouth, 'A1');
+    this.highwayEnds.push(
+      { node: cityEast, towards: dtWest, name: 'A1' }, { node: dtWest, towards: cityEast, name: 'A1' },
+      { node: dtSouth, towards: farmCorner, name: 'A1' }, { node: ltEast, towards: farmCorner, name: 'A1' },
+      { node: ltNorth, towards: citySouth, name: 'A1' }, { node: citySouth, towards: ltNorth, name: 'A1' },
+    );
+    // The A2 Autobahn: from the city's north avenue to the desert town's north entrance.
+    const cityNorth = nearestNode(A2_POINTS[0].x, A2_POINTS[0].z);
+    const a2 = [cityNorth, ...A2_POINTS.slice(1).map((p) => add(p))];
+    for (let k = 0; k + 1 < a2.length; k++) join(a2[k], a2[k + 1], 'A2');
+    join(a2[a2.length - 1], desertTown);
+    this.highwayEnds.push({ node: cityNorth, towards: a2[1], name: 'A2' }, { node: a2[a2.length - 1], towards: a2[a2.length - 2], name: 'A2' });
   }
 
   /** Closest point on any road center line. */
