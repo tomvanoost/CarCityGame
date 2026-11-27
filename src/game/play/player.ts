@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Avatar } from '../avatar/avatar';
+import { inSwimZone, isWater, swimDepth } from '../city/outskirts';
 import { groundHeight, type CollisionWorld } from './collision';
 
 const WALK = 3.2, RUN = 6.5, GRAVITY = 18, JUMP = 6.2, RADIUS = 0.35;
@@ -17,6 +18,10 @@ export class Player {
   private tmp = { x: 0, z: 0 };
   /** Supermarket snacks: seconds left of running faster (juice) / jumping higher (banana). */
   speedBoost = 0;
+  /** Swimming in the lake right now (slower, no jumping). */
+  swimming = false;
+  /** Has the rubber duck float: floats higher and swims faster. */
+  hasFloat = false;
   jumpBoost = 0;
 
   constructor(readonly avatar: Avatar) {}
@@ -47,14 +52,21 @@ export class Player {
       let diff = target - this.heading;
       diff = Math.atan2(Math.sin(diff), Math.cos(diff));
       this.heading += diff * Math.min(1, dt * 12);
-      this.x += dx * speed * dt;
-      this.z += dz * speed * dt;
-      world.resolveCircle(this.x, this.z, RADIUS, this.tmp);
+      const ox = this.x, oz = this.z;
+      this.x += dx * speed * dt * (this.swimming ? (this.hasFloat ? 0.8 : 0.55) : 1);
+      this.z += dz * speed * dt * (this.swimming ? (this.hasFloat ? 0.8 : 0.55) : 1);
+      // People may walk into the water at the beach (cars can't): swimming only inside the buoys.
+      world.resolveCircle(this.x, this.z, RADIUS, this.tmp, false, true);
       this.x = this.tmp.x;
       this.z = this.tmp.z;
+      if (isWater(this.x, this.z) && !inSwimZone(this.x, this.z)) { this.x = ox; this.z = oz; }
     }
     // Gravity + jumping (also steps up onto curbs smoothly).
-    const gy = groundHeight(this.x, this.z);
+    // In the lake you sink in as it gets deeper (only head and shoulders stay above the water).
+    const depth = swimDepth(this.x, this.z, this.hasFloat ? 0.75 : 1.05);
+    this.swimming = depth > 0.55;
+    const gy = groundHeight(this.x, this.z) - depth;
+    if (this.swimming) jump = false;
     if (jump && this.grounded) {
       this.vy = JUMP * (this.jumpBoost > 0 ? 1.45 : 1);
       this.grounded = false;

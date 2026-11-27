@@ -175,6 +175,19 @@ export const PETTING = { x: 1812, z: 1000, w: 26, d: 20, gate: 4 };
 
 /** Fishing jetty on the lake's north shore: from the grass (z0) out over the water (z1). */
 export const JETTY = { x: -160, z0: 784, z1: 814, half: 1.3, h: 0.45 };
+/** Swimming zone at the north beach (marked with buoys): you can swim here, nowhere else in the water. */
+export const SWIM = { x0: -250, x1: -25, zMax: LAKE.z - LAKE.rz + 50 };
+export const inSwimZone = (x: number, z: number) => x > SWIM.x0 && x < SWIM.x1 && z < SWIM.zMax;
+/** How deep you are in the lake (0 on land; deeper over the first 8 m from the shore, at most `max`). */
+export function swimDepth(x: number, z: number, max = 1.05) {
+  const e = ((x - LAKE.x) / LAKE.rx) ** 2 + ((z - LAKE.z) / LAKE.rz) ** 2;
+  if (e >= 1) return 0;
+  const inside = (1 - Math.sqrt(e)) * LAKE.rz; // about how far from the shore
+  return Math.min(1, inside / 8) * max;
+}
+/** Beach stand that sells the rubber duck float (next to the fireworks stand). */
+export const FLOAT_STAND = { x: -122, z: 771 };
+
 /** Fireworks stand on the north beach of the lake, east of the jetty. */
 export const FIREWORKS = { x: JETTY.x + 50, z: 770 };
 export const onJetty = (x: number, z: number) => Math.abs(x - JETTY.x) < JETTY.half && z > JETTY.z0 && z < JETTY.z1;

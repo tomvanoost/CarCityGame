@@ -16,8 +16,6 @@ the realistic trees glitched and were reverted). Each one small, kid-friendly, s
 NL + EN, works with keyboard, tablet controls and controllers. Everything costs in-game money only
 (the game stays free: no real money, no ads).
 
-- [ ] **Swimming at the beach**: walk into the lake at the beach and swim (a simple swim animation
-  and splashes, slow and safe, always back to the shore), with a rubber duck float to buy (€15).
 - [ ] **Treasure map**: a weekly treasure map from the post office shows a blurry spot; find the chest
   (it sparkles nearby) for a big prize and a rare sticker.
 - [ ] **Car photo mode**: a 📷 button that hides the buttons and lets you turn the camera around your

@@ -28,6 +28,7 @@ import { BAKERY, BAKERY_TIME, BakeryBuilding, bakeryGeometry, type BakeryId } fr
 import { FunFair, RIDE_PRICE, type RideKind as FairRide } from './funFair';
 import { BALLOON_FRONT, BALLOON_PRICE, Balloon } from './balloon';
 import { FIREWORKS_FRONT, FIREWORKS_PRICE, FIREWORKS_STAND, Fireworks } from './fireworks';
+import { Beach, FLOAT_FRONT, FLOAT_PRICE, floatGeometry } from './beach';
 type RideKind = FairRide | 'balloon';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { HORNS, isHorn, type HornId } from '../horns';
@@ -57,7 +58,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean };
+export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -129,7 +130,7 @@ export interface GameEvents {
   onReady(): void;
   onState(state: GameState): void;
   /** Money earned (shown as a big "+€" popup). */
-  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks'): void;
+  onMoney(amount: number, reason: 'job' | 'daily' | 'apartment' | 'fuel' | 'wash' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'furniture' | 'funFair' | 'mission' | 'coin' | 'race' | 'fish' | 'bakery' | 'farm' | 'balloon' | 'fireworks' | 'beach'): void;
   /** A daily mission is finished (its reward was paid). */
   onMission?(m: Mission): void;
   /** Coin hunt: a coin was found (found = how many you have now). */
@@ -147,7 +148,7 @@ export interface GameEvents {
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
   onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
 }
@@ -187,6 +188,10 @@ export class Game {
   private funFair?: FunFair;
   private balloon?: Balloon;
   private fireworks?: Fireworks;
+  private beach?: Beach;
+  /** The duck float around your waist (shown while swimming, if you have one). */
+  private floatMesh?: THREE.Mesh;
+  private wasSwimming = false;
   private coins?: Coins;
   private raceTrack?: RaceTrack;
   private jetty?: FishingJetty;
@@ -302,6 +307,7 @@ export class Game {
     this.scene.add(city.group);
     this.world = new CollisionWorld(city.layout.colliders);
     this.player = new Player(avatar);
+    this.player.hasFloat = this.profile.swimFloat;
     avatar.root.traverse((o) => { o.castShadow = !o.userData.glass; });
 
     const spawn = this.spawnPoint(profile.spawn);
@@ -366,6 +372,8 @@ export class Game {
     this.scene.add(this.balloon.group);
     this.fireworks = new Fireworks((k) => sounds.firework(k));
     this.scene.add(this.fireworks.group);
+    this.beach = new Beach();
+    this.scene.add(this.beach.group);
     this.coins = new Coins(city.layout, this.profile.coins, (c) => {
       const coins = [...new Set([...this.profile.coins, c.id])];
       setProfile({ ...this.profile, coins });
@@ -893,6 +901,24 @@ export class Game {
     this.jetty?.update(dt, tip, this.fishing?.phase === 'bite');
   }
 
+  /** Swimming: splash + sticker when you go in, the duck float around your waist, ripples. */
+  private updateSwimming(dt: number) {
+    const pl = this.player, a = this.avatar;
+    if (!pl || !a) return;
+    const swimming = this.mode === 'walking' && !this.ride && pl.swimming;
+    if (swimming && !this.wasSwimming) { sounds.splash(); awardSticker('swim'); }
+    this.wasSwimming = swimming;
+    if (swimming && pl.hasFloat && !this.floatMesh) {
+      this.floatMesh = new THREE.Mesh(floatGeometry(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4 }));
+      this.floatMesh.position.y = 1.0;
+    }
+    if (this.floatMesh) {
+      if (swimming && pl.hasFloat && this.floatMesh.parent !== a.root) a.root.add(this.floatMesh);
+      this.floatMesh.visible = swimming && pl.hasFloat;
+    }
+    this.beach?.update(dt, swimming ? { x: pl.x, z: pl.z, moving: pl.speed > 0.1 } : null);
+  }
+
   private stopRace() {
     this.race = null;
     this.raceTrack?.highlight(null);
@@ -1173,6 +1199,7 @@ export class Game {
     if (near(L.pois.funFair.wheel.front)) return { kind: 'ride', ride: 'wheel', price: RIDE_PRICE };
     if (near(L.pois.funFair.carousel.front)) return { kind: 'ride', ride: 'carousel', price: RIDE_PRICE };
     if (near(BALLOON_FRONT)) return { kind: 'ride', ride: 'balloon', price: BALLOON_PRICE };
+    if (near(FLOAT_FRONT) && !this.profile.swimFloat) return { kind: 'buyFloat', price: FLOAT_PRICE };
     if (near(FIREWORKS_FRONT) && !this.fireworks?.active) return { kind: 'fireworks', price: FIREWORKS_PRICE };
     if (near(L.pois.home.door)) return { kind: 'home' };
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
@@ -1221,6 +1248,17 @@ export class Game {
       case 'ride':
         this.startRide(c.ride, c.price);
         break;
+      case 'buyFloat': {
+        const p = this.profile;
+        if (p.money < c.price) { this.events.onMessage('needMoney', c.price - p.money); break; }
+        setProfile({ ...p, money: p.money - c.price, swimFloat: true });
+        void updateProfile({ money: p.money - c.price, swimFloat: true });
+        this.events.onMoney(-c.price, 'beach');
+        if (this.player) this.player.hasFloat = true;
+        sounds.coin();
+        this.events.onMessage('floatBought');
+        break;
+      }
       case 'fireworks': {
         // Fireworks only show up well in the dark: by day you get a hint (and pay nothing).
         if (!this.evening) { this.events.onMessage('fireworksEvening'); break; }
@@ -1593,6 +1631,7 @@ export class Game {
     this.funFair?.update(dt);
     this.balloon?.update(dt);
     this.fireworks?.update(dt);
+    this.updateSwimming(dt);
     if (this.farm && Math.hypot(this.focus.x - PETTING.x, this.focus.z - PETTING.z) < 400) this.farm.update(dt);
     this.coins?.update(dt, this.ride ? null : pos, this.mode === 'driving' ? 3.5 : 2);
     this.avatar.update(dt);
@@ -1720,6 +1759,7 @@ export class Game {
     this.funFair?.dispose();
     this.balloon?.dispose();
     this.fireworks?.dispose();
+    this.beach?.dispose();
     this.coins?.dispose();
     this.raceTrack?.dispose();
     this.jetty?.dispose();

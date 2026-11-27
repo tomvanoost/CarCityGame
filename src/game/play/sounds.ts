@@ -419,6 +419,16 @@ class Sounds {
     this.noise(ctx, t + 0.1, 0.4, 0.05 * v, 'highpass', 4500, 0.7, 0.02);
   }
 
+  /** Stepping into the water: a soft splash. */
+  splash() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this.noise(ctx, t, 0.35, 0.16, 'lowpass', 1400, 0.7, 0.01, 500);
+    this.noise(ctx, t + 0.05, 0.25, 0.06, 'highpass', 2500, 0.6, 0.02);
+    this.tone(ctx, 'sine', 220, t, 0.12, 0.05, 120);
+  }
+
   /** A firework bursting far away: a soft low pop and a quiet crackle (k: 0..1, how close / loud). */
   firework(k = 1) {
     const ctx = this.ready();

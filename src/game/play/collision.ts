@@ -48,7 +48,7 @@ export class CollisionWorld {
    * Pushes a circle out of any boxes it overlaps. Returns the push vector
    * (0, 0 when free), and writes the corrected position into `out`.
    */
-  resolveCircle(x: number, z: number, r: number, out: { x: number; z: number }, canKnock = false): { nx: number; nz: number; hit: boolean; knocked: number } {
+  resolveCircle(x: number, z: number, r: number, out: { x: number; z: number }, canKnock = false, skipWater = false): { nx: number; nz: number; hit: boolean; knocked: number } {
     let px = x, pz = z, hit = false, nx = 0, nz = 0, knocked = 0;
     const seen = new Set<number>();
     for (let cx = this.ci(x - r); cx <= this.ci(x + r); cx++) {
@@ -59,7 +59,7 @@ export class CollisionWorld {
           if (seen.has(i)) continue;
           seen.add(i);
           const b = this.boxes[i];
-          if (b.off) continue;
+          if (b.off || (skipWater && b.water)) continue;
           const qx = Math.max(b.x0, Math.min(px, b.x1)), qz = Math.max(b.z0, Math.min(pz, b.z1));
           let dx = px - qx, dz = pz - qz;
           const d2 = dx * dx + dz * dz;

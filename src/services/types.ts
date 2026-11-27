@@ -53,6 +53,8 @@ export interface PlayerProfile {
   fish: Record<string, number>;
   /** Petting farm: the kinds of animals you fed. */
   animalsFed: string[];
+  /** Has the rubber duck float for swimming. */
+  swimFloat: boolean;
   /** Dents per vehicle (from bumping into cars); the garage repairs them. */
   vehicleDents: Record<string, import('../game/vehicles/dents').Dent[]>;
   /** Today's daily missions progress (see game/missions.ts); reset when the day changes. */
