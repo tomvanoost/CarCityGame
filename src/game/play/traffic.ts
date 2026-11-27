@@ -210,9 +210,16 @@ export class Traffic {
   }
 
   /** Is lane `lane` of this car's road free from a bit behind it to well ahead (to change into it)? */
-  private laneFree(car: Car, lane: number) {
-    return !this.cars.some((o) => o !== car && o.root.visible && o.from === car.from && o.to === car.to && o.seg.kind === 'line'
-      && Math.abs(o.lane - lane) < 1.8 && o.d > car.d - 18 && o.d < car.d + 30);
+  private laneFree(car: Car, lane: number, you: { x: number; z: number; v: number }) {
+    if (this.cars.some((o) => o !== car && o.root.visible && o.from === car.from && o.to === car.to && o.seg.kind === 'line'
+      && Math.abs(o.lane - lane) < 1.8 && o.d > car.d - 18 && o.d < car.d + 30)) return false;
+    // You (the player): in that lane, a bit ahead, or behind and coming closer? Then it isn't free:
+    // the faster you come, the further back you're seen (5 s of closing speed).
+    const fx = Math.sin(car.heading), fz = Math.cos(car.heading), rx = you.x - car.x, rz = you.z - car.z;
+    const along = rx * fx + rz * fz, right = -rx * fz + rz * fx; // + = to the car's right (lanes count to the right)
+    if (Math.abs(right - (lane - car.lane)) > 2.2) return true;
+    const behind = 20 + Math.max(0, you.v - car.speed) * 5;
+    return !(along > -behind && along < 30);
   }
 
   /** Evening: headlights on for every traffic car. */
@@ -245,7 +252,7 @@ export class Traffic {
     if (this.detailTimer <= 0) { this.detailTimer = 0.5; this.updateDetail(focus); }
 
     const peds = people?.obstacles() ?? [];
-    const pc = { x: player.x, z: player.z, h: player.heading, half: player.length / 2, r: player.width / 2 };
+    const pc = { x: player.x, z: player.z, h: player.heading, half: player.length / 2, r: player.width / 2, v: Math.abs(player.speed) };
 
     for (const car of this.cars) {
       if (!car.hasDriver && people?.ready) {
@@ -275,6 +282,24 @@ export class Traffic {
       const nearLights = left < 60 && !!this.signals?.hasLights(car.to);
       const forced = car.waited > (nearLights ? 50 : 8); // never stuck forever: ignore other cars after a long wait
       const look = Math.max(32, (car.speed * car.speed) / (2 * DECEL) + 12); // fast cars look further ahead
+      // Highway lanes: keep right; see a slower car far ahead in your lane in time and move to the left
+      // lane before having to brake, but only when that lane is free (also of you, coming up behind).
+      const onHighway = autobahn || this.graph.isHighway(car.from, car.to);
+      const hwLanes = onHighway && car.seg.kind === 'line' ? this.graph.lanesOf(car.from, car.to) : null;
+      let hwGoal: number | null = null, slowAhead = Infinity;
+      if (hwLanes) {
+        car.overtake = Math.max(0, car.overtake - dt);
+        const plan = Math.max(60, car.speed * 5);
+        for (const o of this.cars) {
+          if (o === car || !o.root.visible || o.from !== car.from || o.to !== car.to || o.seg.kind !== 'line') continue;
+          const gap = o.d - car.d;
+          if (gap > 0 && gap < plan && Math.abs(o.lane - car.lane) < 1.8) slowAhead = Math.min(slowAhead, o.speed);
+        }
+        const leftLane = hwLanes[0], keep = this.graph.cruiseLane(car.from, car.to);
+        if (slowAhead < cruise * 0.92 && car.lane > leftLane + 0.5 && left > 80 && this.laneFree(car, leftLane, pc)) car.overtake = 5;
+        // Stay left while overtaking, or while the right lane next to you isn't free yet.
+        hwGoal = car.overtake > 0 || (car.lane < keep - 0.5 && !this.laneFree(car, keep, pc)) ? leftLane : keep;
+      }
       const check = (x: number, z: number, r: number, isCar: boolean) => {
         if (isCar && forced) return;
         const rx = x - car.x, rz = z - car.z;
@@ -292,6 +317,10 @@ export class Traffic {
       for (const k of [po, 0, -po]) check(pc.x + Math.sin(pc.h) * k, pc.z + Math.cos(pc.h) * k, pc.r, false);
       for (const o of this.cars) {
         if (o === car || !o.root.visible) continue;
+        // Moving over to another highway lane: the car in the lane you're leaving no longer counts
+        // (once you're partly across and not right behind it), so you don't brake for it.
+        if (hwGoal !== null && o.from === car.from && o.to === car.to && Math.abs(o.lane - hwGoal) > 1.8
+          && Math.abs(car.lane - hwGoal) < 2.6 && o.d - car.d > car.half + o.half + 4) continue;
         const oo = o.half - o.radius;
         for (const k of [oo, 0, -oo]) check(o.x + Math.sin(o.heading) * k, o.z + Math.cos(o.heading) * k, o.radius, true);
       }
@@ -330,11 +359,12 @@ export class Traffic {
       const target = Math.min(allowed, cruise);
       // Lights like real drivers: hazard lights when braking hard on the highway (a jam ahead) or when
       // pulled over for a siren; otherwise the turn signal on the last stretch before turning.
-      const onHighway = autobahn || this.graph.isHighway(car.from, car.to);
-      if (onHighway && carAhead && car.speed > 16 && target < car.speed * 0.45) car.hazard = 5;
+      // Hazard lights only for a real jam: braking hard for a very slow car, with no way to go around.
+      if (onHighway && carAhead && car.speed > 16 && target < car.speed * 0.45 && slowAhead < cruise * 0.4 && car.overtake <= 0) car.hazard = 5;
       car.hazard = Math.max(0, car.hazard - dt);
       let blinkSide: 'left' | 'right' | 'both' | null = null;
       if (car.hazard > 0 || car.pull > 0.3) blinkSide = 'both';
+      else if (hwGoal !== null && Math.abs(hwGoal - car.lane) > 0.3) blinkSide = hwGoal < car.lane ? 'left' : 'right'; // changing lanes
       else if (car.seg.kind === 'line' && left < 45 && !autobahn) { // (not for the autobahn's gentle bends)
         const mv = moveOf(N[car.from], N[car.to], N[this.peekNext(car)]);
         if (mv !== 'straight') blinkSide = mv;
@@ -350,12 +380,8 @@ export class Traffic {
       if (car.seg.kind === 'line') {
         const lanes = this.graph.lanesOf(car.from, car.to);
         laneGoal = this.graph.cruiseLane(car.from, car.to);
-        if (this.graph.isHighway(car.from, car.to) || autobahn) {
-          // Highway: keep right, overtake a slower car on the left when the left lane is free, then go back.
-          car.overtake = Math.max(0, car.overtake - dt);
-          if (carAhead && left > 60 && this.laneFree(car, lanes[0])) car.overtake = 5;
-          if (car.overtake > 0 || (car.lane < laneGoal - 0.5 && !this.laneFree(car, laneGoal))) laneGoal = lanes[0];
-        } else if (lanes.length > 1 && left < 75 && this.signals?.hasLights(car.to)) {
+        if (hwGoal !== null) laneGoal = hwGoal; // highway: decided above (overtaking)
+        else if (lanes.length > 1 && left < 75 && this.signals?.hasLights(car.to)) {
           const mv = moveOf(N[car.from], N[car.to], N[this.peekNext(car)]);
           laneGoal = mv === 'left' ? lanes[0] : mv === 'right' ? lanes[lanes.length - 1] : lanes[1];
         }

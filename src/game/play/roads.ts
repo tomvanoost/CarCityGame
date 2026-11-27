@@ -99,13 +99,15 @@ export class RoadGraph {
       this.navAdj[a].push(b); this.navAdj[b].push(a); this.navEdges.push([a, b]);
       if (highway) { this.highway.set(`${a}-${b}`, highway); this.highway.set(`${b}-${a}`, highway); }
     };
-    // Lake town ring road: 16 points around the square (k = 0 east, 4 south, 8 west, 12 north).
+    // Lake town ring road: 48 points around the square (k = 0 east, 12 south, 24 west, 36 north). Enough
+    // points that the straight pieces between them stay on the round road (16 cut ~3 m into the grass).
+    const RING = 48;
     const ring: number[] = [];
-    for (let k = 0; k < 16; k++) {
-      const a = (k / 16) * Math.PI * 2;
+    for (let k = 0; k < RING; k++) {
+      const a = (k / RING) * Math.PI * 2;
       ring.push(add({ x: LAKE_TOWN.x + Math.cos(a) * LAKE_TOWN.ring, z: LAKE_TOWN.z + Math.sin(a) * LAKE_TOWN.ring }));
     }
-    ring.forEach((id, k) => join(id, ring[(k + 1) % 16]));
+    ring.forEach((id, k) => join(id, ring[(k + 1) % RING]));
     const cityEast = nearestNode(480, DESERT_TOWN.z), citySouth = nearestNode(SOUTH_ROAD.x, 480);
     const desertTown = add({ x: DESERT_TOWN.x, z: DESERT_TOWN.z });
     const farmCorner = add({ x: DESERT_TOWN.x, z: LINK_ROAD.z });
@@ -117,7 +119,7 @@ export class RoadGraph {
     join(cityEast, dtWest, 'A1'); join(dtWest, desertTown);
     join(desertTown, dtSouth); join(dtSouth, farmCorner, 'A1');
     join(farmCorner, ltEast, 'A1'); join(ltEast, ring[0]);
-    join(ring[12], ltNorth); join(ltNorth, citySouth, 'A1');
+    join(ring[36], ltNorth); join(ltNorth, citySouth, 'A1');
     this.highwayEnds.push(
       { node: cityEast, towards: dtWest, name: 'A1' }, { node: dtWest, towards: cityEast, name: 'A1' },
       { node: dtSouth, towards: farmCorner, name: 'A1' }, { node: ltEast, towards: farmCorner, name: 'A1' },
