@@ -32,7 +32,7 @@ const LOT_COLORS: Record<District, string> = {
   downtown: '#a9a59d', midrise: '#a9a59d', shops: '#80b35c', townhouses: '#7fb25b',
   apartments: '#82b55e', residential: '#7db35a', park: '#79b458', gas: '#7fb25b',
 };
-const SIDEWALK_COLOR = '#b9b5ad';
+import { CURB_COLOR, SIDEWALK_COLOR } from './materials';
 
 // ---------- small geometry helpers (vertex-colored) ----------
 class GeoBuilder {
@@ -171,7 +171,7 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   const top = CURB_HEIGHT;
   for (const b of layout.blocks) {
     const s = b.slab, l = b.lot;
-    slabs.walls(s, 0, top, '#9d9991');
+    slabs.walls(s, 0, top, CURB_COLOR);
     // sidewalk ring
     slabs.quad(s.x0, s.z0, s.x1, l.z0, top, SIDEWALK_COLOR);
     slabs.quad(s.x0, l.z1, s.x1, s.z1, top, SIDEWALK_COLOR);

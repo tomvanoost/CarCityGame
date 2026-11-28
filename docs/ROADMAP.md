@@ -23,7 +23,18 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Road and sidewalk details** (graphics): asphalt patches and cracks, manhole covers, curb stones,
-  slightly worn lane paint, in the road shader (no extra draw calls).
+- [ ] **Petting zoo animals you can brush** (feature): at the petting farm, a "brush" button next to
+  feeding: the animal closes its eyes happily, hearts float up; €2, a sticker after brushing every kind.
+- [ ] **Distant buildings as low-detail boxes** (performance): measure what the far city costs; far
+  away (> ~250 m) draw the batched buildings as simple colored boxes; check FPS and that it looks the same.
+- [ ] **Softer shadows and ambient occlusion feel** (graphics): darker contact shadows under cars,
+  buildings and trees (baked blobs / vertex AO), no screen-space post-processing.
+- [ ] **Ice cream truck** (feature): an ice cream truck with a jingle drives around the city now and
+  then; stop next to it to buy a cone.
+- [ ] **Lighter city ground** (performance): the city ground/streets mesh (~97 k triangles) and the
+  hills (~70 k) are single meshes that are always drawn: split them into tiles so off-screen parts
+  are culled.
+- [ ] **Better tree shading** (graphics): softer, two-tone leaves with a bit of light shining
+  through at the edges; same models, shader only.
 
 (Add new ideas here, in order, for the next runs.)

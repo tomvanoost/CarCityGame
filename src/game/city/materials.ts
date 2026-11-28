@@ -4,6 +4,11 @@ import { LAKE } from './outskirts';
 import { SKY } from '../world/sky';
 import { WEATHER } from '../world/weather';
 
+/** Sidewalk and curb colors (the ground shader recognises them to draw paving tiles and curb stones). */
+export const SIDEWALK_COLOR = '#b9b5ad';
+export const CURB_COLOR = '#9d9991';
+const glslColor = (hex: string) => { const c = new THREE.Color(hex); return `vec3(${c.r.toFixed(4)}, ${c.g.toFixed(4)}, ${c.b.toFixed(4)})`; };
+
 /** Shared GLSL helpers: value noise + anti-aliased masks. */
 const NOISE = /* glsl */ `
 float hash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -147,7 +152,13 @@ export function createTerrainMaterial() {
     shader.uniforms.uGrass = { value: tex };
     shader.uniforms.uGrassMean = { value: grassMean };
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D uGrass;\nuniform float uGrassMean;')
+      .replace('#include <common>', `#include <common>
+        uniform sampler2D uGrass;
+        uniform float uGrassMean;
+        const vec3 SIDEWALK = ${glslColor(SIDEWALK_COLOR)};
+        const vec3 CURB = ${glslColor(CURB_COLOR)};
+        float lineOffsetT(float v) { float g = v + ${HALF_CITY.toFixed(1)}; return g - floor(g / ${BLOCK_SPACING.toFixed(1)} + 0.5) * ${BLOCK_SPACING.toFixed(1)}; }
+        float halfOfT(float v) { float i = floor((v + ${HALF_CITY.toFixed(1)}) / ${BLOCK_SPACING.toFixed(1)} + 0.5); return mod(i, 2.0) > 0.5 ? ${WIDE_HALF.toFixed(2)} : ${(ROAD_WIDTH / 2).toFixed(2)}; }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
       float big = fbm(vWorld.xz * 0.025);
       float fine = vnoise(vWorld.xz * 1.7);
@@ -183,9 +194,31 @@ export function createTerrainMaterial() {
         diffuseColor.rgb = mix(vc * (0.86 + 0.22 * big + 0.06 * fine), grass, grassM);
       } else {
         diffuseColor.rgb *= 0.86 + 0.22 * big + 0.06 * fine;
+      }
+      // City sidewalks: square paving tiles with mortar joints, and a lighter curb stone along the road.
+      float near = 1.0 - smoothstep(40.0, 90.0, length(vWorld - cameraPosition));
+      if (near > 0.0 && length(vc - SIDEWALK) < 0.02) {
+        float rdx = lineOffsetT(vWorld.x), rdz = lineOffsetT(vWorld.z);
+        float edge = min(abs(rdx) - halfOfT(vWorld.x), abs(rdz) - halfOfT(vWorld.z)); // meters from the road edge
+        vec2 tile = vWorld.xz / 0.75;
+        vec2 tf = abs(fract(tile) - 0.5);
+        float joint = aaLess(0.5 - max(tf.x, tf.y), 0.035);
+        float tone = 0.94 + 0.1 * hash21(floor(tile));
+        vec3 paving = diffuseColor.rgb * tone * (1.0 - 0.18 * joint);
+        // Curb stone: a light band 0.3 m wide with a joint every metre.
+        float curb = 1.0 - step(0.3, edge);
+        float along = abs(rdx) - halfOfT(vWorld.x) < abs(rdz) - halfOfT(vWorld.z) ? vWorld.z : vWorld.x;
+        float cj = aaLess(abs(fract(along) - 0.5) - 0.48, 0.0);
+        vec3 curbCol = vec3(0.6, 0.59, 0.56) * (1.0 - 0.25 * cj) * (0.95 + 0.08 * fine);
+        diffuseColor.rgb = mix(diffuseColor.rgb, mix(paving, curbCol, curb), near);
+      }
+      // The curb's side: stone blocks with a joint every metre.
+      if (near > 0.0 && length(vc - CURB) < 0.02) {
+        float cj = aaLess(abs(fract(vWorld.x + vWorld.z) - 0.5) - 0.48, 0.0);
+        diffuseColor.rgb *= 1.0 - 0.3 * cj * near;
       }`);
   };
-  mat.customProgramCacheKey = () => 'cityTerrainGrass';
+  mat.customProgramCacheKey = () => 'cityTerrainGrass2';
   return mat;
 }
 
@@ -245,13 +278,58 @@ export function createRoadMaterial() {
           // stop line across the lanes that drive towards the crossing
           paint = max(paint, step(HC + 4.0, toCross) * (1.0 - step(HC + 4.45, toCross)) * approach * step(0.5, aAcross) * step(aAcross, HW - 0.5));
         }
+        // Details up close: repair patches, fine cracks, worn paint, tyre tracks, manhole covers.
+        float nearR = 1.0 - smoothstep(35.0, 110.0, length(vWorld - cameraPosition));
+        if (nearR > 0.0) {
+          // Patches: now and then a darker rectangle of newer asphalt with a dark seam.
+          vec2 pc = floor(vWorld.xz / 9.0), pf = fract(vWorld.xz / 9.0);
+          float ph = hash21(pc + 17.0);
+          if (ph > 0.86) {
+            vec2 lo = vec2(0.15 + 0.3 * hash21(pc + 1.0), 0.15 + 0.3 * hash21(pc + 2.0)), hi = lo + vec2(0.25 + 0.25 * hash21(pc + 3.0), 0.2 + 0.3 * hash21(pc + 4.0));
+            vec2 inP = step(lo, pf) * step(pf, hi);
+            float patchM = inP.x * inP.y;
+            vec2 dd = min(pf - lo, hi - pf) * 9.0;
+            float seam = patchM * aaLess(min(dd.x, dd.y), 0.06);
+            diffuseColor.rgb *= mix(1.0, 0.86, patchM * nearR) * (1.0 - 0.35 * seam * nearR);
+          }
+          // Fine cracks: thin dark lines along a noise ridge, only here and there.
+          float cr = abs(vnoise(vWorld.xz * 2.2) - 0.5);
+          float crackM = aaLess(cr, 0.006) * smoothstep(0.72, 0.85, vnoise(vWorld.xz * 0.1 + 5.0)) * (1.0 - smoothstep(10.0, 30.0, length(vWorld - cameraPosition)));
+          diffuseColor.rgb *= 1.0 - 0.22 * crackM;
+          // Worn paint: lines a bit patchy.
+          paint *= 1.0 - 0.35 * smoothstep(0.5, 0.85, vnoise(vWorld.xz * 1.3)) * nearR;
+          if (inV != inH) {
+            float across = inV ? dx : dz, along = inV ? vWorld.z : vWorld.x;
+            float aAcross = abs(across), HW = inV ? hx : hz;
+            // Tyre tracks: slightly darker, smoother bands where the wheels roll (in each lane).
+            float lane = HW > SMALL + 0.5 ? mod(aAcross, 3.33) : aAcross;
+            float laneC = HW > SMALL + 0.5 ? 1.67 : 2.5;
+            float track = (aaLess(abs(lane - (laneC - 0.8)), 0.25) + aaLess(abs(lane - (laneC + 0.8)), 0.25)) * (1.0 - paint);
+            diffuseColor.rgb *= 1.0 - 0.07 * track * nearR;
+            // Manhole covers: a round iron lid every ~35 m, in the middle of a lane.
+            float cell = floor(along / 35.0);
+            float mh = hash21(vec2(cell, inV ? floor((vWorld.x + HALF) / SPACING + 0.5) : floor((vWorld.z + HALF) / SPACING + 0.5) + 50.0));
+            if (mh > 0.45) {
+              float side = mh > 0.72 ? 1.0 : -1.0;
+              vec2 c = vec2((cell + 0.3 + 0.4 * mh) * 35.0, side * laneC);
+              vec2 rel = vec2(along - c.x, across - c.y);
+              float r = length(rel);
+              float lid = 1.0 - smoothstep(0.34, 0.36, r);
+              float rim = aaLess(abs(r - 0.33), 0.025);
+              float grid = aaLess(abs(fract(rel.x * 6.0) - 0.5) - 0.42, 0.0) * step(r, 0.3);
+              vec3 iron = vec3(0.13, 0.13, 0.14) * (1.0 - 0.3 * grid) + vec3(0.05) * rim;
+              diffuseColor.rgb = mix(diffuseColor.rgb, iron, lid * nearR);
+              paint *= 1.0 - lid;
+            }
+          }
+        }
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92), paint);
         // Rain: the asphalt gets darker, and puddles form in the low spots (they shine like mirrors).
         float puddle = smoothstep(0.62, 0.7, fbm(vWorld.xz * 0.11 + 3.1)) * uWet;
         diffuseColor.rgb *= 1.0 - 0.3 * uWet - 0.25 * puddle;`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.6, paint);\nroughnessFactor = mix(roughnessFactor, 0.55, uWet * 0.6);\nroughnessFactor = mix(roughnessFactor, 0.05, puddle);');
   };
-  mat.customProgramCacheKey = () => 'cityRoad';
+  mat.customProgramCacheKey = () => 'cityRoad2';
   return mat;
 }
 
