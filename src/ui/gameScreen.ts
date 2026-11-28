@@ -243,7 +243,7 @@ export const gameScreen: Screen = (root, nav) => {
   root.append(canvas, binocView, binocName, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, ctxAlt, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, clockEl, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, photoBtn, photoBar, flash, mirrorFrame, mirrorFrameR, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, race: null, clock: '', job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false, binoc: null };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, race: null, clock: '', job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, firstPerson: false, mp: null, police: false, siren: false, binoc: null };
   const render = () => {
     const driving = state.mode === 'driving';
     if (!speedPop.hidden) showLimit(state.maxSpeed); else speedBtn.lastElementChild!.textContent = state.maxSpeed && state.maxSpeed < state.topSpeed ? String(state.maxSpeed) : 'MAX';
@@ -255,7 +255,9 @@ export const gameScreen: Screen = (root, nav) => {
     dash.hidden = !driving;
     hornBtn.hidden = !driving || overlay;
     sirenBtn.hidden = !(driving && state.police) || overlay;
-    viewBtn.hidden = !driving;
+    viewBtn.hidden = overlay;
+    if (overlay && document.pointerLockElement) document.exitPointerLock(); // a panel / map is open: the mouse is needed
+    viewBtn.classList.toggle('active', state.firstPerson);
     photoBtn.hidden = state.context?.kind === 'rideStop' || overlay;
     mirrorFrame.hidden = mirrorFrameR.hidden = !state.cockpit;
     binocView.hidden = binocName.hidden = !state.binoc;
@@ -816,8 +818,19 @@ export const gameScreen: Screen = (root, nav) => {
 
   // Drag on the 3D view to look around.
   const drags = new Map<number, { x: number; y: number }>();
-  canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); drags.set(e.pointerId, { x: e.clientX, y: e.clientY }); });
+  // First person with a mouse (like Minecraft): click the 3D view and the mouse looks around without
+  // dragging (pointer lock); Esc gives the mouse back.
+  const locked = () => document.pointerLockElement === canvas;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && state.firstPerson && !locked() && canvas.requestPointerLock) {
+      try { const r = canvas.requestPointerLock() as unknown as Promise<void> | undefined; r?.catch?.(() => {}); } catch { /* not allowed here */ }
+      return;
+    }
+    canvas.setPointerCapture(e.pointerId); drags.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  });
+  document.addEventListener('pointerlockchange', () => { if (locked()) toast(t('mouseLookOn')); });
   canvas.addEventListener('pointermove', (e) => {
+    if (locked()) { input.addLook(e.movementX, e.movementY); return; }
     const d = drags.get(e.pointerId);
     if (!d) return;
     input.addLook(e.clientX - d.x, e.clientY - d.y);
@@ -831,6 +844,7 @@ export const gameScreen: Screen = (root, nav) => {
   // Controller B / ○ or Esc: close the open panel (taps its ✕ button).
   const onBack = (e: Event) => {
     if (e instanceof KeyboardEvent && e.key !== 'Escape') return;
+    if (locked()) document.exitPointerLock();
     const btn = [...root.querySelectorAll<HTMLButtonElement>('.close-btn')].find((b) => b.offsetParent !== null);
     btn?.click();
   };
@@ -848,6 +862,7 @@ export const gameScreen: Screen = (root, nav) => {
     chatCleanup();
     window.removeEventListener('carcity-back', onBack);
     window.removeEventListener('keydown', onBack);
+    if (document.pointerLockElement) document.exitPointerLock();
     closeRoom();
     cancelAnimationFrame(mapRaf);
     window.removeEventListener('pointerdown', sounds.unlock);

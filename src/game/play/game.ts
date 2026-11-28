@@ -67,6 +67,11 @@ import { Player } from './player';
 import { Vehicle } from './vehicle';
 import { cleanText } from '../../services/textFilter';
 import { GrassField } from './grassField';
+
+const FP_KEY = 'carcity.firstPerson';
+/** First person (or the camera behind you), remembered on this device; first person unless chosen otherwise. */
+function loadFirstPerson() { try { return localStorage.getItem(FP_KEY) !== '0'; } catch { return true; } }
+function saveFirstPerson(on: boolean) { try { localStorage.setItem(FP_KEY, on ? '1' : '0'); } catch { /* private mode */ } }
 import { sounds } from './sounds';
 
 export type Mode = 'driving' | 'walking';
@@ -120,6 +125,8 @@ export interface GameState {
   mp: { room: string; others: number } | null;
   /** Dashboard view is on (the HUD shows the mirror frame). */
   cockpit: boolean;
+  /** First person view chosen (walking: at your eyes; driving: the dashboard view). */
+  firstPerson: boolean;
   /** Turn signal that is blinking right now. */
   blinker: 'left' | 'right' | 'both' | null;
   /** Driving an emergency vehicle (shows the 🚨 button), and whether its siren is on. */
@@ -312,8 +319,15 @@ export class Game {
   /** Turn signals (1 / 2, d-pad left / right); they switch off by themselves after the turn. */
   private signals?: TurnSignals;
   private blinkTurned = 0;
-  /** Dashboard view: the camera sits in the driver's seat (F2 / View button / 🎥). */
-  private cockpit = false;
+  /**
+   * First person (like Minecraft): walking, the camera is at your eyes; driving, it sits in the driver's
+   * seat (dashboard view). F2 / 🎥 switches between this and the camera behind you; the choice is remembered.
+   */
+  private cockpit = loadFirstPerson();
+  /** First person on foot: looking up / down (the left-right look is follow.yaw, also used for walking). */
+  private fpPitch = 0;
+  /** Seconds since you last looked around (the dashboard view only turns back to the road after a while). */
+  private lookIdle = 0;
   /** 📷 Photo mode: the car / you stand still and the camera turns freely around (distance in meters). */
   private photo = false;
   private photoDist = 7;
@@ -1242,6 +1256,7 @@ export class Game {
       p.place(door.x, door.z, v.heading + Math.PI / 2);
       a.play('StandUp', { once: true, fade: 0.15, then: 'Idle' });
       this.mode = 'walking';
+      if (this.cockpit) { this.follow.yaw = v.heading + this.cockpitYaw + Math.PI; this.fpPitch = 0; } // keep looking the same way
       this.setSiren(false);
       if (this.signals) this.signals.side = null;
       sounds.door();
@@ -1349,6 +1364,21 @@ export class Game {
     r.autoClear = true;
     r.setScissorTest(false);
     r.setViewport(0, 0, cssW, cssH);
+  }
+
+  /** First person on foot (not on a ride, not in photo mode). */
+  private firstPersonWalk() { return this.cockpit && this.mode === 'walking' && !this.ride && !this.photo; }
+
+  /** First person on foot: the camera at your eyes, looking where you look (you don't see yourself). */
+  private placeEyesCamera() {
+    const pl = this.player!;
+    this.setCameraRange(true);
+    // Look direction: follow.yaw is where a camera behind you would stand, so you look the other way.
+    const yaw = this.follow.yaw + Math.PI, pitch = this.fpPitch;
+    // A gentle bob while walking.
+    const bob = Math.min(1, Math.abs(pl.speed) / 4) * Math.sin(performance.now() / 120) * 0.035;
+    this.camera.position.set(pl.x, pl.y + 1.45 + bob, pl.z);
+    this.camera.lookAt(pl.x + Math.sin(yaw) * Math.cos(pitch), pl.y + 1.45 + bob + Math.sin(pitch), pl.z + Math.cos(yaw) * Math.cos(pitch));
   }
 
   /** Dashboard view: the camera at the driver's eyes, looking out of the windscreen. */
@@ -1802,7 +1832,7 @@ export class Game {
   setPhotoMode(on: boolean) {
     this.photo = on;
     this.photoDist = this.mode === 'driving' ? 7 : 4.5;
-    if (on) this.cockpit = false;
+    this.cockpit = on ? false : loadFirstPerson(); // photos are taken from behind; afterwards back to your view
   }
   get photoMode() { return this.photo; }
   /** Photo mode: camera closer (-1) or further away (+1). */
@@ -1911,13 +1941,27 @@ export class Game {
     if ((brushKey || this.pendingBrush) && !this.paused && ctx?.kind === 'feed') this.brushAnimal();
     this.pendingCar = this.pendingContext = this.pendingBrush = false;
     const look = this.input.takeLook();
-    if (this.input.takeView() && this.mode === 'driving' && !this.paused) { this.cockpit = !this.cockpit; this.cockpitYaw = this.cockpitPitch = 0; }
+    if (this.input.takeView() && !this.paused && !this.photo) {
+      this.cockpit = !this.cockpit;
+      saveFirstPerson(this.cockpit);
+      this.cockpitYaw = this.cockpitPitch = this.fpPitch = 0;
+    }
     const inCockpit = this.cockpit && this.mode === 'driving';
+    const looked = !!(look.dx || look.dy);
+    this.lookIdle = looked ? 0 : this.lookIdle + dt;
     if (inCockpit) {
-      // Look around a little from the seat (drag / right stick); it drifts back to straight ahead.
-      this.cockpitYaw = THREE.MathUtils.clamp(this.cockpitYaw - look.dx * 0.005, -1.3, 1.3);
-      this.cockpitPitch = THREE.MathUtils.clamp(this.cockpitPitch - look.dy * 0.004, -0.5, 0.35);
-      if (!look.dx && !look.dy) { this.cockpitYaw *= 0.97; this.cockpitPitch *= 0.97; }
+      // Look around from the seat (mouse / drag / right stick): out of the side windows and over your
+      // shoulder. Only when you stop looking (and drive) does the view slowly turn back to the road.
+      this.cockpitYaw = THREE.MathUtils.clamp(this.cockpitYaw - look.dx * 0.005, -2.4, 2.4);
+      this.cockpitPitch = THREE.MathUtils.clamp(this.cockpitPitch - look.dy * 0.004, -0.7, 0.6);
+      if (this.lookIdle > 1.5 && this.vehicle && this.vehicle.kmh > 8) {
+        const k = 1 - Math.min(1, dt * 1.2);
+        this.cockpitYaw *= k; this.cockpitPitch *= k;
+      }
+    } else if (this.firstPersonWalk()) {
+      // First person on foot: look freely (walking goes the way you look).
+      this.follow.yaw -= look.dx * 0.005;
+      this.fpPitch = THREE.MathUtils.clamp(this.fpPitch - look.dy * 0.004, -1.35, 1.35);
     } else this.follow.look(look.dx, look.dy);
     const jump = this.input.takeJump();
     const v = this.vehicle;
@@ -2051,7 +2095,8 @@ export class Game {
         // Watching fireworks near the stand: the camera looks out over the lake at sky level.
         const watching = this.fireworks?.active && Math.hypot(this.player.x - FIREWORKS_STAND.x, this.player.z - FIREWORKS_STAND.z) < 30;
         if (watching) this.focus.y += 10;
-        this.follow.update(dt, this.focus, { behindYaw: null, distance: watching ? 9 : 5.5, pitch: watching ? 0.06 : 0.32, blocked: this.blocked });
+        if (this.firstPersonWalk() && !watching) this.placeEyesCamera();
+        else this.follow.update(dt, this.focus, { behindYaw: null, distance: watching ? 9 : 5.5, pitch: watching ? 0.06 : 0.32, blocked: this.blocked });
       }
     }
     this.refuel(dt, ctx);
@@ -2074,7 +2119,7 @@ export class Game {
     }
     this.yieldTimer = v.yielding ? 1.2 : Math.max(0, this.yieldTimer - dt);
     // In the dashboard view your own driver is hidden, so you look over the real dashboard.
-    this.avatar.root.visible = !(this.cockpit && this.mode === 'driving') && !this.binoc; // (binoculars: you look from your own eyes)
+    this.avatar.root.visible = !(this.cockpit && this.mode === 'driving') && !this.binoc && !this.firstPersonWalk(); // (first person / binoculars: you look from your own eyes)
     this.funFair?.update(dt);
     this.trafficLights?.update(dt);
     this.balloon?.update(dt);
@@ -2185,6 +2230,7 @@ export class Game {
       maxSpeed: this.maxKmh,
       blinker: this.mode === 'driving' ? this.signals?.side ?? null : null,
       cockpit: this.cockpit && this.mode === 'driving',
+      firstPerson: this.cockpit,
       mp: this.mp ? { room: this.mp.roomName, others: this.remote?.count ?? 0 } : null,
       police: this.mode === 'driving' && !!v.spec.siren,
       siren: this.sirenOn,
