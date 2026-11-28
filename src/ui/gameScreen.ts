@@ -314,6 +314,7 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
         : c.kind === 'ride' && c.ride === 'picnic' ? `🧺 ${t('ridePicnic')} (${game.picnicBaskets})`
         : c.kind === 'picnicNeed' ? `🧺 ${t('picnicNeedBtn')}`
+        : c.kind === 'throwPlane' ? `✈️ ${t('throwPlane')}`
         : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : c.ride === 'balloon' ? '🎈' : c.ride === 'sandboard' ? '🏂' : c.ride === 'boat' ? '⛴️' : c.ride === 'skate' ? '🛹' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : c.ride === 'balloon' ? 'rideBalloon' : c.ride === 'sandboard' ? 'rideSandboard' : c.ride === 'boat' ? 'rideBoat' : c.ride === 'skate' ? 'rideSkate' : 'rideCarousel')}${c.price ? ` ${euro(c.price)}` : ''}`
         : c.kind === 'rideStop' ? `🚶 ${t('rideStop')}`
         : c.kind === 'binoculars' ? `🔭 ${t(c.looking ? 'binocNext' : 'binocLook')}`
@@ -388,6 +389,7 @@ export const gameScreen: Screen = (root, nav) => {
     onJobStart: (job) => toast(job.kind === 'delivery' ? t('pickedPackage') : job.kind === 'pizza' ? t('pickedPizza') : job.kind === 'bus' ? t('busStart') : t('pickedPassenger')),
     onFed: (a) => toast(`${ANIMAL_EMOJI[a]} ${t(`fed_${a}` as TKey)}`),
     onBusStop: (n, total) => toast(`🚌 ${t('busHopOn')} ${n}/${total}`),
+    onPlane: (m, best, record) => toast(`✈️ ${t('planeFlew').replace('{m}', String(m))}${record ? ` 🎉 ${t('planeRecord')}` : ` · ${t('planeBest').replace('{m}', String(best))}`}`),
     onFish: (f, isNew) => toast(`${f.emoji} ${t('fishCaught').replace('{fish}', t(`fish_${f.id}` as TKey))}${isNew ? ` ${t('fishNew')}` : ''}`),
     onRaceDone: (r) => toast(`${r.medal === 'gold' ? '🥇' : r.medal === 'silver' ? '🥈' : '🥉'} ${t(r.medal === 'gold' ? 'medalGold' : r.medal === 'silver' ? 'medalSilver' : 'medalBronze')} ${raceTime(r.time)}${r.record ? ` — ${t('raceRecord')}` : ` (${t('raceBest')} ${raceTime(r.best)})`}`),
     onCoin: (n, total) => toast(`🪙 ${t('coinFound')} ${n}/${total}`),
@@ -671,6 +673,10 @@ export const gameScreen: Screen = (root, nav) => {
           h('h2', {}, `📚 ${t('library')} · ${i + 1}/${round.length}`),
           h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
         ),
+        // A free paper plane to take along (only offered until you have one).
+        ...(i === 0 && !game.hasPaperPlane ? [h('button', { class: 'btn btn-big plane-get', onclick: (e: Event) => {
+          game.getPaperPlane(); (e.currentTarget as HTMLElement).remove(); toast(t('planeGot'));
+        } }, `✈️ ${t('planeGet')}`)] : []),
         h('div', { class: 'quiz-picture' }, q.emoji),
         h('h3', { class: 'quiz-question' }, t(key('q'))),
         h('div', { class: 'quiz-answers' }, ...answers),

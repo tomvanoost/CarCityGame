@@ -22,6 +22,7 @@ import { Navigator } from './navigation';
 import { Pedestrians } from './pedestrians';
 import { BIRD_KINDS, Wildlife, type BirdKind } from './wildlife';
 import { MAX_BASKETS, PICNIC_PRICE, Picnic } from './picnic';
+import { PLANE_STICKER_M, PaperPlane } from './paperPlane';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Pet, PetShopBuilding, getPet } from './pets';
 import { FURNITURE } from '../furniture';
@@ -78,7 +79,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number; brush: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'iceTruck' } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId } | { kind: 'binoculars'; looking: boolean } | { kind: 'picnicNeed' };
+export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number; brush: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'iceTruck' } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId } | { kind: 'binoculars'; looking: boolean } | { kind: 'picnicNeed' } | { kind: 'throwPlane' };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -173,6 +174,8 @@ export interface GameEvents {
   onBusStop?(stop: number, stops: number): void;
   /** Petting farm: you fed an animal. */
   onFed?(animal: FarmAnimalKind): void;
+  /** The paper plane landed: how far it flew, your best, and whether that's a new record. */
+  onPlane?(meters: number, best: number, record: boolean): void;
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery' | 'library' | 'garden'): void;
   /** Short message (i18n key + optional number). */
@@ -208,6 +211,8 @@ export class Game {
   wildlife?: Wildlife;
   /** Picnic blanket by the park pond. */
   picnic?: Picnic;
+  /** The paper plane from the library. */
+  private plane = new PaperPlane();
   carWash?: CarWash;
   private iceStand?: IceCreamStand;
   private postOffice?: THREE.Mesh;
@@ -427,6 +432,7 @@ export class Game {
     this.scene.add(this.wildlife.group);
     this.picnic = new Picnic(city.layout, this.wildlife);
     this.scene.add(this.picnic.group);
+    this.scene.add(this.plane.mesh);
     if (this.grassRadius > 0) {
       // (No grass blades growing through the picnic blanket.)
       this.grass = new GrassField(city.layout, (x, z) => this.world!.pointBlocked(x, z) || !!this.picnic?.covers(x, z), this.grassRadius);
@@ -878,6 +884,25 @@ export class Game {
     sounds.coin();
     awardSticker('gardener');
     return total;
+  }
+
+  /** Library: a free paper plane (you keep it and can throw it again and again). */
+  getPaperPlane() {
+    if (this.profile.paperPlane) return;
+    setProfile({ ...this.profile, paperPlane: true });
+    void updateProfile({ paperPlane: true });
+  }
+  get hasPaperPlane() { return this.profile.paperPlane; }
+
+  private planeLanded(meters: number) {
+    const m = Math.round(meters * 10) / 10, p = this.profile;
+    const record = m > p.planeBest;
+    if (record) {
+      setProfile({ ...p, planeBest: m });
+      void updateProfile({ planeBest: m });
+    }
+    this.events.onPlane?.(m, Math.max(m, p.planeBest), record && p.planeBest > 0);
+    if (m >= PLANE_STICKER_M) awardSticker('pilot');
   }
 
   /** Supermarket / bakery: a picnic basket for the blanket by the park pond (you can carry a few). */
@@ -1535,6 +1560,8 @@ export class Game {
     const parked = this.garage?.near(p.x, p.z);
     if (parked) return { kind: 'takeCar', id: parked.id };
     if (near(L.pois.apartment.door)) return this.profile.ownsApartment ? { kind: 'apartment' } : { kind: 'buyApartment', price: APARTMENT_PRICE };
+    // Nothing else here: throw your paper plane (if you have one and it's not in the air).
+    if (this.profile.paperPlane && !this.plane.flying) return { kind: 'throwPlane' };
     return null;
   }
 
@@ -1661,6 +1688,13 @@ export class Game {
         sounds.coin();
         this.events.onFed?.(a.kind);
         if (['goat', 'sheep', 'rabbit', 'pony'].every((k) => animalsFed.includes(k))) awardSticker('farmFriend');
+        break;
+      }
+      case 'throwPlane': {
+        // From your hand, where you look (the camera's direction), a little in front of you.
+        const pl = this.player!, dir = this.camera.getWorldDirection(new THREE.Vector3());
+        const yaw = Math.atan2(dir.x, dir.z);
+        this.plane.throw(pl.x + Math.sin(yaw) * 0.5, pl.y + 1.45, pl.z + Math.cos(yaw) * 0.5, yaw);
         break;
       }
       case 'picnicNeed':
@@ -2223,6 +2257,10 @@ export class Game {
     this.city.update(this.camera.position, dt);
     this.wildlife?.update(dt, this.camera.position, this.focus);
     this.picnic?.update(dt);
+    if (this.world) {
+      const flew = this.plane.update(dt, this.world);
+      if (flew !== null) this.planeLanded(flew);
+    }
     this.grass?.update(dt, this.focus);
     this.carWash?.update(dt, this.camera.position, this.washTimer, v);
     if (this.iceCreamTimer > 0) {
@@ -2335,6 +2373,7 @@ export class Game {
     this.people?.dispose();
     this.wildlife?.dispose();
     this.picnic?.dispose();
+    this.plane.dispose();
     this.grass?.dispose();
     this.carWash?.dispose();
     this.iceStand?.dispose();

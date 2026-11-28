@@ -59,6 +59,9 @@ export interface PlayerProfile {
   birdsSeen: string[];
   /** Picnic baskets you carry (bought at the supermarket / bakery, used on the blanket in the park). */
   picnicBaskets: number;
+  /** Has the paper plane from the library, and the furthest throw (meters). */
+  paperPlane: boolean;
+  planeBest: number;
   /** Has the rubber duck float for swimming. */
   swimFloat: boolean;
   /** Has a kite (flies on the beach). */
