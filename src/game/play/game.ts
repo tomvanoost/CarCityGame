@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { createRenderer, fitToCanvas } from '../../engine/renderer';
 import { getProfile, setProfile, updateProfile } from '../../services/session';
 import type { PlayerProfile } from '../../services/types';
@@ -24,7 +25,7 @@ import { FURNITURE } from '../furniture';
 import { EXTRA_PRICE, NEON_PRICE, PAINT_PRICE, PaintShopBuilding, SPOILER_PRICE } from './paintShop';
 import { PizzeriaBuilding } from './pizzeria';
 import { BusShelters } from './busStops';
-import { FEED_PRICE, PettingFarm, type FarmAnimalKind } from './pettingFarm';
+import { BRUSH_PRICE, FEED_PRICE, PettingFarm, type FarmAnimalKind } from './pettingFarm';
 import { BAKERY, BAKERY_TIME, BakeryBuilding, bakeryGeometry, type BakeryId } from './bakery';
 import { FunFair, RIDE_PRICE, type RideKind as FairRide } from './funFair';
 import { BALLOON_FRONT, BALLOON_PRICE, Balloon } from './balloon';
@@ -69,7 +70,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId };
+export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number; brush: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -291,6 +292,7 @@ export class Game {
   private fuelBill = 0;
   private pendingCar = false;
   private pendingContext = false;
+  private pendingBrush = false;
   private honking = false;
   /** Police car: flashing lights on its roof, and whether the siren is on. */
   private sirenLights?: SirenLights;
@@ -1433,7 +1435,7 @@ export class Game {
     if (near(L.pois.bakery.front)) return { kind: 'bakery' };
     if (near(L.pois.library.front)) return { kind: 'library' };
     const animal = this.farm?.nearest(p.x, p.z);
-    if (animal) return { kind: 'feed', animal: animal.kind, price: FEED_PRICE };
+    if (animal) return { kind: 'feed', animal: animal.kind, price: FEED_PRICE, brush: BRUSH_PRICE };
     const parked = this.garage?.near(p.x, p.z);
     if (parked) return { kind: 'takeCar', id: parked.id };
     if (near(L.pois.apartment.door)) return this.profile.ownsApartment ? { kind: 'apartment' } : { kind: 'buyApartment', price: APARTMENT_PRICE };
@@ -1796,6 +1798,25 @@ export class Game {
   /** HUD buttons. (The E key does: context action first, otherwise get in/out.) */
   pressCar() { this.pendingCar = true; }
   pressContext() { this.pendingContext = true; }
+  /** Second button (petting farm: brush the animal). */
+  pressBrush() { this.pendingBrush = true; }
+
+  /** Brush the animal you're next to (€2): it sways contentedly and hearts float up; a sticker for every kind. */
+  private brushAnimal() {
+    const p = this.profile, pl = this.player!, a = this.farm?.nearest(pl.x, pl.z);
+    if (!a || a.brushed > 0 || this.mode !== 'walking') return;
+    if (p.money < BRUSH_PRICE) { this.events.onMessage('needMoney', BRUSH_PRICE - p.money); return; }
+    const animalsBrushed = p.animalsBrushed.includes(a.kind) ? p.animalsBrushed : [...p.animalsBrushed, a.kind];
+    setProfile({ ...p, money: p.money - BRUSH_PRICE, animalsBrushed });
+    void updateProfile({ money: p.money - BRUSH_PRICE, animalsBrushed });
+    this.events.onMoney(-BRUSH_PRICE, 'farm');
+    this.farm!.brush(a, pl.x, pl.z);
+    pl.heading = Math.atan2(a.x - pl.x, a.z - pl.z);
+    this.avatar?.holdItem(brushGeometry());
+    this.iceCreamTimer = 3; // put the brush away again after brushing
+    sounds.coin();
+    if (['goat', 'sheep', 'rabbit', 'pony'].every((k) => animalsBrushed.includes(k))) awardSticker('groomer');
+  }
 
   // ---------------- main loop ----------------
 
@@ -1817,7 +1838,9 @@ export class Game {
       if ((key || this.pendingContext) && ctx) this.doContext(ctx);
       else if ((key || this.pendingCar) && !this.ride) this.toggleCar();
     }
-    this.pendingCar = this.pendingContext = false;
+    const brushKey = this.input.takeAlt();
+    if ((brushKey || this.pendingBrush) && !this.paused && ctx?.kind === 'feed') this.brushAnimal();
+    this.pendingCar = this.pendingContext = this.pendingBrush = false;
     const look = this.input.takeLook();
     if (this.input.takeView() && this.mode === 'driving' && !this.paused) { this.cockpit = !this.cockpit; this.cockpitYaw = this.cockpitPitch = 0; }
     const inCockpit = this.cockpit && this.mode === 'driving';
@@ -2172,3 +2195,17 @@ export class Game {
   }
 }
 
+
+/** A pet brush you hold while brushing (in the hand, pointing forward). */
+function brushGeometry() {
+  const wood = new THREE.BoxGeometry(0.06, 0.05, 0.3).translate(0, 0, 0.1);
+  const head = new THREE.BoxGeometry(0.12, 0.05, 0.1).translate(0, -0.03, 0.27);
+  const bristles = new THREE.BoxGeometry(0.11, 0.04, 0.09).translate(0, -0.07, 0.27);
+  const paintG = (g: THREE.BufferGeometry, c: string) => {
+    const geo = g.toNonIndexed(), col = new THREE.Color(c), n = geo.getAttribute('position').count, a = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) a.set([col.r, col.g, col.b], i * 3);
+    geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    return geo;
+  };
+  return mergeGeometries([paintG(wood, '#a0703f'), paintG(head, '#a0703f'), paintG(bristles, '#f2e6c9')])!;
+}

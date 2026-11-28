@@ -38,6 +38,7 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     raceBest: {},
     fish: {},
     animalsFed: [],
+    animalsBrushed: [],
     swimFloat: false,
     kite: false,
     garden: null,
@@ -84,6 +85,7 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   if (!p.raceBest || typeof p.raceBest !== 'object') p.raceBest = {};
   if (!p.fish || typeof p.fish !== 'object') p.fish = {};
   p.animalsFed = toArray(raw.animalsFed, []);
+  p.animalsBrushed = toArray(raw.animalsBrushed, []);
   p.swimFloat = p.swimFloat === true;
   p.kite = p.kite === true;
   const gd = raw.garden as { crop?: unknown; at?: unknown } | null | undefined;

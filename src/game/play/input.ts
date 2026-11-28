@@ -14,6 +14,8 @@ export class Input {
   private jumpQueued = false;
   private interactQueued = false;
   private hornQueued = false;
+  /** Second action (B, or the horn button X / □ while walking): e.g. brush an animal. */
+  private altQueued = false;
   private sirenQueued = false;
   private blinkQueued: 'left' | 'right' | 'both' | null = null;
   private viewQueued = false;
@@ -35,6 +37,7 @@ export class Input {
       if (!e.repeat && (k === 'KeyE' || k === 'KeyF' || k === 'Enter')) this.interactQueued = true;
       if (!e.repeat && k === 'Space') this.jumpQueued = true;
       if (!e.repeat && k === 'KeyH') this.hornQueued = true;
+      if (!e.repeat && k === 'KeyB') this.altQueued = true; // B = borstelen (brush)
       if (!e.repeat && k === 'KeyR') this.sirenQueued = true;
       if (!e.repeat && k === 'F2') { this.viewQueued = true; e.preventDefault(); }
       if (!e.repeat && (k === 'Digit1' || k === 'Numpad1')) this.blinkQueued = 'left';
@@ -63,7 +66,7 @@ export class Input {
     if (!p) return;
     if (p.interact) this.interactQueued = true;
     if (p.jump) this.jumpQueued = true;
-    if (p.horn) this.hornQueued = true;
+    if (p.horn) { this.hornQueued = true; this.altQueued = true; }
     if (p.siren) this.sirenQueued = true;
     if (p.view) this.viewQueued = true;
     if (p.blinkLeft) this.blinkQueued = 'left';
@@ -100,6 +103,7 @@ export class Input {
 
   queueJump() { this.jumpQueued = true; }
   queueHorn() { this.hornQueued = true; }
+  takeAlt() { const a = this.altQueued; this.altQueued = false; return a; }
   queueSiren() { this.sirenQueued = true; }
   queueBlink(side: 'left' | 'right' | 'both') { this.blinkQueued = side; }
   queueView() { this.viewQueued = true; }

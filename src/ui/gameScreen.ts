@@ -204,6 +204,9 @@ export const gameScreen: Screen = (root, nav) => {
   const actionKey = h('kbd', {}, 'E');
   action.append(svgIcon('<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M9 17l5-5-5-5"/><path d="M14 12H3"/>', 26), actionLabel, actionKey);
   const ctxBtn = h('button', { class: 'context-btn' });
+  // Second context button (petting farm: brush the animal; also B or controller X).
+  const ctxAlt = h('button', { class: 'context-btn ctx-alt', hidden: true });
+  ctxAlt.addEventListener('click', () => game.pressBrush());
   const countEl = h('div', { class: 'race-count', hidden: true }, '3');
   /** 0:52.3 */
   const raceTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
@@ -232,7 +235,7 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, clockEl, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, photoBtn, photoBar, flash, mirrorFrame, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, ctxAlt, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, clockEl, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, photoBtn, photoBar, flash, mirrorFrame, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
   let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, race: null, clock: '', job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false };
@@ -270,6 +273,8 @@ export const gameScreen: Screen = (root, nav) => {
     // Context button: refuel / go inside / buy apartment.
     const c = state.context;
     ctxBtn.hidden = !c;
+    ctxAlt.hidden = c?.kind !== 'feed';
+    if (c?.kind === 'feed') ctxAlt.textContent = `🪮 ${t('brushAnimal')} ${ANIMAL_EMOJI[c.animal]} ${euro(c.brush)}`;
     if (c) {
       ctxBtn.textContent = c.kind === 'refuel' ? (state.refueling ? `⛽ ${t('refueling')}` : `⛽ ${t('refuel')}`)
         : c.kind === 'wash' ? (state.washing ? `🫧 ${t('washing')}` : `🫧 ${t('wash')} ${euro(c.price)}`)

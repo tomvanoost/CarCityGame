@@ -583,3 +583,9 @@ button, input { font: inherit; color: inherit; }
 .quiz-earned { font-size: 18px; font-weight: 800; }
 .quiz-done { margin-top: 8px; }
 .quiz-card h3 { text-transform: none; letter-spacing: 0; color: inherit; font-size: 20px; }
+
+/* Second context button (e.g. brush an animal), above the first one. */
+.context-btn.ctx-alt { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 142px); background: #ff8a2b; box-shadow: 0 6px 0 #d96a10, var(--shadow); animation: none; }
+.context-btn.ctx-alt[hidden] { display: none; }
+.tablet .context-btn.ctx-alt { top: calc(max(6px, env(safe-area-inset-top)) + 218px); bottom: auto; }
+.panel-open .ctx-alt { display: none !important; }

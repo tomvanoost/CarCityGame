@@ -6,6 +6,7 @@ import { createIcon } from './markers';
 
 export type FarmAnimalKind = 'goat' | 'sheep' | 'rabbit' | 'pony';
 export const FEED_PRICE = 2;
+export const BRUSH_PRICE = 2;
 export const ANIMAL_EMOJI: Record<FarmAnimalKind, string> = { goat: '🐐', sheep: '🐑', rabbit: '🐰', pony: '🐴' };
 
 const paint = (g: THREE.BufferGeometry, color: string) => {
@@ -70,6 +71,9 @@ interface Animal {
   /** Happy time after being fed: hops and wiggles. */
   happy: number;
   heart?: THREE.Sprite;
+  /** Being brushed: stands still and sways contentedly, little hearts float up. */
+  brushed: number;
+  hearts?: THREE.Sprite[];
 }
 
 /** The petting farm: fence with a gate, a hay rack, a sign, and animals that stroll around. */
@@ -112,7 +116,7 @@ export class PettingFarm {
       const mesh = new THREE.Mesh(geos.get(kind)!, mat);
       mesh.castShadow = true;
       const x = P.x - 4 + (i % 4) * 3, z = P.z - 4 + Math.floor(i / 4) * 6;
-      this.animals.push({ kind, mesh, x, z, heading: i, tx: x, tz: z, wait: i * 0.7, happy: 0 });
+      this.animals.push({ kind, mesh, x, z, heading: i, tx: x, tz: z, wait: i * 0.7, happy: 0, brushed: 0 });
       this.group.add(mesh);
     });
     this.update(0);
@@ -141,12 +145,25 @@ export class PettingFarm {
     a.heart.visible = true;
   }
 
+  /** Brushed: it stands still, leans into the brush and sways, hearts float up one after another. */
+  brush(a: Animal, faceX: number, faceZ: number) {
+    a.brushed = 3;
+    a.wait = 3.5;
+    a.tx = a.x; a.tz = a.z;
+    // Side-on to you, so you brush its back.
+    a.heading = Math.atan2(faceX - a.x, faceZ - a.z) + Math.PI / 2;
+    if (!a.hearts) {
+      a.hearts = [0, 1, 2].map(() => { const h = createIcon('💕', '#ff6f91', 0.05); this.group.add(h); return h; });
+    }
+  }
+
   update(dt: number) {
     this.time += dt;
     const P = PETTING, m = 2.2;
     for (const a of this.animals) {
       a.wait -= dt;
       a.happy = Math.max(0, a.happy - dt);
+      a.brushed = Math.max(0, a.brushed - dt);
       const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz);
       const speed = a.kind === 'pony' ? 0.9 : a.kind === 'rabbit' ? 1.1 : 0.6;
       if (a.wait <= 0 && d < 0.2) {
@@ -156,7 +173,7 @@ export class PettingFarm {
         a.wait = 2 + Math.random() * 4;
       }
       let moving = false;
-      if (a.wait <= 0 && d >= 0.2 && a.happy <= 0) {
+      if (a.wait <= 0 && d >= 0.2 && a.happy <= 0 && a.brushed <= 0) {
         a.heading += Math.atan2(Math.sin(Math.atan2(dx, dz) - a.heading), Math.cos(Math.atan2(dx, dz) - a.heading)) * Math.min(1, dt * 4);
         a.x += Math.sin(a.heading) * speed * dt;
         a.z += Math.cos(a.heading) * speed * dt;
@@ -166,7 +183,20 @@ export class PettingFarm {
       // Rabbits hop when they move; everybody hops and wiggles when happy.
       const hop = a.happy > 0 ? Math.abs(Math.sin(this.time * 9)) * 0.35 : moving && a.kind === 'rabbit' ? Math.abs(Math.sin(this.time * 8)) * 0.15 : 0;
       a.mesh.position.set(a.x, y + hop, a.z);
-      a.mesh.rotation.set(0, a.heading + (a.happy > 0 ? Math.sin(this.time * 14) * 0.25 : 0), moving ? Math.sin(this.time * 6) * 0.03 : 0);
+      // Brushed: a slow contented sway and a lean towards you.
+      const sway = a.brushed > 0 ? Math.sin(this.time * 2.5) * 0.12 : 0;
+      a.mesh.rotation.set(0, a.heading + (a.happy > 0 ? Math.sin(this.time * 14) * 0.25 : 0) + sway * 0.5, moving ? Math.sin(this.time * 6) * 0.03 : a.brushed > 0 ? 0.08 + sway * 0.4 : 0);
+      if (a.hearts) {
+        const top = y + (a.kind === 'pony' ? 2.1 : a.kind === 'rabbit' ? 0.8 : 1.3);
+        a.hearts.forEach((h, k) => {
+          const t = ((3 - a.brushed) - k * 0.7);
+          h.visible = a.brushed > 0 && t > 0;
+          const rise = (t % 1.6) / 1.6;
+          h.position.set(a.x + Math.sin(k * 2.1 + t * 3) * 0.3, top + rise * 1.1, a.z + Math.cos(k * 2.1) * 0.3);
+          h.scale.setScalar(h.userData.base ??= h.scale.x);
+          h.scale.multiplyScalar(0.8 + 0.5 * (1 - rise));
+        });
+      }
       if (a.heart) {
         a.heart.visible = a.happy > 0;
         a.heart.position.set(a.x, y + (a.kind === 'pony' ? 2.3 : a.kind === 'rabbit' ? 0.9 : 1.5) + (1.6 - a.happy) * 0.5, a.z);

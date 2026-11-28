@@ -23,8 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Petting zoo animals you can brush** (feature): at the petting farm, a "brush" button next to
-  feeding: the animal closes its eyes happily, hearts float up; €2, a sticker after brushing every kind.
 - [ ] **Distant buildings as low-detail boxes** (performance): measure what the far city costs; far
   away (> ~250 m) draw the batched buildings as simple colored boxes; check FPS and that it looks the same.
 - [ ] **Softer shadows and ambient occlusion feel** (graphics): darker contact shadows under cars,
