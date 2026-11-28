@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import type { MeshoptSimplifier as Simplifier } from 'meshoptimizer/simplifier';
+import { lighter, loadSimplifier } from '../../engine/simplify';
 import { loadClips, loadGltf } from '../../engine/assets';
 import { animsUrl, outfitUrl, type OutfitModel } from '../avatar/clothes';
 import { faceDetailGeometry } from '../avatar/faceDetails';
@@ -91,7 +91,6 @@ export class Pedestrians {
   private rng = new Rng(77);
   private tmp = { x: 0, z: 0 };
   private material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 });
-  private simplifier: typeof Simplifier | null = null;
   private frustum = new THREE.Frustum();
   private projView = new THREE.Matrix4();
   private sphere = new THREE.Sphere();
@@ -110,11 +109,7 @@ export class Pedestrians {
   async load() {
     const clips = { boy: loadClips(animsUrl('boy')), girl: loadClips(animsUrl('girl')) };
     // The mesh simplifier (for the light bodies) is its own small file, loaded in the background here.
-    try {
-      const { MeshoptSimplifier } = await import('meshoptimizer/simplifier');
-      await MeshoptSimplifier.ready;
-      this.simplifier = MeshoptSimplifier;
-    } catch { /* no light bodies: everyone keeps the full body */ }
+    await loadSimplifier();
     const loaded = await Promise.all(TEMPLATES.map(async ([model, gender], i) => {
       const gltf = await loadGltf(outfitUrl(model, gender));
       return { scene: this.mergeCharacter(gltf.scene, SKIN_TONES[i % SKIN_TONES.length]), clips: await clips[gender] };
@@ -180,17 +175,8 @@ export class Pedestrians {
    * about a quarter of the triangles (meshoptimizer, keeping the outline and the color borders).
    */
   private lightBody(full: THREE.BufferGeometry): THREE.BufferGeometry {
-    if (!this.simplifier) return full;
-    const pos = full.getAttribute('position') as THREE.BufferAttribute;
-    const index = full.getIndex()!;
-    const src = new Uint32Array(index.array);
-    const target = Math.floor((src.length / 3) * 0.25) * 3;
-    const [out] = this.simplifier.simplify(src, new Float32Array(pos.array as ArrayLike<number>), 3, target, 0.02, ['LockBorder']);
-    const g = new THREE.BufferGeometry();
-    for (const [name, attr] of Object.entries(full.attributes)) g.setAttribute(name, attr); // shared buffers
-    g.setIndex(new THREE.BufferAttribute(out, 1));
-    g.boundingSphere = full.boundingSphere?.clone() ?? null;
-    this.geometries.push(g);
+    const g = lighter(full, 0.25);
+    if (g !== full) this.geometries.push(g);
     return g;
   }
 

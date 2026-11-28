@@ -11,6 +11,7 @@ import { groundHeight } from './collision';
 import type { Pedestrians } from './pedestrians';
 import { LANE, type P, type RoadGraph } from './roads';
 import { moveOf, type TrafficLights } from './trafficLights';
+import { lighter, loadSimplifier, simplifierReady } from '../../engine/simplify';
 import type { Vehicle } from './vehicle';
 
 /**
@@ -70,6 +71,8 @@ interface Car {
   signals: TurnSignals;
   /** Windscreen wipers (hidden when dry). */
   wipers: Wipers;
+  /** Far away: drawn with the simplified body and wheels, and without the driver. */
+  far?: boolean;
   /** Seconds left with the hazard lights on (after braking hard on the highway). */
   hazard: number;
   /** Node after `to`, chosen once when approaching the intersection. */
@@ -106,6 +109,7 @@ export class Traffic {
 
   /** detailSlots: how many nearby cars may use the detailed model (0 on the fastest setting). */
   constructor(private graph: RoadGraph, count: number, private detailSlots = 2) {
+    void loadSimplifier(); // for the simplified far-away cars (its own small file, in the background)
     this.pending = count;
   }
 
@@ -443,15 +447,35 @@ export class Traffic {
       const want = Math.atan2(p.dir.x * fwdSpeed - p.dir.z * side, p.dir.z * fwdSpeed + p.dir.x * side);
       car.heading += Math.atan2(Math.sin(want - car.heading), Math.cos(want - car.heading)) * Math.min(1, dt * 12);
 
-      const visible = Math.hypot(car.x - focus.x, car.z - focus.z) < 170;
+      const dist = Math.hypot(car.x - focus.x, car.z - focus.z);
+      const visible = dist < 170;
       car.root.visible = visible;
       if (visible) {
+        this.setFar(car, car.far ? dist > 50 : dist > 56);
         car.root.position.set(car.x, groundHeight(car.x, car.z), car.z);
         car.root.rotation.y = car.heading;
         car.spin += car.speed * dt / 0.33;
         for (const w of new Set(Object.values(car.built.wheels))) ((w.userData.spin as THREE.Object3D) ?? w).rotation.x = car.spin;
       }
     }
+  }
+
+  /**
+   * Far away (more than ~55 m): the light model's body and wheels with ~30 % of the triangles (made once
+   * per model with meshoptimizer, shared by all cars of that model) and the driver hidden (you can't see
+   * into a car that far away). Back to the normal light model when it comes closer.
+   */
+  private setFar(c: Car, far: boolean) {
+    if (c.far === far || c.built !== c.light || (far && !simplifierReady())) return;
+    c.far = far;
+    c.light.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh || m.name === 'CCG_HEADLIGHTS') return;
+      const near = (m.userData.nearGeo ??= m.geometry) as THREE.BufferGeometry;
+      // (Permissive: the car is many separately colored parts, which otherwise hardly simplify.)
+      m.geometry = far ? lighter(near, 0.3, 0.05, false, true) : near;
+    });
+    if (c.driver) c.driver.visible = !far;
   }
 
   /**
@@ -486,6 +510,7 @@ export class Traffic {
   /** Puts this model in the car (with its driver and the same wheel spin). */
   private show(c: Car, model: BuiltCar) {
     if (c.built === model) return;
+    if (c.far) this.setFar(c, false); // (the light model back to normal before it's swapped)
     c.built.root.removeFromParent();
     c.root.add(model.root);
     c.built = model;
