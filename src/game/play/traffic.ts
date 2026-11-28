@@ -3,6 +3,7 @@ import { clearDents } from '../vehicles/dents';
 import { PAINT_COLORS, VEHICLES } from '../vehicles/catalog';
 import { SKETCHFAB_VEHICLES } from '../vehicles/sketchfabManifest';
 import { TurnSignals, headlightRig } from '../world/evening';
+import { Wipers } from '../vehicles/wipers';
 import { SEATED_SCALE, seatedRootPosition, type BuiltCar } from '../vehicles/carBuilder';
 import { loadVehicle, vehicleDims } from '../vehicles/factory';
 import type { VehicleSpec } from '../vehicles/types';
@@ -63,6 +64,8 @@ interface Car {
   overtake: number;
   /** Turn signals / hazard lights (hidden meshes when off, so no extra draw calls). */
   signals: TurnSignals;
+  /** Windscreen wipers (hidden when dry). */
+  wipers: Wipers;
   /** Seconds left with the hazard lights on (after braking hard on the highway). */
   hazard: number;
   /** Node after `to`, chosen once when approaching the intersection. */
@@ -79,6 +82,9 @@ export class Traffic {
   readonly group = new THREE.Group();
   readonly cars: Car[] = [];
   private lights = false;
+  private rain = 0;
+  /** How hard it rains (0..1): traffic cars use their wipers. */
+  setRain(r: number) { this.rain = r; }
   private owners = new Map<number, Car>();
   /** Traffic lights at the crossings (cars stop at red), and the highway speed now (m/s). */
   private signals?: TrafficLights;
@@ -199,10 +205,12 @@ export class Traffic {
     root.add(head);
     const signals = new TurnSignals(dims.length, dims.width);
     root.add(signals.group);
+    const wipers = new Wipers(built.root, `${spec.id}_lod`, dims.length, dims.width, SKETCHFAB_VEHICLES[spec.id]?.height ?? 1.45);
+    root.add(wipers.group);
     const car: Car = {
       spec, built, light: built, color, root, half: dims.length / 2, radius: dims.width / 2,
       from: 0, to: 0, seg: this.lineSeg(...this.graph.edges[0]), d: 0, speed: 0, x: 0, z: 0, heading: 0,
-      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0, overtake: 0, signals, hazard: 0, lane: LANE,
+      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0, overtake: 0, signals, wipers, hazard: 0, lane: LANE,
     };
     this.cars.push(car);
     this.group.add(root);
@@ -371,6 +379,7 @@ export class Traffic {
       } else if (car.seg.kind === 'curve' && !car.seg.straight) blinkSide = car.signals.side === 'both' ? null : car.signals.side;
       car.signals.side = blinkSide;
       car.signals.update(dt);
+      car.wipers.update(dt, this.rain);
       car.speed += THREE.MathUtils.clamp(target - car.speed, -12 * dt, (autobahn ? 5 : 3) * dt);
       car.speed = Math.max(0, Math.min(car.speed, allowed + 0.01));
       car.waited = car.speed < 0.3 ? car.waited + dt : 0;

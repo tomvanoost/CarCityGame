@@ -14,10 +14,13 @@ import { buildingCollider, generateTowns, type TownsData } from './towns';
 export const GRID_BLOCKS = 10;
 export const BLOCK_SPACING = 96;
 export const ROAD_WIDTH = 10;
-/** Wide avenues (every other grid line, 3 lanes each way + a median) are this half wide; small roads ROAD_WIDTH / 2. */
+/** Wide avenues (all inner grid lines, 3 lanes each way + a median) are this half wide; small roads ROAD_WIDTH / 2. */
 export const WIDE_HALF = 11;
-/** Is grid line i a wide avenue? (The odd lines; the outer lines 0 and GRID_BLOCKS stay small roads.) */
-export const isWideLine = (i: number) => i % 2 === 1;
+/**
+ * Is grid line i a wide avenue? All inner lines are (3 lanes each way, traffic lights where two meet);
+ * the outer ring (lines 0 and GRID_BLOCKS) stays a small road without traffic lights.
+ */
+export const isWideLine = (i: number) => i > 0 && i < GRID_BLOCKS;
 /** Half width of the road on grid line i. */
 export const roadHalf = (i: number) => (isWideLine(i) ? WIDE_HALF : ROAD_WIDTH / 2);
 /** Lane centers on a wide avenue, measured from its middle: left-turn, straight, right-turn lane. */

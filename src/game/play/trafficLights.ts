@@ -108,9 +108,10 @@ export class TrafficLights {
     let lampCount = 0;
     graph.adj.forEach((adj, node) => {
       if (node >= gridNodes || adj.length < 3) return;
-      // Lights where an avenue crosses; where two small roads meet there are none (cars take turns).
+      // Lights where two avenues cross (3 lanes on every approach); where the small ring road meets an
+      // avenue there are none (cars take turns).
       const n = GRID_BLOCKS + 1;
-      if (!isWideLine(Math.floor(node / n)) && !isWideLine(node % n)) return;
+      if (!isWideLine(Math.floor(node / n)) || !isWideLine(node % n)) return;
       const approaches = adj.map((from) => { const a = { from, axis: axisOf(N[from], N[node]), lamp0: lampCount }; lampCount += 9; return a; });
       // Neighbouring crossings start their cycle at different moments.
       const j: Junction = { node, offset: ((node * 7.31) % 1) * CYCLE, approaches, phase: -1, sub: -1 };

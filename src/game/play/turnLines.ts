@@ -18,7 +18,7 @@ export function turnLinesMesh(graph: RoadGraph): THREE.Mesh {
     if (b >= gridNodes || adj.length < 3) return;
     // Only where an avenue crosses (the crossings with traffic lights); small crossings are too tight.
     const n = GRID_BLOCKS + 1;
-    if (!isWideLine(Math.floor(b / n)) && !isWideLine(b % n)) return;
+    if (!isWideLine(Math.floor(b / n)) || !isWideLine(b % n)) return; // only crossings with traffic lights
     const B = N[b];
     for (const a of adj) for (const c of adj) {
       if (c === a) continue;

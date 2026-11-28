@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BLOCK_SPACING, HALF_CITY, ROAD_WIDTH, WIDE_HALF } from './layout';
+import { BLOCK_SPACING, GRID_BLOCKS, HALF_CITY, ROAD_WIDTH, WIDE_HALF } from './layout';
 import { LAKE } from './outskirts';
 import { SKY } from '../world/sky';
 import { WEATHER } from '../world/weather';
@@ -158,7 +158,7 @@ export function createTerrainMaterial() {
         const vec3 SIDEWALK = ${glslColor(SIDEWALK_COLOR)};
         const vec3 CURB = ${glslColor(CURB_COLOR)};
         float lineOffsetT(float v) { float g = v + ${HALF_CITY.toFixed(1)}; return g - floor(g / ${BLOCK_SPACING.toFixed(1)} + 0.5) * ${BLOCK_SPACING.toFixed(1)}; }
-        float halfOfT(float v) { float i = floor((v + ${HALF_CITY.toFixed(1)}) / ${BLOCK_SPACING.toFixed(1)} + 0.5); return mod(i, 2.0) > 0.5 ? ${WIDE_HALF.toFixed(2)} : ${(ROAD_WIDTH / 2).toFixed(2)}; }`)
+        float halfOfT(float v) { float i = floor((v + ${HALF_CITY.toFixed(1)}) / ${BLOCK_SPACING.toFixed(1)} + 0.5); return (i > 0.5 && i < ${GRID_BLOCKS.toFixed(1)} - 0.5) ? ${WIDE_HALF.toFixed(2)} : ${(ROAD_WIDTH / 2).toFixed(2)}; }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
       float big = fbm(vWorld.xz * 0.025);
       float fine = vnoise(vWorld.xz * 1.7);
@@ -236,8 +236,8 @@ export function createRoadMaterial() {
         const float SMALL = ${(ROAD_WIDTH / 2).toFixed(2)};
         const float WIDE = ${WIDE_HALF.toFixed(2)};
         float lineOffset(float v) { float g = v + HALF; return g - floor(g / SPACING + 0.5) * SPACING; }
-        // Every other grid line (the odd ones) is a wide avenue.
-        float halfOf(float v) { float i = floor((v + HALF) / SPACING + 0.5); return mod(i, 2.0) > 0.5 ? WIDE : SMALL; }`)
+        // All inner grid lines are wide avenues; the outer ring is a small road.
+        float halfOf(float v) { float i = floor((v + HALF) / SPACING + 0.5); return (i > 0.5 && i < ${GRID_BLOCKS.toFixed(1)} - 0.5) ? WIDE : SMALL; }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         float dx = lineOffset(vWorld.x), dz = lineOffset(vWorld.z);
         float hx = halfOf(vWorld.x), hz = halfOf(vWorld.z);

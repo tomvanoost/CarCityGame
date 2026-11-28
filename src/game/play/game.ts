@@ -10,6 +10,7 @@ import { getVehicle } from '../vehicles/catalog';
 import { SEATED_SCALE, seatedRootPosition } from '../vehicles/carBuilder';
 import { createSky, skyEnvironment, SKY, SKY_TIME, Sun } from '../world/sky';
 import { Weather } from '../world/weather';
+import { Wipers } from '../vehicles/wipers';
 import { pickQuality, ResolutionScaler } from '../world/quality';
 import { CollisionWorld } from './collision';
 import { FollowCamera } from './followCamera';
@@ -198,6 +199,7 @@ export class Game {
   private iceStand?: IceCreamStand;
   private postOffice?: THREE.Mesh;
   private weather?: Weather;
+  private wipers?: Wipers;
   private fogBase = { near: 0, far: 0 };
   private library?: LibraryBuilding;
   private sandboard?: Sandboard;
@@ -722,6 +724,9 @@ export class Game {
     const lights = headlightRig(v.length, v.width);
     lights.visible = this.evening;
     v.root.add(lights);
+    // Windscreen wipers (they sweep while it rains).
+    this.wipers = v.isBike ? undefined : new Wipers(v.car.root, id, v.length, v.width, SKETCHFAB_VEHICLES[id]?.height ?? 1.45);
+    if (this.wipers) v.car.root.add(this.wipers.group);
     this.scene.add(v.root);
     this.vehicle = v;
   }
@@ -2038,6 +2043,8 @@ export class Game {
       const hr = (this.clock / 60) % 24;
       this.weather.update(dt, this.camera, SKY.sunDir, hr >= 7 && hr < 18);
       sounds.rain(this.weather.amount);
+      this.wipers?.update(dt, this.weather.amount);
+      this.traffic?.setRain(this.weather.amount);
     }
     this.lightTimer -= dt;
     if (this.lightTimer <= 0) { this.lightTimer = 0.5; this.applyLight(); }
