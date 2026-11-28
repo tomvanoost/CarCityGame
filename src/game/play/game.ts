@@ -11,6 +11,7 @@ import { SEATED_SCALE, seatedRootPosition } from '../vehicles/carBuilder';
 import { createSky, skyEnvironment, SKY, SKY_TIME, Sun } from '../world/sky';
 import { Weather } from '../world/weather';
 import { Wipers } from '../vehicles/wipers';
+import { IceTruck } from './iceTruck';
 import { pickQuality, ResolutionScaler } from '../world/quality';
 import { CollisionWorld } from './collision';
 import { FollowCamera } from './followCamera';
@@ -71,7 +72,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number; brush: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId };
+export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number; brush: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'iceTruck' } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -200,6 +201,8 @@ export class Game {
   private postOffice?: THREE.Mesh;
   private weather?: Weather;
   private wipers?: Wipers;
+  private iceTruck?: IceTruck;
+  private jingleTimer = 0;
   private fogBase = { near: 0, far: 0 };
   private library?: LibraryBuilding;
   private sandboard?: Sandboard;
@@ -485,6 +488,9 @@ export class Game {
     this.traffic.setTrafficLights(this.trafficLights);
     this.highwaySigns = new HighwaySigns(this.roads);
     this.scene.add(this.highwaySigns.group);
+    // The ice cream truck that drives round the park.
+    this.iceTruck = new IceTruck(this.roads);
+    this.scene.add(this.iceTruck.root);
     this.setupFarCull();
     // Dashed turning lines across the crossings: where to start steering, and how much.
     this.turnLines = turnLinesMesh(this.roads);
@@ -1433,6 +1439,7 @@ export class Game {
       return { kind: 'gardenWait', crop: g.crop, secs: Math.ceil((1 - k) * cropOf(g.crop)!.minutes * 60) };
     }
     if (near(L.pois.iceCream.front)) return { kind: 'iceCream', price: ICE_CREAM_PRICE };
+    if (this.iceTruck?.isParked && near(this.iceTruck.hatch)) return { kind: 'iceTruck' };
     if (near(L.pois.postOffice.front)) return { kind: 'treasureMap' };
     if (this.chest && this.hasTreasureMap() && Math.hypot(p.x - this.chest.spot.x, p.z - this.chest.spot.z) < 2.6) return { kind: 'openTreasure' };
     if (Math.hypot(p.x - L.pois.supermarket.front.x, p.z - L.pois.supermarket.front.z) < 4) return { kind: 'supermarket' };
@@ -1470,6 +1477,10 @@ export class Game {
       }
       case 'home':
       case 'apartment':
+      case 'iceTruck':
+        this.paused = true;
+        this.events.onPlace('iceCream');
+        break;
       case 'iceCream':
       case 'supermarket':
       case 'petShop':
@@ -2020,6 +2031,15 @@ export class Game {
     this.fireworks?.update(dt);
     this.updateSwimming(dt);
     this.updateFarCull(dt);
+    if (this.iceTruck && this.traffic) {
+      const obs = [...this.traffic.circles(), ...(this.people?.obstacles() ?? []), { x: v.x, z: v.z, r: v.width / 2 + 0.3 }, ...(this.mode === 'walking' && this.player ? [{ x: this.player.x, z: this.player.z, r: 0.6 }] : [])];
+      this.iceTruck.update(dt, this.trafficLights, obs);
+      this.traffic.obstacles = [this.iceTruck.body];
+      // The jingle while it's parked, louder when you're close.
+      const d = Math.hypot(this.focus.x - this.iceTruck.x, this.focus.z - this.iceTruck.z);
+      this.jingleTimer -= dt;
+      if (this.iceTruck.isParked && d < 90 && this.jingleTimer <= 0) { this.jingleTimer = 7; sounds.jingle(1 - d / 90); }
+    }
     if (this.garden && Math.hypot(this.focus.x - this.city.layout.pois.home.garden.x, this.focus.z - this.city.layout.pois.home.garden.z) < 150) {
       const g = this.profile.garden;
       this.garden.update(g?.crop ?? null, g ? growth(g.crop, g.at) : 0);
@@ -2177,6 +2197,7 @@ export class Game {
     this.sandboard?.dispose();
     this.boat?.dispose();
     this.weather?.dispose();
+    this.iceTruck?.dispose();
     sounds.rain(0);
     this.skate?.dispose();
     this.kite?.dispose();

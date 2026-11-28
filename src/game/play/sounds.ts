@@ -356,6 +356,18 @@ class Sounds {
   }
 
   private noiseBuf: AudioBuffer | null = null;
+
+  /** The ice cream truck's jingle (a little music-box tune); vol 0..1 by distance. */
+  jingle(vol: number) {
+    const ctx = this.ready();
+    if (!ctx || vol <= 0.01) return;
+    const notes = [784, 988, 1175, 988, 784, 659, 784, 988, 784];
+    const t = ctx.currentTime + 0.05;
+    notes.forEach((f, i) => {
+      this.tone(ctx, 'triangle', f, t + i * 0.22, 0.28, 0.06 * vol);
+      this.tone(ctx, 'sine', f * 2, t + i * 0.22, 0.18, 0.02 * vol);
+    });
+  }
   private rainGain: GainNode | null = null;
 
   /** Soft rain hiss (looping filtered noise); 0 = off. */

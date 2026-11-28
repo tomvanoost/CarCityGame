@@ -83,6 +83,8 @@ export class Traffic {
   readonly cars: Car[] = [];
   private lights = false;
   private rain = 0;
+  /** Other vehicles the traffic must stop for (the ice cream truck). */
+  obstacles: { x: number; z: number; h: number; half: number; r: number }[] = [];
   /** How hard it rains (0..1): traffic cars use their wipers. */
   setRain(r: number) { this.rain = r; }
   private owners = new Map<number, Car>();
@@ -323,6 +325,7 @@ export class Traffic {
       if (walker) check(walker.x, walker.z, 0.8, false);
       const po = pc.half - pc.r;
       for (const k of [po, 0, -po]) check(pc.x + Math.sin(pc.h) * k, pc.z + Math.cos(pc.h) * k, pc.r, false);
+      for (const ob of this.obstacles) { const oo = ob.half - ob.r; for (const k of [oo, 0, -oo]) check(ob.x + Math.sin(ob.h) * k, ob.z + Math.cos(ob.h) * k, ob.r, true); }
       for (const o of this.cars) {
         if (o === car || !o.root.visible) continue;
         // Moving over to another highway lane: the car in the lane you're leaving no longer counts
