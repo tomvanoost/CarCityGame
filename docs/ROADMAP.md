@@ -23,7 +23,11 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Better tree shading** (graphics): softer, two-tone leaves with a bit of light shining
-  through at the edges; same models, shader only.
+- [ ] **Bird-watching binoculars** (feature): at the park pond a 🔭 button shows the nearest bird up
+  close with its name (NL + EN); spotting all kinds gives a sticker.
+- [ ] **Fewer shader programs** (performance): share materials between small props (benches, bins,
+  lamps, signs) so the program count drops; measure before/after at the six spots.
+- [ ] **Softer evening and night light** (graphics): warm street-lamp glow pools on the road at night and a
+  gentle orange-pink sky at sunset; no extra lights, shader only.
 
 (Add new ideas here, in order, for the next runs.)

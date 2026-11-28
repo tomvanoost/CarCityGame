@@ -46,16 +46,31 @@ export function createBatchMaterial() {
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.85, metalness: 0, envMapIntensity: 0.6 });
   mat.onBeforeCompile = (shader) => {
     withWorldPos(shader);
+    shader.uniforms.uSunDir = { value: SKY.sunDir };
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float aMain;\nattribute float aKind;\nvarying float vKind;')
+      .replace('#include <common>', '#include <common>\nattribute float aMain;\nattribute float aKind;\nvarying float vKind;\nvarying float vMain;')
       .replace('#include <color_vertex>', `#include <color_vertex>
         vKind = aKind;
+        vMain = aMain;
         #ifdef USE_BATCHING_COLOR
           vColor.rgb = mix(color.rgb, getBatchingColor(getIndirectIndex(gl_DrawID)).rgb, aMain);
         #endif`);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vKind;')
+      .replace('#include <common>', '#include <common>\nvarying float vKind;\nvarying float vMain;\nuniform vec3 uSunDir;\nfloat leafM = 0.0;\nvec3 leafWN = vec3(0.0, 1.0, 0.0);')
       .replace('#include <color_fragment>', `#include <color_fragment>
+        // Leaves (green, not a wall or window): two-tone, lighter and a bit yellower on top, deeper
+        // blue-green underneath, with a little variation from tree to tree.
+        leafM = smoothstep(1.15, 1.45, diffuseColor.g / max(max(diffuseColor.r, diffuseColor.b), 0.002)) * (1.0 - vMain) * step(vKind, 0.5); // (linear colours are small: compare ratios)
+        if (leafM > 0.0) {
+          leafWN = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
+          if (leafWN.y < -0.999) leafWN = -leafWN;
+          float up = leafWN.y;
+          float tree = hash21(floor(vWorld.xz / 5.0));
+          vec3 leaf = diffuseColor.rgb * mix(0.92, 1.1, tree);
+          vec3 topTone = leaf * vec3(1.28, 1.22, 0.82), lowTone = leaf * vec3(0.6, 0.76, 0.82);
+          leaf = mix(lowTone, topTone, smoothstep(-0.5, 0.75, up));
+          diffuseColor.rgb = mix(diffuseColor.rgb, leaf, leafM);
+        }
         // Surface kinds (from the model build): 2 = window glass, 3 = roof tiles.
         float glassM = step(1.5, vKind) * (1.0 - step(2.5, vKind));
         float roofM = step(2.5, vKind);
@@ -73,9 +88,19 @@ export function createBatchMaterial() {
         // Soft "ambient occlusion" near the ground: buildings and trees look grounded.
         diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(0.15, 2.6, vWorld.y));`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.07, glassM);\nroughnessFactor = mix(roughnessFactor, 0.6, roofM);')
-      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.8, glassM * (1.0 - step(0.88, cell)));');
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.8, glassM * (1.0 - step(0.88, cell)));')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        if (leafM > 0.0) {
+          // Light shining through the leaves when you look towards the sun, and a soft bright rim on
+          // the leaf edges (cheap "translucency").
+          vec3 toSun = normalize(uSunDir), view = normalize(vWorld - cameraPosition);
+          float sunUp = smoothstep(-0.05, 0.2, toSun.y);
+          float through = pow(max(dot(view, toSun), 0.0), 5.0);
+          float rim = pow(1.0 - abs(dot(leafWN, -view)), 3.0);
+          totalEmissiveRadiance += diffuseColor.rgb * vec3(1.05, 1.15, 0.6) * (through * 0.95 + rim * 0.28) * sunUp * leafM;
+        }`);
   };
-  mat.customProgramCacheKey = () => 'cityBatch';
+  mat.customProgramCacheKey = () => 'cityBatch2';
   return mat;
 }
 
