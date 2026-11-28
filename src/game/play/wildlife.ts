@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { CityLayout } from '../city/layout';
 import { groundHeight } from './collision';
+import { flatNormals } from '../../engine/flatNormals';
 
 /**
  * Friendly park animals, made from a few low-poly shapes (no downloads, no textures):
@@ -90,7 +91,8 @@ const BIRD = 1.7;
 
 export class Wildlife {
   readonly group = new THREE.Group();
-  private material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, flatShading: true });
+  // Faceted through per-face normals (flatNormals) rather than flatShading: shares the instanced vertex-color shader.
+  private material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 });
   private moms: THREE.InstancedMesh;
   private kids: THREE.InstancedMesh;
   private birds: THREE.InstancedMesh;
@@ -130,7 +132,7 @@ export class Wildlife {
     }
 
     const make = (g: THREE.BufferGeometry, count: number) => {
-      const im = new THREE.InstancedMesh(g, this.material, Math.max(1, count));
+      const im = new THREE.InstancedMesh(flatNormals(g), this.material, Math.max(1, count));
       im.count = count;
       im.frustumCulled = false; // instances move around; the group is hidden when far away
       this.group.add(im);

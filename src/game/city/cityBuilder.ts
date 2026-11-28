@@ -32,6 +32,7 @@ const LOT_COLORS: Record<District, string> = {
   downtown: '#a9a59d', midrise: '#a9a59d', shops: '#80b35c', townhouses: '#7fb25b',
   apartments: '#82b55e', residential: '#7db35a', park: '#79b458', gas: '#7fb25b',
 };
+import { flatNormals } from '../../engine/flatNormals';
 import { CURB_COLOR, SIDEWALK_COLOR } from './materials';
 
 // ---------- small geometry helpers (vertex-colored) ----------
@@ -450,11 +451,11 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   parts.push(disc(1.1, '#7cc4ff', 0, 0, 0), disc(0.42, '#ffffff', 0.2, -0.3, -0.06), disc(0.26, '#ffffff', -0.35, 0.35, -0.06), disc(0.18, '#ffffff', 0.45, 0.45, -0.06));
   parts.push(coloredBox(0.8, 9, 0.8, '#e8ecef', c.x0 - 3, top, c.z1 + 2));
   parts.push(coloredBox(3.2, 3, 0.9, '#2f8bff', c.x0 - 3, top + 8, c.z1 + 2));
-  const misc = new THREE.Mesh(track(mergeGeometries(parts.map((p) => {
+  const misc = new THREE.Mesh(track(flatNormals(mergeGeometries(parts.map((p) => {
     // make every part share the same attribute set
     for (const n of Object.keys(p.attributes)) if (n !== 'position' && n !== 'color') p.deleteAttribute(n);
     return p;
-  }))), track(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, flatShading: true })));
+  }))!)), track(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 })));
   parts.forEach((p) => p.dispose());
   misc.castShadow = misc.receiveShadow = true;
   group.add(misc);
@@ -526,5 +527,6 @@ function createHills(track: <T extends { dispose(): void }>(x: T) => T): THREE.M
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geo.computeVertexNormals();
-  return new THREE.Mesh(track(geo), track(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, side: THREE.DoubleSide })));
+  // (Triangles have their own vertices, so the normals are already per face: faceted without flatShading.)
+  return new THREE.Mesh(track(geo), track(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide })));
 }

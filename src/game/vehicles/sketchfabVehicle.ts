@@ -177,11 +177,17 @@ const standardOf = new WeakMap<THREE.Material, THREE.Material>();
 function toStandard(m: THREE.Material): THREE.Material {
   const p = m as THREE.MeshPhysicalMaterial;
   if (!p.isMeshPhysicalMaterial) return m;
-  if (p.clearcoat > 0 || p.sheen > 0 || p.transmission > 0 || p.iridescence > 0 || p.anisotropy > 0 || (p.dispersion ?? 0) > 0) return m;
+  if (p.clearcoat > 0 || p.sheen > 0 || p.iridescence > 0 || p.anisotropy > 0 || (p.dispersion ?? 0) > 0) return m;
   let s = standardOf.get(m);
   if (!s) {
     s = new THREE.MeshStandardMaterial().copy(p as unknown as THREE.MeshStandardMaterial);
     s.name = p.name;
+    if (p.transmission > 0) {
+      // Transmission glass becomes plain transparent glass anyway (see below), so it can be standard too.
+      s.transparent = true;
+      s.opacity = Math.min(p.opacity, p.color.r + p.color.g + p.color.b > 2.4 ? 0.35 : 0.6);
+      s.depthWrite = false;
+    }
     standardOf.set(m, s);
   }
   return s;

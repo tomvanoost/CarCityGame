@@ -3,6 +3,17 @@ import type { KnockTarget } from './knockables';
 import { loadGltf } from '../../engine/assets';
 import type { Placement } from './layout';
 import { SKETCHFAB_CITY } from './sketchfabCity';
+import { flatNormals } from '../../engine/flatNormals';
+
+const standardOf = new WeakMap<THREE.Material, THREE.Material>();
+/** A plain MeshPhysicalMaterial (no clearcoat, sheen...) as a standard one: shares that shader program. */
+function toStandard(m: THREE.Material): THREE.Material {
+  const p = m as THREE.MeshPhysicalMaterial;
+  if (!p.isMeshPhysicalMaterial || p.clearcoat > 0 || p.sheen > 0 || p.transmission > 0 || p.iridescence > 0 || p.anisotropy > 0) return m;
+  let s = standardOf.get(m);
+  if (!s) { s = new THREE.MeshStandardMaterial().copy(p as unknown as THREE.MeshStandardMaterial); s.name = p.name; standardOf.set(m, s); }
+  return s;
+}
 
 /** One drawable part: geometry + material + its transform inside the model (keeps quantized data intact). */
 interface Part { geometry: THREE.BufferGeometry; material: THREE.Material; local: THREE.Matrix4 }
@@ -17,18 +28,20 @@ async function loadParts(url: string): Promise<Part[]> {
     if (!m.isMesh) return;
     // Don't bake the node transform into the geometry: positions are quantized (normalized
     // integers) and would be clipped. The transform goes into the instance matrices instead.
-    const g = m.geometry;
+    let g = m.geometry;
     const local = m.matrixWorld.clone();
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
       if (mat.name === 'CCG_LOD') {
-        // Far trees: colors in the vertices, no normals stored, leaves seen from both sides.
+        // Far trees: colors in the vertices, no normals stored (faceted: per-face normals made here, so it
+        // shares the shader program of the other instanced vertex-color materials), leaves seen from both sides.
         const sm = mat as THREE.MeshStandardMaterial;
         sm.vertexColors = true;
-        sm.flatShading = true;
+        if (!g.getAttribute('normal')) g = m.geometry = flatNormals(g);
+        sm.flatShading = false; // (the glTF loader turns it on for geometry without normals)
         sm.side = THREE.DoubleSide;
         sm.needsUpdate = true;
       }
-      parts.push({ geometry: g, material: mat, local });
+      parts.push({ geometry: g, material: toStandard(mat), local });
     }
   });
   return parts;

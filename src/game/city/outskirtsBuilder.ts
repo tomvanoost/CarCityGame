@@ -5,6 +5,7 @@ import {
   BRIDGE, DESERT, DUNE_CELL, DESERT_TOWN, FOOTBRIDGE, HIGHWAYS, HW_HALF, LAKE, LAKE_TOWN, OUT_ROADS, OUT_ROAD_HALF, PATH, STREAM,
   bridgeHeight, desertAmount, duneHeight, footbridgeHeight, outskirtsHeight,
 } from './outskirts';
+import { flatNormals } from '../../engine/flatNormals';
 import type { Field, TownBuilding } from './towns';
 
 const GRASS = new THREE.Color('#74ad52');
@@ -336,10 +337,11 @@ export function buildOutskirts(layout: CityLayout, terrainMat: THREE.Material, w
     g.scale(r.s * 1.2, r.s * 0.7, r.s).rotateY(r.rot).translate(r.x, duneHeight(r.x, r.z) + r.s * 0.2, r.z);
     rockParts.push(paint(g, new THREE.Color().setHSL(0.08, 0.35, 0.45 + rnd() * 0.12)));
   }
-  const natMat = track(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, flatShading: true }));
+  const natMat = track(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }));
   const extras: THREE.Mesh[] = [];
-  if (cactusParts.length) extras.push(new THREE.Mesh(track(mergeGeometries(cactusParts)!), natMat));
-  if (rockParts.length) extras.push(new THREE.Mesh(track(mergeGeometries(rockParts)!), natMat));
+  // Faceted through per-face normals (flatNormals) instead of flatShading: shares the plain vertex-color shader.
+  if (cactusParts.length) extras.push(new THREE.Mesh(track(flatNormals(mergeGeometries(cactusParts)!)), natMat));
+  if (rockParts.length) extras.push(new THREE.Mesh(track(flatNormals(mergeGeometries(rockParts)!)), natMat));
   for (const m of extras) { m.castShadow = true; m.receiveShadow = true; }
 
   // Flat things on the ground (fields, the plaza, the square, boardwalks): own material that is
