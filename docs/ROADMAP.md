@@ -23,9 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Lighter city ground** (performance): the city ground/streets mesh (~97 k triangles) and the
-  hills (~70 k) are single meshes that are always drawn: split them into tiles so off-screen parts
-  are culled.
 - [ ] **Better tree shading** (graphics): softer, two-tone leaves with a bit of light shining
   through at the edges; same models, shader only.
 

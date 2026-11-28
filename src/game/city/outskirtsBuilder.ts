@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { CityLayout } from './layout';
 import {
-  BRIDGE, DESERT, DESERT_TOWN, FOOTBRIDGE, HIGHWAYS, HW_HALF, LAKE, LAKE_TOWN, OUT_ROADS, OUT_ROAD_HALF, PATH, STREAM,
+  BRIDGE, DESERT, DUNE_CELL, DESERT_TOWN, FOOTBRIDGE, HIGHWAYS, HW_HALF, LAKE, LAKE_TOWN, OUT_ROADS, OUT_ROAD_HALF, PATH, STREAM,
   bridgeHeight, desertAmount, duneHeight, footbridgeHeight, outskirtsHeight,
 } from './outskirts';
 import type { Field, TownBuilding } from './towns';
@@ -154,7 +154,7 @@ export function buildOutskirts(layout: CityLayout, terrainMat: THREE.Material, w
       ground.quad([x, -0.05, z], [x, -0.05, z + C], [x + C, -0.05, z + C], [x + C, -0.05, z], GRASS);
     }
   }
-  const D = 10;
+  const D = DUNE_CELL; // 14 m: the dunes are smooth (was 10 m: 56 k triangles); groundHeight follows these triangles
   const dv = (x: number, z: number) => {
     const h = duneHeight(x, z);
     // Dune crests a bit lighter, the hollows a bit darker and warmer.
@@ -230,20 +230,21 @@ export function buildOutskirts(layout: CityLayout, terrainMat: THREE.Material, w
     st.box(BRIDGE.x, (h - 0.9 - 3) / 2, z, BRIDGE.half * 1.5, h - 0.9 + 3, 1.6, concrete);
   }
   // Highway median: a steel guardrail on posts (stops 14 m before the ends, where cars turn on and off).
+  // Kept light, it runs for kilometres: the material is two-sided, so each face is drawn once; a post is
+  // two crossed quads; the rail comes in 8 m pieces (highways are flat there).
   for (const r of HIGHWAYS) {
     const len = Math.hypot(r.bx - r.ax, r.bz - r.az), dx = (r.bx - r.ax) / len, dz = (r.bz - r.az) / len;
+    const nx = -dz * 0.07, nz = dx * 0.07, lo = 0.48, hi = 0.76, w = 0.06;
     for (let s = 14; s < len - 14; s += 4) {
       const x = r.ax + dx * s, z = r.az + dz * s, y = outskirtsHeight(x, z);
-      st.box(x, y + 0.35, z, 0.12, 0.7, 0.12, '#9aa0a8');
-      // 4 m of rail along the road (works for diagonal roads too): two sides and a top.
-      const e = Math.min(4, len - 14 - s), x1 = x + dx * e, z1 = z + dz * e, y1 = outskirtsHeight(x1, z1);
-      const nx = -dz * 0.07, nz = dx * 0.07, lo = 0.48, hi = 0.76;
-      for (const k of [-1, 1]) {
-        const A = [x + nx * k, y + lo, z + nz * k], B = [x1 + nx * k, y1 + lo, z1 + nz * k], C = [x1 + nx * k, y1 + hi, z1 + nz * k], D = [x + nx * k, y + hi, z + nz * k];
-        st.quad(A, B, C, D, '#c4c9cf'); st.quad(A, D, C, B, '#c4c9cf'); // both sides face out
-      }
-      const T = [[x - nx, y + hi, z - nz], [x + nx, y + hi, z + nz], [x1 + nx, y1 + hi, z1 + nz], [x1 - nx, y1 + hi, z1 - nz]];
-      st.quad(T[0], T[1], T[2], T[3], '#d6dade'); st.quad(T[0], T[3], T[2], T[1], '#d6dade');
+      st.quad([x - w, y, z], [x + w, y, z], [x + w, y + 0.7, z], [x - w, y + 0.7, z], '#9aa0a8');
+      st.quad([x, y, z - w], [x, y, z + w], [x, y + 0.7, z + w], [x, y + 0.7, z - w], '#9aa0a8');
+    }
+    for (let s = 14; s < len - 14; s += 8) {
+      const x = r.ax + dx * s, z = r.az + dz * s, y = outskirtsHeight(x, z);
+      const e = Math.min(8, len - 14 - s), x1 = x + dx * e, z1 = z + dz * e, y1 = outskirtsHeight(x1, z1);
+      for (const k of [-1, 1]) st.quad([x + nx * k, y + lo, z + nz * k], [x1 + nx * k, y1 + lo, z1 + nz * k], [x1 + nx * k, y1 + hi, z1 + nz * k], [x + nx * k, y + hi, z + nz * k], '#c4c9cf');
+      st.quad([x - nx, y + hi, z - nz], [x + nx, y + hi, z + nz], [x1 + nx, y1 + hi, z1 + nz], [x1 - nx, y1 + hi, z1 - nz], '#d6dade');
     }
   }
   // Footbridge: an arched wooden deck with railings.

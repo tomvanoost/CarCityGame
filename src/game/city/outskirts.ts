@@ -250,11 +250,26 @@ export function footbridgeHeight(x: number) {
 }
 
 /** Height of the ground / road / bridge outside the city. */
+/** The desert ground is drawn as a grid of this cell size (meters), from DESERT.x0 / DESERT.z0. */
+export const DUNE_CELL = 14;
+/**
+ * The dune height exactly as the drawn ground has it: the triangle of the grid cell (corners a = (x, z),
+ * b = (x, z + D), c = (x + D, z + D), d = (x + D, z), split along a–c), so wheels, feet and boards sit on
+ * the visible sand.
+ */
+export function meshDuneHeight(x: number, z: number) {
+  const D = DUNE_CELL, gx = Math.floor((x - DESERT.x0) / D), gz = Math.floor((z - DESERT.z0) / D);
+  const x0 = DESERT.x0 + gx * D, z0 = DESERT.z0 + gz * D, u = (x - x0) / D, v = (z - z0) / D;
+  const ha = duneHeight(x0, z0), hc = duneHeight(x0 + D, z0 + D);
+  // Triangle a-b-c (v >= u) or a-c-d (u > v).
+  return v >= u ? ha + (duneHeight(x0, z0 + D) - ha) * (v - u) + (hc - ha) * u : ha + (duneHeight(x0 + D, z0) - ha) * (u - v) + (hc - ha) * v;
+}
+
 export function outskirtsHeight(x: number, z: number) {
   if (onBridge(x, z)) return bridgeHeight(z);
   if (onFootbridge(x, z)) return footbridgeHeight(x);
   if (onJetty(x, z)) return jettyHeight(z);
-  if (x > DESERT.x0 && z > DESERT.z0 && z < DESERT.z1) return duneHeight(x, z);
+  if (x > DESERT.x0 && z > DESERT.z0 && z < DESERT.z1) return meshDuneHeight(x, z);
   return 0;
 }
 
