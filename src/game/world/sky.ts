@@ -134,7 +134,8 @@ export class Sun {
     this.light.shadow.bias = -0.0004;
     this.light.shadow.normalBias = 0.6;
     this.hemi = new THREE.HemisphereLight('#cfe6ff', '#6b8a55', 0.75);
-    this.light.shadow.radius = 3;
+    // Soft shadow edges (PCF blur radius; the same number of samples, so it costs nothing extra).
+    this.light.shadow.radius = 4.5;
     renderer.shadowMap.autoUpdate = false;
     renderer.shadowMap.needsUpdate = true;
   }

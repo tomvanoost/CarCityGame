@@ -334,6 +334,9 @@ export function createRoadMaterial() {
             float track = (aaLess(abs(lane - (laneC - 0.8)), 0.25) + aaLess(abs(lane - (laneC + 0.8)), 0.25)) * (1.0 - paint);
             diffuseColor.rgb *= 1.0 - 0.07 * track * nearR;
             tracks = track;
+            // The gutter: a soft darker strip where the road meets the curb (less sky light reaches it).
+            float gutter = 1.0 - smoothstep(0.0, 0.7, HW - aAcross);
+            diffuseColor.rgb *= 1.0 - 0.22 * gutter * (1.0 - paint);
             // Manhole covers: a round iron lid every ~35 m, in the middle of a lane.
             float cell = floor(along / 35.0);
             float mh = hash21(vec2(cell, inV ? floor((vWorld.x + HALF) / SPACING + 0.5) : floor((vWorld.z + HALF) / SPACING + 0.5) + 50.0));
@@ -364,7 +367,7 @@ export function createRoadMaterial() {
       // less, so they look like dark water with the sky in it instead of white patches.
       .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\nreflectedLight.indirectSpecular *= (1.0 + 1.6 * wetL) * (1.0 - 0.45 * puddle);');
   };
-  mat.customProgramCacheKey = () => 'cityRoad3';
+  mat.customProgramCacheKey = () => 'cityRoad4';
   return mat;
 }
 

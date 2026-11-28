@@ -23,12 +23,12 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Softer shadows and a touch of ambient occlusion** (graphics): slightly softer sun shadow edges and
-  darker corners where walls meet the ground (baked into the ground shader, no post-processing).
-
 - [ ] **Treasure hunt with friends** (feature): in multiplayer, a shared golden coin trail appears for a few
   minutes; everyone who joins in collects coins together (no racing against each other); NL + EN.
 - [ ] **Faster loading** (performance): measure the start-up time (menu → city ready) and the biggest
   downloads; load far places and big textures later, in the background; nothing may look worse.
+
+- [ ] **Shop window glow at night** (graphics): shop windows and the bakery / supermarket fronts glow warm
+  in the evening (shader only, no real lights); the glow fades in with the street lamps.
 
 (Add new ideas here, in order, for the next runs.)
