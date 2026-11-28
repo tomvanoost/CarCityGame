@@ -23,16 +23,14 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Triangle diet** (performance): find the biggest triangle sources at the spawn (buildings, trees,
-  cars, shadow pass); add LODs / lower-detail far versions, let only big things cast shadows, tighten
-  the shadow camera. Target: city spawn under 1.4 M triangles.
 - [ ] **Sky with clouds and stars** (graphics): soft drifting clouds by day, stars and a moon at night,
   warmer sunrise / sunset colors following the clock; cheap (sky dome shader).
 - [ ] **Rain showers and rainbows** (feature): now and then a short light rain (puddles on the road,
   wipers on the traffic cars) followed by a rainbow over the city; only on the Kwaliteit setting.
-- [ ] **Fewer shader programs** (performance): 113 programs at the spawn: share identical materials,
-  warm up shaders during loading (`renderer.compileAsync`) so there's no stutter the first time
-  something comes into view. Target: under 70 programs.
+- [ ] **Fewer shader programs** (performance): 72 programs at the spawn now (was 113): share identical
+  materials, warm up shaders during loading (`renderer.compileAsync`) so there's no stutter the first
+  time something comes into view. Target: under 60 programs. Also: the traffic lights are ~180 k
+  triangles (lamp discs 14 segments, 3 boxes per housing): make them lighter.
 - [ ] **Road and sidewalk details** (graphics): asphalt patches and cracks, manhole covers, curb stones,
   slightly worn lane paint, in the road shader (no extra draw calls).
 

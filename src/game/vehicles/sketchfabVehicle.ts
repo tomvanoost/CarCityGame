@@ -240,10 +240,22 @@ export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepres
   const wheels = info.bike || (lod && info.wheels)
     ? (() => { const f = pivot(0), r = pivot(1); return { fl: f, fr: f, rl: r, rr: r }; })()
     : { fl: pivot(0), fr: pivot(1), rl: pivot(2), rr: pivot(3) };
-  // (Also for glass made see-through above.)
   root.traverse((o) => {
     const mat = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
-    for (const m of mat ? (Array.isArray(mat) ? mat : [mat]) : []) if (m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true;
+    for (const m of mat ? (Array.isArray(mat) ? mat : [mat]) : []) {
+      // "Transmission" glass (physically see-through) makes three.js draw the WHOLE scene a second time
+      // every frame (into a texture to look through). Plain transparent glass looks the same on a car.
+      const pm = m as THREE.MeshPhysicalMaterial;
+      if (pm.transmission > 0) {
+        pm.transmission = 0;
+        pm.transparent = true;
+        pm.opacity = Math.min(pm.opacity, pm.color.r + pm.color.g + pm.color.b > 2.4 ? 0.35 : 0.6);
+        pm.depthWrite = false;
+        pm.needsUpdate = true;
+      }
+      // (Also for glass made see-through above.)
+      if (m.transparent && m.side === THREE.DoubleSide) m.forceSinglePass = true;
+    }
   });
   return {
     root,
