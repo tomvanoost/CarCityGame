@@ -34,7 +34,7 @@ function makeSharedMaterials() {
     caliperRed: new THREE.MeshStandardMaterial({ color: 0xc8161d, roughness: 0.35, metalness: 0.3 }),
     caliperGrey: new THREE.MeshStandardMaterial({ color: 0x5f646b, roughness: 0.45, metalness: 0.6 }),
     seat: new THREE.MeshStandardMaterial({ color: 0x2a2c31, roughness: 0.85 }),
-    shadow: new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity: 0.55 }),
+    shadow: new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, opacity: 0.72 }),
     trim: new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.6, metalness: 0.1 }),
     black: new THREE.MeshPhysicalMaterial({ color: 0x0a0a0c, roughness: 0.25, metalness: 0.3, clearcoat: 0.8 }),
     tire: new THREE.MeshStandardMaterial({ color: 0x1b1b1d, roughness: 0.92, metalness: 0 }),

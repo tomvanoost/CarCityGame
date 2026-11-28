@@ -86,6 +86,70 @@ function coloredCylinder(r: number, h: number, color: string, x: number, y: numb
   return g;
 }
 
+/** A soft dark rectangle with blurred edges (for the ground shadow around a building). */
+function softRectTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  g.filter = 'blur(12px)';
+  g.fillStyle = 'rgba(0,0,0,1)';
+  g.fillRect(26, 26, 76, 76);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function softDiscTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const grd = g.createRadialGradient(32, 32, 2, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(0,0,0,0.9)'); grd.addColorStop(0.5, 'rgba(0,0,0,0.5)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+
+/**
+ * Soft contact shadows on the ground ("ambient occlusion" feel, no post-processing): a blurred dark
+ * rectangle around the foot of every building and a soft round blob under every tree and bush.
+ * Two instanced meshes (2 draw calls), drawn just above the ground.
+ */
+function groundShadows(layout: CityLayout, models: Map<string, CityModel>, groundY: (p: Placement) => number, track: <T extends { dispose(): void }>(x: T) => T) {
+  const group = new THREE.Group();
+  const mat = (tex: THREE.Texture, opacity: number) => track(new THREE.MeshBasicMaterial({ map: track(tex), transparent: true, depthWrite: false, opacity, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  const plane = track(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2));
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), pos = new THREE.Vector3(), scl = new THREE.Vector3();
+  // Buildings: footprint + a margin (the texture's blurred edge falls just outside the walls).
+  const sizeOf = (p: Placement) => {
+    const sf = SKETCHFAB_CITY[p.model];
+    if (sf) return { x: sf.x * p.scale, z: sf.z * p.scale };
+    const md = models.get(p.model);
+    return md ? { x: md.size.x * p.scale, z: md.size.z * p.scale } : null;
+  };
+  const bList = layout.buildings.map((p) => ({ p, s: sizeOf(p) })).filter((b) => b.s);
+  const bMesh = new THREE.InstancedMesh(plane, mat(softRectTexture(), 0.55), Math.max(1, bList.length));
+  bList.forEach(({ p, s }, i) => {
+    // The texture's solid core is 60 % of its size: scale so the core matches the walls.
+    m.compose(pos.set(p.x, CURB_HEIGHT + 0.012, p.z), q.setFromAxisAngle(up, p.rot), scl.set(s!.x / 0.6 + 1.2, 1, s!.z / 0.6 + 1.2));
+    bMesh.setMatrixAt(i, m);
+  });
+  bMesh.count = bList.length;
+  // Trees and bushes (not rocks, flowers or lily pads).
+  const tree = (p: Placement) => {
+    const sf = SKETCHFAB_CITY[p.model];
+    if (sf) return sf.category === 'tree' || sf.category === 'pine' ? 3.6 : sf.category === 'bush' ? 1.6 : 0;
+    return /tree|pine|birch|willow|palm/i.test(p.model) ? 3.6 : /bush|hedge|shrub/i.test(p.model) ? 1.6 : 0;
+  };
+  const tList = layout.nature.map((p) => ({ p, d: tree(p) })).filter((t) => t.d > 0);
+  const tMesh = new THREE.InstancedMesh(plane, mat(softDiscTexture(), 0.6), Math.max(1, tList.length));
+  tList.forEach(({ p, d }, i) => {
+    m.compose(pos.set(p.x, groundY(p) + 0.014, p.z), q.identity(), scl.set(d * p.scale, 1, d * p.scale));
+    tMesh.setMatrixAt(i, m);
+  });
+  tMesh.count = tList.length;
+  for (const im of [bMesh, tMesh]) { im.renderOrder = 1; im.receiveShadow = false; im.castShadow = false; im.frustumCulled = false; group.add(im); }
+  return group;
+}
+
 /**
  * A plain box with the model's size and the same vertex attributes as its other LODs (for the batch):
  * walls in the building's own wall colour (aMain = 1), a darker roof. 12 triangles, for far away.
@@ -251,6 +315,7 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   for (const p of oldNature) nature.add(p, groundY(p));
   for (const p of layout.props) nature.add(p, top);
   group.add(track(buildings.mesh), track(nature.mesh));
+  group.add(groundShadows(layout, models, groundY, track));
 
   // ---------- towers ----------
   // Each tower = podium (2 floors, slightly wider) + main shaft, and tall towers get a

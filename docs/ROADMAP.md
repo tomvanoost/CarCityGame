@@ -23,8 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Softer shadows and ambient occlusion feel** (graphics): darker contact shadows under cars,
-  buildings and trees (baked blobs / vertex AO), no screen-space post-processing.
 - [ ] **Ice cream truck** (feature): an ice cream truck with a jingle drives around the city now and
   then; stop next to it to buy a cone.
 - [ ] **Lighter city ground** (performance): the city ground/streets mesh (~97 k triangles) and the
