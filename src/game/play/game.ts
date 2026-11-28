@@ -748,7 +748,7 @@ export class Game {
       this.sirenLights = new SirenLights(v.width, ...lightBarSpot(v), SIREN_COLORS[v.spec.siren]);
       v.root.add(this.sirenLights.group);
     }
-    const lights = headlightRig(v.length, v.width);
+    const lights = headlightRig(v.length, v.width, true);
     lights.visible = this.evening;
     v.root.add(lights);
     // Windscreen wipers (they sweep while it rains).

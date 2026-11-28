@@ -82,12 +82,59 @@ const additive = (color: string, opacity: number) => new THREE.MeshBasicMaterial
 
 /** Shared headlight material: warm white, added on top of what is behind. */
 let headMat: THREE.MeshBasicMaterial | null = null;
+/** Beam materials (light on the road): your car a bit brighter than the traffic. */
+let beamMat: THREE.MeshBasicMaterial | null = null;
+let beamMatTraffic: THREE.MeshBasicMaterial | null = null;
+
+/**
+ * The light of two headlights on the road, seen from above (the car at the bottom, pointing up): two
+ * cones that start narrow at the lamps and fan out, brightest a few meters ahead, fading out far away,
+ * with soft edges. Painted once into a canvas.
+ */
+let beamTex: THREE.Texture | null = null;
+function beamTexture() {
+  if (beamTex) return beamTex;
+  const W = 128, H = 256;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(W, H);
+  for (let y = 0; y < H; y++) {
+    const t = 1 - y / (H - 1); // 0 at the car (bottom row), 1 far ahead (top row)
+    // Along the road: rises quickly in front of the bumper, stays bright, fades out towards the end.
+    const along = Math.min(1, t / 0.08) * Math.pow(1 - t, 1.6) * (1 + 0.6 * Math.exp(-((t - 0.18) ** 2) / 0.02));
+    for (let x = 0; x < W; x++) {
+      const u = (x / (W - 1)) * 2 - 1; // -1..1 across
+      let v = 0;
+      for (const lamp of [-0.26, 0.26]) {
+        // Each cone: centered on its lamp near the car, widening ahead (and a little outward).
+        const center = lamp * (1 - t * 0.5);
+        const half = 0.1 + t * 0.62;
+        const d = Math.abs(u - center) / half;
+        v += Math.max(0, 1 - d * d);
+      }
+      const a = Math.min(1, v * 0.75) * along;
+      const i = (y * W + x) * 4;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+      img.data[i + 3] = Math.round(Math.min(1, a) * 255);
+    }
+  }
+  g.putImageData(img, 0, 0);
+  beamTex = new THREE.CanvasTexture(c);
+  beamTex.colorSpace = THREE.SRGBColorSpace;
+  return beamTex;
+}
+const beamMaterial = (opacity: number) => new THREE.MeshBasicMaterial({
+  map: beamTexture(), color: '#ffe9c4', transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+  polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+});
 
 /**
  * Headlights for one car (car faces +Z, stands on y = 0): two glowing lamps at the front corners
- * and a soft beam of light on the road ahead, all in one mesh with one shared material.
+ * and the light they throw on the road ahead (a child mesh: two widening cones, ~34 m for your own car,
+ * ~20 m for traffic). One draw call each, no real lights (cheap on tablets).
  */
-export function headlightRig(length: number, width: number): THREE.Mesh {
+export function headlightRig(length: number, width: number, own = false): THREE.Mesh {
   headMat ??= additive('#ffe7b8', 0.85);
   const front = length / 2;
   const parts: THREE.BufferGeometry[] = [];
@@ -97,13 +144,19 @@ export function headlightRig(length: number, width: number): THREE.Mesh {
       parts.push(new THREE.PlaneGeometry(0.55, 0.42).rotateY(ry).translate(sx * width * 0.33, 0.68, front + 0.05));
     }
   }
-  // Beam: a long soft oval on the road in front of the car.
-  parts.push(new THREE.PlaneGeometry(width * 1.5, 9).rotateX(-Math.PI / 2).translate(0, 0.04, front + 4.2));
   const geo = mergeGeos(parts);
   const mesh = new THREE.Mesh(geo, headMat);
   mesh.renderOrder = 2;
   mesh.frustumCulled = false;
   mesh.name = 'CCG_HEADLIGHTS';
+  // The light on the road: starts at the bumper, fans out to ~5 lanes wide far ahead.
+  const len = own ? 34 : 20, wide = own ? 11 : 7;
+  beamMat ??= beamMaterial(1);
+  beamMatTraffic ??= beamMaterial(0.8);
+  const beam = new THREE.Mesh(new THREE.PlaneGeometry(wide, len).rotateX(-Math.PI / 2).translate(0, 0.06, front - 0.2 + len / 2), own ? beamMat : beamMatTraffic);
+  beam.renderOrder = 2;
+  beam.frustumCulled = false;
+  mesh.add(beam);
   return mesh;
 }
 
