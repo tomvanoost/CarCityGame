@@ -23,10 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Fewer shader programs** (performance): 72 programs at the spawn now (was 113): share identical
-  materials, warm up shaders during loading (`renderer.compileAsync`) so there's no stutter the first
-  time something comes into view. Target: under 60 programs. Also: the traffic lights are ~180 k
-  triangles (lamp discs 14 segments, 3 boxes per housing): make them lighter.
 - [ ] **Road and sidewalk details** (graphics): asphalt patches and cracks, manhole covers, curb stones,
   slightly worn lane paint, in the road shader (no extra draw calls).
 

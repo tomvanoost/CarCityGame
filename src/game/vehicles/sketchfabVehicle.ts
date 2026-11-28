@@ -169,6 +169,25 @@ export const hasSketchfabModel = (id: string) => id in SKETCHFAB_VEHICLES;
 export const isPaintable = (id: string) => !hasSketchfabModel(id) || SKETCHFAB_VEHICLES[id].paintable;
 
 /**
+ * Car models come with many MeshPhysicalMaterials that use no physical-only feature (no clearcoat,
+ * sheen, transmission...). Each such variant needs its own shader program; as a standard material it
+ * looks the same and shares programs with the rest of the game. Cached, so the cars keep sharing them.
+ */
+const standardOf = new WeakMap<THREE.Material, THREE.Material>();
+function toStandard(m: THREE.Material): THREE.Material {
+  const p = m as THREE.MeshPhysicalMaterial;
+  if (!p.isMeshPhysicalMaterial) return m;
+  if (p.clearcoat > 0 || p.sheen > 0 || p.transmission > 0 || p.iridescence > 0 || p.anisotropy > 0 || (p.dispersion ?? 0) > 0) return m;
+  let s = standardOf.get(m);
+  if (!s) {
+    s = new THREE.MeshStandardMaterial().copy(p as unknown as THREE.MeshStandardMaterial);
+    s.name = p.name;
+    standardOf.set(m, s);
+  }
+  return s;
+}
+
+/**
  * Loads a processed Sketchfab vehicle (see scripts/build-vehicles.mjs) as a BuiltCar.
  * `lod` = the light version for traffic: one mesh with vertex colors.
  * The model already faces +Z, stands on y = 0 and has its real size.
@@ -193,7 +212,8 @@ export async function loadSketchfabVehicle(id: string, color?: THREE.ColorRepres
     if (!mesh.isMesh) return;
     mesh.castShadow = lod ? !mesh.userData.wheelPart : !!mesh.userData.wheelPart || big.has(mesh);
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    const next = mats.map((m) => {
+    const next = mats.map((m0) => {
+      const m = toStandard(m0);
       const sm = m as THREE.MeshStandardMaterial;
       // See-through two-sided parts (glass) in one pass instead of two: looks the same on a car, one draw call less each.
       if (sm.transparent && sm.side === THREE.DoubleSide) sm.forceSinglePass = true;

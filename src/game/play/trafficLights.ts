@@ -129,7 +129,7 @@ export class TrafficLights {
     // Avenue: the pole stands 1.2 m beyond the curb (half width 11); lanes at 2.67 / 6 / 9.33 m from the middle.
     const LONG = WIDE_LANES.map((l) => -(11 + 1.2 - l));
     const pole = (heads: number[]) => mergeGeometries([
-      paint(new THREE.CylinderGeometry(0.07, 0.08, 3.9, 8).translate(0, 1.95, 0), '#8c949c'),
+      paint(new THREE.CylinderGeometry(0.07, 0.08, 3.9, 6, 1, true).translate(0, 1.95, 0), '#8c949c'),
       paint(new THREE.BoxGeometry(-heads[0] + 0.4, 0.08, 0.08).translate(heads[0] / 2 - 0.1, 3.85, 0), '#8c949c'),
       ...heads.flatMap(housing),
     ])!;
@@ -141,7 +141,7 @@ export class TrafficLights {
     const longPoles = new THREE.InstancedMesh(pole(LONG), poleMat, Math.max(1, nWide));
     shortPoles.count = all.length - nWide; longPoles.count = nWide;
     shortPoles.castShadow = longPoles.castShadow = true;
-    this.lamps = new THREE.InstancedMesh(new THREE.CircleGeometry(0.12, 14), new THREE.MeshBasicMaterial({ map: arrowTexture(), toneMapped: false }), lampCount);
+    this.lamps = new THREE.InstancedMesh(new THREE.CircleGeometry(0.12, 8), new THREE.MeshBasicMaterial({ map: arrowTexture(), toneMapped: false }), lampCount);
     // Arrows painted in the three lanes of each avenue before the crossing (one mesh per arrow kind).
     const arrowMeshes = MOVES.map((mv) => new THREE.InstancedMesh(new THREE.PlaneGeometry(1.4, 4.2).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: roadArrowTexture(mv), transparent: true, depthWrite: false, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }), Math.max(1, nWide)));
     const arrowCount = [0, 0, 0];

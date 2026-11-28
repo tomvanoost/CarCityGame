@@ -487,6 +487,18 @@ export class Game {
     this.scene.add(this.turnLines);
     this.scene.add(this.traffic.group);
     this.traffic.setLights(this.evening);
+    void this.warmShaders();
+  }
+
+  /**
+   * Compile the shaders of everything in the world in the background (also the far places that are
+   * hidden now), so nothing stutters the first time it comes into view.
+   */
+  private async warmShaders() {
+    const hidden = this.farCull.filter((c) => !c.obj.visible);
+    hidden.forEach((c) => { c.obj.visible = true; });
+    try { await this.renderer.compileAsync(this.scene, this.camera); } catch { /* older browsers: compiled on first sight */ }
+    this.cullTimer = 0; // hide the far places again on the next frame
   }
 
   /** Pick a destination (from the big map), or null to stop navigating. */
