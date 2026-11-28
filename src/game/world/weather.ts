@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 
 /** How wet the world is right now (0 dry .. 1 pouring); shaders read it (road puddles). */
-export const WEATHER = { wet: { value: 0 } };
+export const WEATHER = { wet: { value: 0 }, puddles: { value: 0 } };
+/** After the rain: the road is dry again after ~75 s, the puddles last ~2.5 minutes (they shrink first). */
+const DRY_TIME = 75, PUDDLE_TIME = 150;
 
 const RAIN_TIME = 55; // seconds of rain (incl. 8 s fading in and out)
 const RAINBOW_TIME = 45;
@@ -101,8 +103,10 @@ export class Weather {
     const fadeIn = (len: number) => Math.min(1, this.t / FADE, (len - this.t) / FADE);
     this.amount = this.phase === 'rain' ? Math.max(0, fadeIn(RAIN_TIME)) : 0;
     this.bow = this.phase === 'rainbow' ? Math.max(0, fadeIn(RAINBOW_TIME)) : 0;
-    // The roads dry up slowly after the rain.
-    WEATHER.wet.value = this.phase === 'rain' ? Math.max(WEATHER.wet.value, this.amount) : Math.max(0, WEATHER.wet.value - dt / 40);
+    // The roads dry up slowly after the rain (in patches, see the road shader); puddles last longest.
+    const raining = this.phase === 'rain';
+    WEATHER.wet.value = raining ? Math.max(WEATHER.wet.value, this.amount) : Math.max(0, WEATHER.wet.value - dt / DRY_TIME);
+    WEATHER.puddles.value = raining ? Math.max(WEATHER.puddles.value, this.amount) : Math.max(0, WEATHER.puddles.value - dt / PUDDLE_TIME);
 
     // Rain streaks: fall, wrap around the box that follows the camera.
     this.rain.visible = this.amount > 0.01;

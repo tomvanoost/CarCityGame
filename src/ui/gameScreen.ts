@@ -32,6 +32,7 @@ import { BAKERY } from '../game/play/bakery';
 import { ANIMAL_EMOJI } from '../game/play/pettingFarm';
 import { REPAIR_PRICE } from '../game/vehicles/dents';
 import { MAX_BASKETS, PICNIC_PRICE } from '../game/play/picnic';
+import { WEATHER } from '../game/world/weather';
 import { sounds } from '../game/play/sounds';
 
 const TABLET_KEY = 'carcity.tablet';
@@ -867,7 +868,7 @@ export const gameScreen: Screen = (root, nav) => {
   window.addEventListener('carcity-back', onBack);
   window.addEventListener('keydown', onBack);
 
-  if (import.meta.env.DEV) Object.assign(window, { carcityDebug: { game, input } });
+  if (import.meta.env.DEV) Object.assign(window, { carcityDebug: { game, input, weather: WEATHER } });
   // A new version is about to load: save money / fuel / km first.
   const onUpdateSave = () => game.saveNow();
   window.addEventListener('carcity-save', onUpdateSave);

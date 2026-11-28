@@ -253,9 +253,11 @@ export function createRoadMaterial() {
   mat.onBeforeCompile = (shader) => {
     withWorldPos(shader);
     shader.uniforms.uWet = WEATHER.wet;
+    shader.uniforms.uPuddles = WEATHER.puddles;
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        uniform float uWet;
+        uniform float uWet, uPuddles;
+        float tracks = 0.0, wetL = 0.0, puddle = 0.0;
         const float SPACING = ${BLOCK_SPACING.toFixed(1)};
         const float HALF = ${HALF_CITY.toFixed(1)};
         const float SMALL = ${(ROAD_WIDTH / 2).toFixed(2)};
@@ -331,6 +333,7 @@ export function createRoadMaterial() {
             float laneC = HW > SMALL + 0.5 ? 1.67 : 2.5;
             float track = (aaLess(abs(lane - (laneC - 0.8)), 0.25) + aaLess(abs(lane - (laneC + 0.8)), 0.25)) * (1.0 - paint);
             diffuseColor.rgb *= 1.0 - 0.07 * track * nearR;
+            tracks = track;
             // Manhole covers: a round iron lid every ~35 m, in the middle of a lane.
             float cell = floor(along / 35.0);
             float mh = hash21(vec2(cell, inV ? floor((vWorld.x + HALF) / SPACING + 0.5) : floor((vWorld.z + HALF) / SPACING + 0.5) + 50.0));
@@ -349,12 +352,19 @@ export function createRoadMaterial() {
           }
         }
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92), paint);
-        // Rain: the asphalt gets darker, and puddles form in the low spots (they shine like mirrors).
-        float puddle = smoothstep(0.62, 0.7, fbm(vWorld.xz * 0.11 + 3.1)) * uWet;
-        diffuseColor.rgb *= 1.0 - 0.3 * uWet - 0.25 * puddle;`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.6, paint);\nroughnessFactor = mix(roughnessFactor, 0.55, uWet * 0.6);\nroughnessFactor = mix(roughnessFactor, 0.05, puddle);');
+        // Rain: the asphalt gets darker and shiny, and puddles form in the low spots (they shine like mirrors).
+        // Afterwards it dries in patches (the wheel tracks first), and the puddles shrink and last longest.
+        float dryN = fbm(vWorld.xz * 0.05 + 7.3);
+        wetL = clamp(uWet * 1.5 - dryN * 0.5 - tracks * 0.35 * (1.0 - uWet), 0.0, 1.0);
+        float pn = fbm(vWorld.xz * 0.11 + 3.1), pt = 0.7 - 0.08 * uPuddles;
+        puddle = smoothstep(pt, pt + 0.05, pn) * smoothstep(0.0, 0.15, uPuddles);
+        diffuseColor.rgb *= 1.0 - 0.3 * wetL - 0.25 * puddle;`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.6, paint);\nroughnessFactor = mix(roughnessFactor, 0.45, wetL * 0.7);\nroughnessFactor = mix(roughnessFactor, 0.05, puddle);')
+      // Wet asphalt reflects the sky more (the material is matte when dry); the mirror-smooth puddles a bit
+      // less, so they look like dark water with the sky in it instead of white patches.
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\nreflectedLight.indirectSpecular *= (1.0 + 1.6 * wetL) * (1.0 - 0.45 * puddle);');
   };
-  mat.customProgramCacheKey = () => 'cityRoad2';
+  mat.customProgramCacheKey = () => 'cityRoad3';
   return mat;
 }
 
