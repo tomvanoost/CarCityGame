@@ -23,6 +23,7 @@ import { Pedestrians } from './pedestrians';
 import { BIRD_KINDS, Wildlife, type BirdKind } from './wildlife';
 import { MAX_BASKETS, PICNIC_PRICE, Picnic } from './picnic';
 import { PLANE_STICKER_M, PaperPlane } from './paperPlane';
+import { HUNT_BONUS, HUNT_COIN_REWARD, TeamHunt, parseHunt } from './teamHunt';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Pet, PetShopBuilding, getPet } from './pets';
 import { FURNITURE } from '../furniture';
@@ -153,6 +154,8 @@ export interface MapState {
   following: string | null;
   /** Treasure map: the blurry spot where this week's chest is (null = no map, or already found). */
   treasure: { x: number; z: number; r: number } | null;
+  /** Multiplayer coin hunt: the middle of the trail while one is open. */
+  hunt: P | null;
 }
 
 export interface GameEvents {
@@ -180,7 +183,7 @@ export interface GameEvents {
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery' | 'library' | 'garden'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'kiteBought' | 'harvested' | 'gardenGrowing' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek' | 'picnicNeed', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'kiteBought' | 'harvested' | 'gardenGrowing' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek' | 'picnicNeed' | 'huntStart' | 'huntDone', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
   onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
   /** Photo mode: the interact key / controller A was pressed (take the picture). */
@@ -346,6 +349,9 @@ export class Game {
   private mirrorCam = new THREE.PerspectiveCamera(48, 3.3, 0.3, 300);
   /** Multiplayer server we're on (if any), and the other players there. */
   private mp: MpSession | null = null;
+  /** Multiplayer: the team coin hunt, and the other players' latest states (for their found coins). */
+  private hunt?: TeamHunt;
+  private others = new Map<string, { hunt?: string }>();
   private remote?: RemotePlayers;
   private offPlayers?: () => void;
   /** The player's max speed (km/h, 🏁 next to the home button), saved on this device; null = the car's top speed. */
@@ -611,6 +617,7 @@ export class Game {
       players: this.remote?.positions() ?? [],
       following: this.followId,
       treasure: this.hasTreasureMap() && this.chest ? { x: this.chest.spot.cx, z: this.chest.spot.cz, r: TREASURE_RADIUS } : null,
+      hunt: this.hunt?.center ?? null,
     };
   }
 
@@ -894,6 +901,17 @@ export class Game {
     void updateProfile({ paperPlane: true });
   }
   get hasPaperPlane() { return this.profile.paperPlane; }
+
+  /** Multiplayer coin hunt with friends: picks up coins, shares them, rewards. */
+  private updateHunt(dt: number, pos: { x: number; z: number }) {
+    if (!this.mp || !this.city) return;
+    if (!this.hunt) { this.hunt = new TeamHunt(this.city.layout, this.mp.roomId); this.scene.add(this.hunt.group); }
+    const others = [...this.others.values()].map((o) => parseHunt(o.hunt)).filter((h): h is { id: number; mask: number } => !!h);
+    const ev = this.hunt.update(dt, Date.now(), pos, others);
+    if (ev.started) this.events.onMessage('huntStart');
+    if (ev.picked) { this.addMoney(HUNT_COIN_REWARD * ev.picked, 'coin'); sounds.coin(); }
+    if (ev.completed) { this.addMoney(HUNT_BONUS, 'coin'); this.events.onMessage('huntDone', HUNT_BONUS); awardSticker('teamHunt'); }
+  }
 
   private planeLanded(meters: number) {
     const m = Math.round(meters * 10) / 10, p = this.profile;
@@ -1342,6 +1360,7 @@ export class Game {
     const since = Date.now();
     this.offPlayers = session.onPlayers((players) => {
       this.remote?.sync(players);
+      this.others = players as Map<string, { hunt?: string }>;
       for (const [id, p] of players) {
         const k = this.knownPlayers.get(id);
         if (k) { k.goneAt = 0; k.name = p.name; continue; }
@@ -1478,6 +1497,7 @@ export class Game {
       neon: p.vehicleNeon[v.spec.id] ?? '', spoiler: p.vehicleSpoiler[v.spec.id] ?? '',
       x: driving ? v.x : pl.x, z: driving ? v.z : pl.z, h: driving ? v.heading : pl.heading,
       v: driving ? v.speed : pl.speed, siren: this.sirenOn, blink: driving ? this.signals?.side ?? null : null,
+      hunt: this.hunt?.share ?? '',
     });
   }
 
@@ -2258,6 +2278,7 @@ export class Game {
     this.city.update(this.camera.position, dt);
     this.wildlife?.update(dt, this.camera.position, this.focus);
     this.picnic?.update(dt);
+    this.updateHunt(dt, pos);
     if (this.world) {
       const flew = this.plane.update(dt, this.world);
       if (flew !== null) this.planeLanded(flew);
@@ -2362,6 +2383,7 @@ export class Game {
     this.signals?.dispose();
     this.offPlayers?.();
     this.remote?.dispose();
+    this.hunt?.dispose();
     this.mp?.leave();
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onHide);

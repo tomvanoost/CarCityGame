@@ -53,6 +53,30 @@ export function coinSpots(layout: CityLayout): CoinSpot[] {
   return spots.slice(0, COIN_COUNT).map((s, i) => ({ id: `c${i}`, x: Math.round(s.x * 10) / 10, z: Math.round(s.z * 10) / 10 }));
 }
 
+/** The gold coin (upright, with a raised rim and a star on both faces), shared by the coin hunts. */
+export function coinGeometry(): THREE.BufferGeometry {
+  // A thick gold coin standing upright, with a raised rim.
+  const tint = (g: THREE.BufferGeometry, color: string) => {
+    const geo = g.index ? g.toNonIndexed() : g, c = new THREE.Color(color), n = geo.getAttribute('position').count;
+    const a = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3);
+    geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    geo.deleteAttribute('uv');
+    return geo;
+  };
+  // A five-pointed star, raised on both faces.
+  const star = new THREE.Shape();
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + Math.PI / 2, r = i % 2 ? 0.14 : 0.34;
+    if (i) star.lineTo(Math.cos(a) * r, Math.sin(a) * r); else star.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  return mergeGeometries([
+    tint(new THREE.CylinderGeometry(0.55, 0.55, 0.12, 24).rotateX(Math.PI / 2), '#e8a810'),
+    tint(new THREE.CylinderGeometry(0.45, 0.45, 0.15, 24).rotateX(Math.PI / 2), '#ffd84a'),
+    tint(new THREE.ExtrudeGeometry(star, { depth: 0.2, bevelEnabled: false }).translate(0, 0, -0.1), '#fff1a8'),
+  ])!;
+}
+
 /** The coins in the world: one InstancedMesh, spinning and bobbing; found coins are hidden. */
 export class Coins {
   readonly group = new THREE.Group();
@@ -70,26 +94,7 @@ export class Coins {
     this.spots = coinSpots(layout);
     this.found = new Set(found);
     this.ys = this.spots.map((s) => groundHeight(s.x, s.z) + 1.1);
-    // A thick gold coin standing upright, with a raised rim.
-    const tint = (g: THREE.BufferGeometry, color: string) => {
-      const geo = g.index ? g.toNonIndexed() : g, c = new THREE.Color(color), n = geo.getAttribute('position').count;
-      const a = new Float32Array(n * 3);
-      for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3);
-      geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
-      geo.deleteAttribute('uv');
-      return geo;
-    };
-    // A five-pointed star, raised on both faces.
-    const star = new THREE.Shape();
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2 + Math.PI / 2, r = i % 2 ? 0.14 : 0.34;
-      if (i) star.lineTo(Math.cos(a) * r, Math.sin(a) * r); else star.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-    }
-    const geo = mergeGeometries([
-      tint(new THREE.CylinderGeometry(0.55, 0.55, 0.12, 24).rotateX(Math.PI / 2), '#e8a810'),
-      tint(new THREE.CylinderGeometry(0.45, 0.45, 0.15, 24).rotateX(Math.PI / 2), '#ffd84a'),
-      tint(new THREE.ExtrudeGeometry(star, { depth: 0.2, bevelEnabled: false }).translate(0, 0, -0.1), '#fff1a8'),
-    ])!;
+    const geo = coinGeometry();
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.8, roughness: 0.28, emissive: '#6b4700', emissiveIntensity: 0.3 });
     this.mesh = new THREE.InstancedMesh(geo, mat, this.spots.length);
     this.mesh.castShadow = true;

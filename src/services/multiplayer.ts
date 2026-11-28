@@ -38,6 +38,8 @@ export interface PlayerState {
   /** Garage extras: underglow and spoiler color ('' = none). */
   neon?: string;
   spoiler?: string;
+  /** Team coin hunt: "huntId:mask" of the coins this player picked up ('' = not in a hunt). */
+  hunt?: string;
 }
 
 export interface RemotePlayer extends PlayerState {

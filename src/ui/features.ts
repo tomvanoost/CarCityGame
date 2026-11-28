@@ -8,7 +8,7 @@ const GROUPS: { id: string; emoji: string; items: [string, string][] }[] = [
   { id: 'shops', emoji: '🛍️', items: [['👕', 'feat_shops1'], ['🛒', 'feat_shops2'], ['🍦', 'feat_shops3'], ['🐾', 'feat_shops4'], ['🏠', 'feat_shops5'], ['🛋️', 'feat_shops6'], ['🥕', 'feat_shops7']] },
   { id: 'fun', emoji: '🎉', items: [['🎡', 'feat_fun1'], ['🎈', 'feat_fun2'], ['⛴️', 'feat_fun3'], ['🏊', 'feat_fun4'], ['🪁', 'feat_fun5'], ['🏂', 'feat_fun6'], ['🛹', 'feat_fun7'], ['🎣', 'feat_fun8'], ['🎆', 'feat_fun9'], ['🐐', 'feat_fun10'], ['📚', 'feat_fun11'], ['🔭', 'feat_fun12'], ['🌳', 'feat_fun13'], ['🧺', 'feat_fun14'], ['✈️', 'feat_fun15']] },
   { id: 'world', emoji: '🌍', items: [['🏙️', 'feat_world1'], ['🚶', 'feat_world2'], ['🦆', 'feat_world3'], ['🌙', 'feat_world4'], ['🌧️', 'feat_world5']] },
-  { id: 'more', emoji: '⭐', items: [['🌐', 'feat_more1'], ['⭐', 'feat_more2'], ['🎓', 'feat_more3'], ['⚙️', 'feat_more4'], ['🇳🇱', 'feat_more5']] },
+  { id: 'more', emoji: '⭐', items: [['🌐', 'feat_more1'], ['⭐', 'feat_more2'], ['🎓', 'feat_more3'], ['⚙️', 'feat_more4'], ['🇳🇱', 'feat_more5'], ['🌟', 'feat_more6']] },
 ];
 
 /** 📋 Features (from the home menu): a list of everything you can do in the game. */

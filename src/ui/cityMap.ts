@@ -276,6 +276,7 @@ export class Minimap {
     icon(this.places.home, '🏠', '#ff8a2b');
     icon(s.dest, '📍', '#16b862');
     icon(s.job, '⭐', '#16b862');
+    icon(s.hunt, '🌟', '#e8a810');
     // Other players: small yellow dots (on the edge when they're out of range).
     this.dots = [];
     const c = Math.cos(rot), sn = Math.sin(rot);
@@ -453,6 +454,7 @@ export class BigMap {
     badge(g, '🏠', ...at(this.places.home), big, '#ff8a2b');
     if (s.job) badge(g, '⭐', ...at(s.job), big, '#16b862');
     if (s.dest) badge(g, '📍', ...at(s.dest), big, '#16b862');
+    if (s.hunt) badge(g, '🌟', ...at(s.hunt), big, '#e8a810');
     if (s.treasure) {
       const [tx, ty] = at(s.treasure);
       treasureSpot(g, tx, ty, Math.max(s.treasure.r * K * scale, 22 * dpr));
