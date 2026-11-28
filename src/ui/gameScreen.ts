@@ -223,7 +223,10 @@ export const gameScreen: Screen = (root, nav) => {
   const popups = h('div', { class: 'popups' });
   const panel = h('div', { class: 'place-panel', hidden: true });
   const mapWrap = h('div', { class: 'minimap-wrap' });
-  const bigHolder = h('div', { class: 'bigmap-holder' });
+  // ➕ / ➖ zoom buttons on top of the big map (also mouse wheel and pinch on the map itself).
+  const zoomBtn = (label: string, f: number, aria: string) => h('button', { class: 'icon-btn map-zoom-btn', 'aria-label': aria, title: aria, onclick: () => bigMap?.zoomBy(f) }, label);
+  const bigHolder = h('div', { class: 'bigmap-holder' },
+    h('div', { class: 'map-zoom' }, zoomBtn('➕', 1.6, t('zoomIn')), zoomBtn('➖', 1 / 1.6, t('zoomOut'))));
   const closeMap = () => { mapOverlay.hidden = true; game.resume(); render(); };
   const navBtn = (label: string, onClick: () => void) => h('button', { class: 'btn nav-btn', onclick: onClick }, label);
   let places: MapPlaces | null = null;

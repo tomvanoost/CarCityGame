@@ -306,34 +306,127 @@ export class Minimap {
   }
 }
 
-/** The big map: north up, tap to choose where to go. */
+/** Big map zoom: 1 = the whole world fits, up to 4× closer. */
+const MAX_ZOOM = 4;
+
+/**
+ * The big map: north up, tap to choose where to go. Zoom in and out with the ➕ / ➖ buttons, the mouse
+ * wheel or two fingers (pinch); when zoomed in, drag to look around. A tap (not a drag) picks the spot.
+ */
 export class BigMap {
   readonly canvas: HTMLCanvasElement;
   private view = { scale: 1, ox: 0, oy: 0 };
+  /** How far zoomed in, and the world point in the middle of the map. */
+  private zoom = 1;
+  private center = { x: (VIEW.x0 + VIEW.x1) / 2, z: (VIEW.z0 + VIEW.z1) / 2 };
+  private last: MapState | null = null;
+  private pointers = new Map<number, { x: number; y: number }>();
+  private moved = 0;
+  private pinch = 0;
 
   constructor(private base: HTMLCanvasElement, private places: MapPlaces, onPick: (p: P) => void) {
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'bigmap-canvas';
-    this.canvas.addEventListener('click', (e) => {
+    const toCanvas = (e: { clientX: number; clientY: number }) => {
       const r = this.canvas.getBoundingClientRect();
       const dpr = this.canvas.width / r.width;
-      const px = (e.clientX - r.left) * dpr, py = (e.clientY - r.top) * dpr;
-      const x = (px - this.view.ox) / this.view.scale / K - E, z = (py - this.view.oy) / this.view.scale / K - E;
+      return { px: (e.clientX - r.left) * dpr, py: (e.clientY - r.top) * dpr, dpr };
+    };
+    const toWorld = (px: number, py: number) => ({ x: (px - this.view.ox) / this.view.scale / K - E, z: (py - this.view.oy) / this.view.scale / K - E });
+    this.canvas.addEventListener('click', (e) => {
+      if (this.moved > 8) return; // that was a drag or a pinch, not a tap
+      const { px, py } = toCanvas(e);
+      const { x, z } = toWorld(px, py);
       if (Math.abs(x) < E && Math.abs(z) < E) onPick({ x, z });
     });
+    this.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const { px, py } = toCanvas(e);
+      this.zoomBy(e.deltaY < 0 ? 1.25 : 1 / 1.25, px, py);
+    }, { passive: false });
+    this.canvas.addEventListener('pointerdown', (e) => {
+      this.canvas.setPointerCapture(e.pointerId);
+      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.pointers.size === 1) this.moved = 0;
+      if (this.pointers.size === 2) this.pinch = this.pinchDist();
+    });
+    this.canvas.addEventListener('pointermove', (e) => {
+      const p = this.pointers.get(e.pointerId);
+      if (!p) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      p.x = e.clientX; p.y = e.clientY;
+      this.moved += Math.abs(dx) + Math.abs(dy);
+      const dpr = this.canvas.width / (this.canvas.getBoundingClientRect().width || 1);
+      if (this.pointers.size === 2) {
+        // Pinch: zoom around the middle of the two fingers.
+        const d = this.pinchDist();
+        if (this.pinch > 0 && d > 0) {
+          const [a, b] = [...this.pointers.values()];
+          const { px, py } = toCanvas({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 });
+          this.zoomBy(d / this.pinch, px, py);
+        }
+        this.pinch = d;
+      } else if (this.zoom > 1) {
+        // Drag: move the map along with the finger / mouse.
+        const s = this.view.scale * K;
+        this.center.x -= (dx * dpr) / s;
+        this.center.z -= (dy * dpr) / s;
+        this.clampCenter();
+        this.redraw();
+      }
+    });
+    const up = (e: PointerEvent) => { this.pointers.delete(e.pointerId); this.pinch = 0; };
+    this.canvas.addEventListener('pointerup', up);
+    this.canvas.addEventListener('pointercancel', up);
   }
 
+  private pinchDist() {
+    const [a, b] = [...this.pointers.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  }
+
+  /** ➕ / ➖: zoom by `f` around a point on the canvas (default: the middle; from the whole world: your spot). */
+  zoomBy(f: number, px?: number, py?: number) {
+    const before = this.zoom;
+    this.zoom = Math.min(MAX_ZOOM, Math.max(1, this.zoom * f));
+    if (this.zoom === before) return;
+    if (px !== undefined && py !== undefined) {
+      // Keep the world point under the cursor / fingers where it is.
+      const wx = (px - this.view.ox) / this.view.scale / K - E, wz = (py - this.view.oy) / this.view.scale / K - E;
+      const k = before / this.zoom;
+      this.center.x = wx + (this.center.x - wx) * k;
+      this.center.z = wz + (this.center.z - wz) * k;
+    } else if (before === 1 && this.last) {
+      this.center = { x: this.last.x, z: this.last.z }; // first zoom step: towards where you are
+    }
+    if (this.zoom === 1) this.center = { x: (VIEW.x0 + VIEW.x1) / 2, z: (VIEW.z0 + VIEW.z1) / 2 };
+    this.clampCenter();
+    this.redraw();
+  }
+
+  /** Keep the view on the map (the city, desert and lake area). */
+  private clampCenter() {
+    const vw = VIEW.x1 - VIEW.x0, vh = VIEW.z1 - VIEW.z0;
+    const hx = Math.max(0, vw / 2 - vw / 2 / this.zoom), hz = Math.max(0, vh / 2 - vh / 2 / this.zoom);
+    const cx = (VIEW.x0 + VIEW.x1) / 2, cz = (VIEW.z0 + VIEW.z1) / 2;
+    this.center.x = Math.min(cx + hx, Math.max(cx - hx, this.center.x));
+    this.center.z = Math.min(cz + hz, Math.max(cz - hz, this.center.z));
+  }
+
+  private redraw() { if (this.last) this.draw(this.last); }
+
   draw(s: MapState) {
+    this.last = s;
     const r = this.canvas.getBoundingClientRect();
     if (!r.width) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
     if (this.canvas.width !== W || this.canvas.height !== H) { this.canvas.width = W; this.canvas.height = H; }
     const g = this.canvas.getContext('2d')!;
-    // Show the city, the desert and the lake as large as possible.
+    // Zoomed out: the city, the desert and the lake as large as possible; zoomed in: closer around `center`.
     const vw = VIEW.x1 - VIEW.x0, vh = VIEW.z1 - VIEW.z0;
-    const scale = Math.min(W / (vw * K), H / (vh * K));
-    const cx = (VIEW.x0 + VIEW.x1) / 2, cz = (VIEW.z0 + VIEW.z1) / 2;
+    const scale = Math.min(W / (vw * K), H / (vh * K)) * this.zoom;
+    const cx = this.center.x, cz = this.center.z;
     this.view = { scale, ox: W / 2 - (cx + E) * K * scale, oy: H / 2 - (cz + E) * K * scale };
     g.fillStyle = '#7fb865';
     g.fillRect(0, 0, W, H);
