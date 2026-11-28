@@ -60,6 +60,10 @@ interface Car {
   spin: number;
   /** 0..1: how far the car has pulled over to the curb for a police siren. */
   pull: number;
+  /** Which way it moves aside for the police: +1 = right (to the curb), -1 = left (the police passes on its right). */
+  pullSide: number;
+  /** The sideways shift now (meters, + = right): follows pull and pullSide smoothly. */
+  pullOff: number;
   /** Seconds left in the overtaking lane on the highway (0 = keep right). */
   overtake: number;
   /** Turn signals / hazard lights (hidden meshes when off, so no extra draw calls). */
@@ -184,7 +188,7 @@ export class Traffic {
       const lane = this.graph.cruiseLane(from, to);
       // On the highways cars come in at speed (fast cars keep leaving the area around you and come back).
       const speed = this.graph.isAutobahn(from, to) ? car.spec.topSpeed / 3.6 * 0.8 : this.graph.isHighway(from, to) ? this.highwaySpeed * 0.8 : CRUISE * 0.6;
-      Object.assign(car, { from, to, seg, d, lane, speed, x: p.x - p.dir.z * lane, z: p.z + p.dir.x * lane, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined, pull: 0, overtake: 0, hazard: 0 });
+      Object.assign(car, { from, to, seg, d, lane, speed, x: p.x - p.dir.z * lane, z: p.z + p.dir.x * lane, heading: Math.atan2(p.dir.x, p.dir.z), waited: 0, holds: -1, nextNode: undefined, pull: 0, pullSide: 1, pullOff: 0, overtake: 0, hazard: 0 });
       return true;
     }
     return false;
@@ -212,7 +216,7 @@ export class Traffic {
     const car: Car = {
       spec, built, light: built, color, root, half: dims.length / 2, radius: dims.width / 2,
       from: 0, to: 0, seg: this.lineSeg(...this.graph.edges[0]), d: 0, speed: 0, x: 0, z: 0, heading: 0,
-      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0, overtake: 0, signals, wipers, hazard: 0, lane: LANE,
+      waited: 0, holds: -1, hasDriver: false, spin: 0, pull: 0, pullSide: 1, pullOff: 0, overtake: 0, signals, wipers, hazard: 0, lane: LANE,
     };
     this.cars.push(car);
     this.group.add(root);
@@ -347,7 +351,9 @@ export class Traffic {
       if (left < 45 && this.signals && car.holds !== car.to) {
         const light = this.signals.state(car.from, car.to, moveOf(N[car.from], N[car.to], N[this.peekNext(car)]));
         const stopDist = (car.speed * car.speed) / (2 * DECEL);
-        if (light === 'red' || (light === 'amber' && left > stopDist + 1)) {
+        // Green, but the police car with its siren is on the crossing (or about to be): wait for it to pass.
+        const C = N[car.to], police = siren && Math.hypot(player.x - C.x, player.z - C.z) < this.graph.crossHalf(car.to, car.from) + 16;
+        if (light === 'red' || ((light === 'amber' || police) && left > stopDist + 1)) {
           redStop = true;
           allowed = Math.min(allowed, Math.sqrt(2 * DECEL * Math.max(0, left - car.half - 1.6))); // front bumper just behind the stop line
         }
@@ -362,9 +368,18 @@ export class Traffic {
         }
       }
 
-      // Police siren nearby: pull over to the curb and crawl, so the police car can pass.
-      const wantPull = siren && Math.hypot(car.x - player.x, car.z - player.z) < SIREN_RANGE ? 1 : 0;
+      // Police siren nearby: pull over to the curb and crawl, so the police car can pass. When the police
+      // car comes past on the car's right side, it moves to the left instead (never into its way).
+      const pdist = Math.hypot(car.x - player.x, car.z - player.z);
+      const wantPull = siren && pdist < SIREN_RANGE ? 1 : 0;
       car.pull += THREE.MathUtils.clamp(wantPull - car.pull, -0.7 * dt, 1.1 * dt);
+      if (wantPull && pdist < 30) {
+        // Sideways position of the police car (+ = on this car's right), measured from the lane the car is in.
+        const lat = (player.x - car.x) * -fwd.z + (player.z - car.z) * fwd.x + car.pullOff;
+        if (lat > 1.2) car.pullSide = -1;
+        else if (lat < -1.2) car.pullSide = 1;
+      } else if (car.pull < 0.05) car.pullSide = 1;
+      car.pullOff += THREE.MathUtils.clamp(car.pull * PULL_OVER * car.pullSide - car.pullOff, -2.5 * dt, 2.5 * dt);
       if (car.pull > 0.05) allowed = Math.min(allowed, PULL_SPEED + (1 - car.pull) * CRUISE);
 
       const target = Math.min(allowed, cruise);
@@ -420,7 +435,7 @@ export class Traffic {
       }
       const p = this.sample(car.seg, car.d);
       // On a straight part the car drives in its lane (curves already run lane to lane); pulled over: toward the curb.
-      const off = car.pull * PULL_OVER + (car.seg.kind === 'line' ? car.lane : 0);
+      const off = car.pullOff + (car.seg.kind === 'line' ? car.lane : 0);
       car.x = p.x - p.dir.z * off; car.z = p.z + p.dir.x * off;
       // Changing lanes: the car turns a little towards the side it moves to.
       const side = car.seg.kind === 'line' && car.speed > 0.5 ? laneStep / dt : 0;

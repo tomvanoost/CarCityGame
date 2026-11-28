@@ -20,7 +20,7 @@ import { Jobs, type ActiveJob, type PlaceKey } from './jobs';
 import { createArrow, createIcon } from './markers';
 import { Navigator } from './navigation';
 import { Pedestrians } from './pedestrians';
-import { Wildlife } from './wildlife';
+import { BIRD_KINDS, Wildlife, type BirdKind } from './wildlife';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Pet, PetShopBuilding, getPet } from './pets';
 import { FURNITURE } from '../furniture';
@@ -72,7 +72,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number; brush: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'iceTruck' } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId };
+export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number; brush: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'iceTruck' } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId } | { kind: 'binoculars'; looking: boolean };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -125,6 +125,8 @@ export interface GameState {
   /** Driving an emergency vehicle (shows the 🚨 button), and whether its siren is on. */
   police: boolean;
   siren: boolean;
+  /** Looking through the binoculars at a bird (the HUD shows the round view and its name). */
+  binoc: { kind: BirdKind; fresh: boolean; seen: number } | null;
 }
 
 /** Everything the minimap / big map needs to draw. */
@@ -243,6 +245,11 @@ export class Game {
   private pet?: Pet;
   /** Seconds left holding an ice cream (0 = none). */
   private iceCreamTimer = 0;
+  /** Binoculars at the park pond: the bird you're looking at, for how long, and where you stood. */
+  private binoc: { kind: BirdKind; index: number; t: number; fresh: boolean; x: number; z: number } | null = null;
+  private binocLook = new THREE.Vector3();
+  private binocAim = new THREE.Vector3();
+  private binocSave = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), fov: 0 };
   garage?: Garage;
   lamps?: StreetLamps;
   /** Soft evening light on (street lamps and headlights glow). */
@@ -1446,6 +1453,9 @@ export class Game {
     if (near(L.pois.petShop.front)) return { kind: 'petShop' };
     if (near(L.pois.bakery.front)) return { kind: 'bakery' };
     if (near(L.pois.library.front)) return { kind: 'library' };
+    // Binoculars: anywhere on the edge of the park pond.
+    const pd = L.park.pond;
+    if (this.binoc || Math.max(Math.abs(p.x - pd.x), Math.abs(p.z - pd.z)) < pd.r + 6) return { kind: 'binoculars', looking: !!this.binoc };
     const animal = this.farm?.nearest(p.x, p.z);
     if (animal) return { kind: 'feed', animal: animal.kind, price: FEED_PRICE, brush: BRUSH_PRICE };
     const parked = this.garage?.near(p.x, p.z);
@@ -1579,6 +1589,9 @@ export class Game {
         if (['goat', 'sheep', 'rabbit', 'pony'].every((k) => animalsFed.includes(k))) awardSticker('farmFriend');
         break;
       }
+      case 'binoculars':
+        this.lookAtBird();
+        break;
       case 'fish':
         this.startFishing();
         break;
@@ -1817,6 +1830,45 @@ export class Game {
   /** Second button (petting farm: brush the animal). */
   pressBrush() { this.pendingBrush = true; }
 
+  /** Look through the binoculars at a bird by the pond (a new kind first); press again for another one. */
+  private lookAtBird() {
+    if (!this.wildlife || !this.player || this.mode !== 'walking') return;
+    const p = this.profile;
+    const b = this.wildlife.pick(p.birdsSeen, this.binoc?.kind, this.player);
+    const fresh = !p.birdsSeen.includes(b.kind);
+    const first = !this.binoc;
+    this.binoc = { ...b, t: 8, fresh, x: this.player.x, z: this.player.z };
+    this.wildlife.where(b, this.binocAim);
+    if (first) this.binocLook.copy(this.binocAim); // start on the bird; later the view follows it smoothly
+    if (!fresh) return;
+    const birdsSeen = [...p.birdsSeen, b.kind];
+    setProfile({ ...p, birdsSeen });
+    void updateProfile({ birdsSeen });
+    if (BIRD_KINDS.every((k) => birdsSeen.includes(k))) awardSticker('birdWatcher');
+  }
+
+  /**
+   * Binocular view for this frame: from your eyes, zoomed in on the bird (narrow field of view). The normal
+   * camera is put back right after rendering, so the follow camera and LOD don't notice.
+   */
+  private binocView(dt: number): boolean {
+    const b = this.binoc, pl = this.player;
+    if (!b || !pl || !this.wildlife) return false;
+    b.t -= dt;
+    // Walking away, time up, or anything else going on: put the binoculars down.
+    if (b.t <= 0 || this.mode !== 'walking' || this.paused || this.photo || Math.hypot(pl.x - b.x, pl.z - b.z) > 1.2) { this.binoc = null; return false; }
+    this.wildlife.where(b, this.binocAim);
+    this.binocLook.lerp(this.binocAim, 1 - Math.exp(-dt * 6));
+    const cam = this.camera, s = this.binocSave;
+    s.pos.copy(cam.position); s.quat.copy(cam.quaternion); s.fov = cam.fov;
+    cam.position.set(pl.x, pl.y + 1.5, pl.z);
+    const dist = cam.position.distanceTo(this.binocLook);
+    cam.fov = THREE.MathUtils.clamp(THREE.MathUtils.radToDeg(2 * Math.atan(1.4 / Math.max(1, dist))), 5, 35);
+    cam.updateProjectionMatrix();
+    cam.lookAt(this.binocLook);
+    return true;
+  }
+
   /** Brush the animal you're next to (€2): it sways contentedly and hearts float up; a sticker for every kind. */
   private brushAnimal() {
     const p = this.profile, pl = this.player!, a = this.farm?.nearest(pl.x, pl.z);
@@ -2021,7 +2073,7 @@ export class Game {
     }
     this.yieldTimer = v.yielding ? 1.2 : Math.max(0, this.yieldTimer - dt);
     // In the dashboard view your own driver is hidden, so you look over the real dashboard.
-    this.avatar.root.visible = !(this.cockpit && this.mode === 'driving');
+    this.avatar.root.visible = !(this.cockpit && this.mode === 'driving') && !this.binoc; // (binoculars: you look from your own eyes)
     this.funFair?.update(dt);
     this.trafficLights?.update(dt);
     this.balloon?.update(dt);
@@ -2083,7 +2135,13 @@ export class Game {
       if (this.iceCreamTimer <= 0) this.avatar.holdItem(null); // finished it
     }
     this.scaler.update(dt);
+    const binoc = this.binocView(dt);
     this.renderer.render(this.scene, this.camera);
+    if (binoc) {
+      const s = this.binocSave;
+      this.camera.position.copy(s.pos); this.camera.quaternion.copy(s.quat); this.camera.fov = s.fov;
+      this.camera.updateProjectionMatrix();
+    }
     if (this.cockpit && this.mode === 'driving') this.renderMirror(v);
     this.emitState(ctx);
   };
@@ -2129,6 +2187,7 @@ export class Game {
       mp: this.mp ? { room: this.mp.roomName, others: this.remote?.count ?? 0 } : null,
       police: this.mode === 'driving' && !!v.spec.siren,
       siren: this.sirenOn,
+      binoc: this.binoc ? { kind: this.binoc.kind, fresh: this.binoc.fresh, seen: p.birdsSeen.length } : null,
     };
     const key = JSON.stringify(state);
     if (key !== this.lastState) {

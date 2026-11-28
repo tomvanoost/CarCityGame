@@ -589,3 +589,20 @@ button, input { font: inherit; color: inherit; }
 .context-btn.ctx-alt[hidden] { display: none; }
 .tablet .context-btn.ctx-alt { top: calc(max(6px, env(safe-area-inset-top)) + 218px); bottom: auto; }
 .panel-open .ctx-alt { display: none !important; }
+
+/* Binoculars at the park pond: two round lenses (dark around them) and the bird's name below. */
+.binoc-view { position: absolute; inset: 0; pointer-events: none; background: rgba(8,10,14,.92);
+  /* Dark only outside both lenses: two round holes, the masks intersected. */
+  -webkit-mask: radial-gradient(circle at 38% 48%, transparent min(27vw, 40vh), #000 calc(min(27vw, 40vh) + 8px)),
+    radial-gradient(circle at 62% 48%, transparent min(27vw, 40vh), #000 calc(min(27vw, 40vh) + 8px));
+  -webkit-mask-composite: source-in;
+  mask: radial-gradient(circle at 38% 48%, transparent min(27vw, 40vh), #000 calc(min(27vw, 40vh) + 8px)),
+    radial-gradient(circle at 62% 48%, transparent min(27vw, 40vh), #000 calc(min(27vw, 40vh) + 8px));
+  mask-composite: intersect; }
+.binoc-view[hidden] { display: none; }
+.binoc-name[hidden] { display: none; }
+.binoc-name { position: absolute; left: 50%; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 96px); transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 22px; border-radius: 20px;
+  background: rgba(255,255,255,.95); color: #1d2b44; box-shadow: var(--shadow); white-space: nowrap; }
+.binoc-name b { font-size: 24px; font-weight: 900; }
+.binoc-name small { font-size: 14px; font-weight: 800; color: var(--muted); }

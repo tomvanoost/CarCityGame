@@ -11,6 +11,7 @@ import { Game, type GameState } from '../game/play/game';
 import { Input } from '../game/play/input';
 import { getVehicle, vehicleName } from '../game/vehicles/catalog';
 import { getLang, t } from '../i18n';
+import { BIRD_EMOJI, BIRD_KINDS } from '../game/play/wildlife';
 import { getProfile, onProfileChange, updateProfile } from '../services/session';
 import { createTutorial } from './tutorial';
 import { ApartmentRoom } from '../game/apartmentRoom';
@@ -101,6 +102,9 @@ export const gameScreen: Screen = (root, nav) => {
   // 🎥 Dashboard view on/off (also F2, or View / Create / Capture on a controller).
   // The rear-view mirror's frame (the game draws the view behind the car inside it, dashboard view only).
   const mirrorFrame = h('div', { class: 'mirror-frame', hidden: true });
+  // Binoculars: two round lenses over the zoomed view, with the bird's name.
+  const binocName = h('div', { class: 'binoc-name', hidden: true });
+  const binocView = h('div', { class: 'binoc-view', hidden: true });
   const viewBtn = h('button', { class: 'icon-btn view-btn', title: `${t('dashView')} (F2)`, 'aria-label': t('dashView') }, '🎥');
   viewBtn.addEventListener('click', () => input.queueView());
   // 📷 Photo mode: all buttons hide, drag to turn the camera around the car, then take the picture.
@@ -235,10 +239,10 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, ctxAlt, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, clockEl, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, photoBtn, photoBar, flash, mirrorFrame, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, binocView, binocName, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, ctxAlt, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, clockEl, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, photoBtn, photoBar, flash, mirrorFrame, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
-  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, race: null, clock: '', job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false };
+  let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, race: null, clock: '', job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false, binoc: null };
   const render = () => {
     const driving = state.mode === 'driving';
     if (!speedPop.hidden) showLimit(state.maxSpeed); else speedBtn.lastElementChild!.textContent = state.maxSpeed && state.maxSpeed < state.topSpeed ? String(state.maxSpeed) : 'MAX';
@@ -253,6 +257,14 @@ export const gameScreen: Screen = (root, nav) => {
     viewBtn.hidden = !driving;
     photoBtn.hidden = state.context?.kind === 'rideStop' || overlay;
     mirrorFrame.hidden = !state.cockpit;
+    binocView.hidden = binocName.hidden = !state.binoc;
+    if (state.binoc) {
+      const b = state.binoc;
+      binocName.replaceChildren(
+        h('b', {}, `${BIRD_EMOJI[b.kind]} ${t(`bird_${b.kind}` as TKey)}`),
+        h('small', {}, `${b.fresh ? `✨ ${t('binocNew')} · ` : ''}${b.seen}/${BIRD_KINDS.length}`),
+      );
+    }
     if (state.mp) mpPill.textContent = `🌐 ${state.mp.room} · 👥 ${state.mp.others + 1}`;
     blinkL.classList.toggle('on', state.blinker === 'left' || state.blinker === 'both');
     blinkR.classList.toggle('on', state.blinker === 'right' || state.blinker === 'both');
@@ -297,6 +309,7 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
         : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : c.ride === 'balloon' ? '🎈' : c.ride === 'sandboard' ? '🏂' : c.ride === 'boat' ? '⛴️' : c.ride === 'skate' ? '🛹' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : c.ride === 'balloon' ? 'rideBalloon' : c.ride === 'sandboard' ? 'rideSandboard' : c.ride === 'boat' ? 'rideBoat' : c.ride === 'skate' ? 'rideSkate' : 'rideCarousel')}${c.price ? ` ${euro(c.price)}` : ''}`
         : c.kind === 'rideStop' ? `🚶 ${t('rideStop')}`
+        : c.kind === 'binoculars' ? `🔭 ${t(c.looking ? 'binocNext' : 'binocLook')}`
         : c.kind === 'fish' ? `🎣 ${t('fishStart')}`
         : c.kind === 'fishReel' ? (c.bite ? `❗ ${t('fishReel')}` : `🎣 ${t('fishWaiting')}`)
         : c.kind === 'raceStart' ? `🏁 ${t('raceStart')}`

@@ -80,6 +80,11 @@ interface GroundBird {
   /** Flying to a new spot: from, to and progress 0..1 (-1 = on the ground). */
   fx: number; fz: number; tx: number; tz: number; fly: number;
 }
+/** The kinds of birds you can spot with the binoculars at the pond. */
+export const BIRD_KINDS = ['duck', 'duckling', 'sparrow', 'swallow'] as const;
+export type BirdKind = (typeof BIRD_KINDS)[number];
+export const BIRD_EMOJI: Record<BirdKind, string> = { duck: '🦆', duckling: '🐥', sparrow: '🐦', swallow: '🕊️' };
+
 const DUCK = 1.6; // ducks a bit bigger than life, so kids can see them on the big pond
 const BIRD = 1.7;
 
@@ -168,6 +173,35 @@ export class Wildlife {
     this.p.set(x, y, z);
     this.s.setScalar(scale);
     im.setMatrixAt(i, this.m.compose(this.p, this.q, this.s));
+  }
+
+  /**
+   * A bird to look at: a kind you haven't seen yet first, otherwise any kind (different from `not`); of that
+   * kind the one nearest to you (less likely to be behind a tree).
+   */
+  pick(seen: readonly string[], not: BirdKind | undefined, from: { x: number; z: number }): { kind: BirdKind; index: number } {
+    const fresh = BIRD_KINDS.filter((k) => !seen.includes(k));
+    const pool = fresh.length ? fresh : BIRD_KINDS.filter((k) => k !== not);
+    const kind = pool[Math.floor(Math.random() * pool.length)];
+    const count = kind === 'duck' ? 2 : kind === 'duckling' ? this.ducklings.length : kind === 'sparrow' ? this.ground.length : this.flyers;
+    const v = new THREE.Vector3();
+    let index = 0, best = Infinity;
+    for (let i = 0; i < count; i++) {
+      this.where({ kind, index: i }, v);
+      const d = Math.hypot(v.x - from.x, v.z - from.z);
+      if (d < best) { best = d; index = i; }
+    }
+    return { kind, index };
+  }
+
+  /** Where that bird is now (its middle, a little above its feet). */
+  where(b: { kind: BirdKind; index: number }, out: THREE.Vector3) {
+    const im = b.kind === 'duck' ? this.moms : b.kind === 'duckling' ? this.kids : this.birds;
+    const i = b.kind === 'swallow' ? this.ground.length + b.index : b.index;
+    im.getMatrixAt(i, this.m);
+    out.setFromMatrixPosition(this.m);
+    out.y += b.kind === 'duck' ? 0.25 : b.kind === 'swallow' ? 0.2 : 0.12;
+    return out;
   }
 
   /** focus: the player or the car (birds fly away from it). */

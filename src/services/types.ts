@@ -55,6 +55,8 @@ export interface PlayerProfile {
   animalsFed: string[];
   /** Petting farm animals you brushed (kinds). */
   animalsBrushed: string[];
+  /** Bird kinds you spotted with the binoculars at the park pond. */
+  birdsSeen: string[];
   /** Has the rubber duck float for swimming. */
   swimFloat: boolean;
   /** Has a kite (flies on the beach). */
