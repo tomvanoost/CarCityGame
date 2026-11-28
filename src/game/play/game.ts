@@ -7,7 +7,7 @@ import { buildCity, type City } from '../city/cityBuilder';
 import { HALF_CITY, LINES } from '../city/layout';
 import { getVehicle } from '../vehicles/catalog';
 import { SEATED_SCALE, seatedRootPosition } from '../vehicles/carBuilder';
-import { createSky, skyEnvironment, SKY, Sun } from '../world/sky';
+import { createSky, skyEnvironment, SKY, SKY_TIME, Sun } from '../world/sky';
 import { pickQuality, ResolutionScaler } from '../world/quality';
 import { CollisionWorld } from './collision';
 import { FollowCamera } from './followCamera';
@@ -1985,6 +1985,7 @@ export class Game {
     this.updatePet(dt);
     // The clock runs on (one game minute per second); the light follows it.
     this.clock = (this.clock + dt) % 1440;
+    SKY_TIME.value += dt;
     this.lightTimer -= dt;
     if (this.lightTimer <= 0) { this.lightTimer = 0.5; this.applyLight(); }
     this.sun.follow(this.focus);

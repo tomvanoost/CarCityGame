@@ -23,8 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Sky with clouds and stars** (graphics): soft drifting clouds by day, stars and a moon at night,
-  warmer sunrise / sunset colors following the clock; cheap (sky dome shader).
 - [ ] **Rain showers and rainbows** (feature): now and then a short light rain (puddles on the road,
   wipers on the traffic cars) followed by a rainbow over the city; only on the Kwaliteit setting.
 - [ ] **Fewer shader programs** (performance): 72 programs at the spawn now (was 113): share identical
