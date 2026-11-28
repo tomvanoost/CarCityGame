@@ -87,19 +87,49 @@ function coloredCylinder(r: number, h: number, color: string, x: number, y: numb
 }
 
 /**
- * A BatchedMesh where each instance can switch between a detailed and a light
- * geometry (LOD) or hide, based on distance to the camera.
+ * A plain box with the model's size and the same vertex attributes as its other LODs (for the batch):
+ * walls in the building's own wall colour (aMain = 1), a darker roof. 12 triangles, for far away.
+ */
+function boxLod(m: CityModel): THREE.BufferGeometry {
+  const ref = m.lod1 ?? m.lod0;
+  ref.computeBoundingBox();
+  const bb = ref.boundingBox!, size = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
+  const box = new THREE.BoxGeometry(size.x * 0.97, size.y, size.z * 0.97).translate(c.x, c.y, c.z);
+  const n = box.getAttribute('position').count, nrm = box.getAttribute('normal');
+  const geo = new THREE.BufferGeometry();
+  geo.setIndex(box.getIndex()!.clone());
+  for (const [name, attr] of Object.entries(ref.attributes)) {
+    if (name === 'position' || name === 'normal') { geo.setAttribute(name, box.getAttribute(name).clone()); continue; }
+    const a = new Float32Array(n * attr.itemSize);
+    for (let i = 0; i < n; i++) {
+      const top = nrm.getY(i) > 0.5;
+      // (walls a bit dark: windows and shade averaged in)
+      if (name === 'color') { const col = top ? [0.3, 0.28, 0.27] : [0.62, 0.6, 0.58]; for (let k = 0; k < attr.itemSize; k++) a[i * attr.itemSize + k] = k < 3 ? col[k] : 1; }
+      else if (name === 'aMain') a[i] = top ? 0 : 1;
+    }
+    geo.setAttribute(name, new THREE.BufferAttribute(a, attr.itemSize, attr.normalized));
+  }
+  box.dispose();
+  return geo;
+}
+
+/**
+ * A BatchedMesh where each instance switches between a detailed geometry, a light one, a plain box
+ * (far away) or hides (beyond the fog), based on distance to the camera.
  */
 class LodBatch {
   mesh: THREE.BatchedMesh;
-  private ids = new Map<string, [number, number]>();
-  private inst: { x: number; z: number; lod0: number; lod1: number; state: number }[] = [];
+  private ids = new Map<string, [number, number, number]>();
+  private inst: { x: number; z: number; lod0: number; lod1: number; box: number; state: number }[] = [];
 
-  constructor(models: CityModel[], instances: number, material: THREE.Material) {
+  /** boxes: also add a plain box version of every model (for buildings far away). */
+  constructor(models: CityModel[], instances: number, material: THREE.Material, boxes = false) {
     let verts = 0, idx = 0;
+    const boxGeos = new Map<string, THREE.BufferGeometry>();
     for (const m of models) {
-      verts += m.lod0.getAttribute('position').count + (m.lod1?.getAttribute('position').count ?? 0);
-      idx += m.lod0.getIndex()!.count + (m.lod1?.getIndex()!.count ?? 0);
+      if (boxes) boxGeos.set(m.name, boxLod(m));
+      verts += m.lod0.getAttribute('position').count + (m.lod1?.getAttribute('position').count ?? 0) + (boxes ? 24 : 0);
+      idx += m.lod0.getIndex()!.count + (m.lod1?.getIndex()!.count ?? 0) + (boxes ? 36 : 0);
     }
     this.mesh = new THREE.BatchedMesh(instances, verts, idx, material);
     this.mesh.castShadow = true;
@@ -107,12 +137,14 @@ class LodBatch {
     for (const m of models) {
       const a = this.mesh.addGeometry(m.lod0);
       const b = m.lod1 ? this.mesh.addGeometry(m.lod1) : -1;
-      this.ids.set(m.name, [a, b]);
+      const bx = boxGeos.has(m.name) ? this.mesh.addGeometry(boxGeos.get(m.name)!) : -1;
+      boxGeos.get(m.name)?.dispose();
+      this.ids.set(m.name, [a, b, bx]);
     }
   }
 
   add(p: Placement, y = 0, color?: string) {
-    const [lod0, lod1] = this.ids.get(p.model)!;
+    const [lod0, lod1, box] = this.ids.get(p.model)!;
     const id = this.mesh.addInstance(lod0);
     const m = new THREE.Matrix4().compose(
       new THREE.Vector3(p.x, y, p.z),
@@ -121,7 +153,7 @@ class LodBatch {
     );
     this.mesh.setMatrixAt(id, m);
     this.mesh.setColorAt(id, new THREE.Color(color ?? '#ffffff'));
-    this.inst[id] = { x: p.x, z: p.z, lod0, lod1, state: 0 };
+    this.inst[id] = { x: p.x, z: p.z, lod0, lod1, box, state: 0 };
   }
 
   /** The instance standing at (x, z), to tip it over (null if none). */
@@ -131,19 +163,20 @@ class LodBatch {
     return { get: (out) => { this.mesh.getMatrixAt(id, out); }, set: (m) => { this.mesh.setMatrixAt(id, m); } };
   }
 
-  /** state: 0 = detailed, 1 = light, 2 = hidden */
-  updateLod(cx: number, cy: number, cz: number, lodDist: number, maxDist: number) {
-    const l2 = lodDist * lodDist, m2 = maxDist * maxDist, h2 = cy * cy;
+  /** state: 0 = detailed, 1 = light, 3 = box, 2 = hidden. boxDist: from here on a plain box (Infinity = never). */
+  updateLod(cx: number, cy: number, cz: number, lodDist: number, maxDist: number, boxDist = Infinity) {
+    const l2 = lodDist * lodDist, m2 = maxDist * maxDist, b2 = boxDist * boxDist, h2 = cy * cy;
     for (let i = 0; i < this.inst.length; i++) {
       const it = this.inst[i];
       const dx = it.x - cx, dz = it.z - cz, d2 = dx * dx + dz * dz + h2;
       let s = d2 < l2 ? 0 : d2 < m2 ? 1 : 2;
       if (s === 1 && it.lod1 < 0) s = d2 < m2 * 0.5 ? 0 : 2; // no light version: keep detailed a bit, then hide
+      if (s === 1 && d2 >= b2 && it.box >= 0) s = 3;
       if (s === it.state) continue;
       if (s === 2) this.mesh.setVisibleAt(i, false);
       else {
         if (it.state === 2) this.mesh.setVisibleAt(i, true);
-        this.mesh.setGeometryIdAt(i, s === 0 ? it.lod0 : it.lod1);
+        this.mesh.setGeometryIdAt(i, s === 0 ? it.lod0 : s === 1 ? it.lod1 : it.box);
       }
       it.state = s;
     }
@@ -211,7 +244,7 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
   group.add(sfInst.group);
 
   const bModels = [...new Set(oldBuildings.map((p) => p.model))].map((n) => models.get(n)!);
-  const buildings = new LodBatch(bModels, Math.max(1, oldBuildings.length), batchMat);
+  const buildings = new LodBatch(bModels, Math.max(1, oldBuildings.length), batchMat, true);
   for (const p of oldBuildings) buildings.add(p, top, p.color);
   const nModels = [...new Set([...oldNature, ...layout.props].map((p) => p.model))].map((n) => models.get(n)!);
   const nature = new LodBatch(nModels, oldNature.length + layout.props.length, batchMat);
@@ -389,7 +422,8 @@ export async function buildCity(quality: CityQuality, onProgress: (p: number) =>
       lastY = cam.y;
       lodTimer = 0;
       last.set(cam.x, cam.z);
-      buildings.updateLod(cam.x, cam.y, cam.z, quality.buildingLod, 2000);
+      // Light version beyond buildingLod, a plain box deep in the fog (75% of the fog distance), nothing beyond it.
+      buildings.updateLod(cam.x, cam.y, cam.z, quality.buildingLod, quality.fogFar * 1.05, Math.max(quality.buildingLod * 2, quality.fogFar * 0.75));
       sfInst.update(cam.x, cam.y, cam.z);
       nature.updateLod(cam.x, cam.y, cam.z, quality.natureLod, quality.natureMax);
     },

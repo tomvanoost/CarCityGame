@@ -23,8 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Distant buildings as low-detail boxes** (performance): measure what the far city costs; far
-  away (> ~250 m) draw the batched buildings as simple colored boxes; check FPS and that it looks the same.
 - [ ] **Softer shadows and ambient occlusion feel** (graphics): darker contact shadows under cars,
   buildings and trees (baked blobs / vertex AO), no screen-space post-processing.
 - [ ] **Ice cream truck** (feature): an ice cream truck with a jingle drives around the city now and
