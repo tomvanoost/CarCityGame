@@ -23,7 +23,7 @@ export const DAY = {
   sun: '#fff1dd', sunI: 2.1, hemiSky: '#cfe6ff', hemiGround: '#6b8a55', hemiI: 0.75, env: 0.7,
 };
 export const EVENING = {
-  zenith: '#2e3f7c', horizon: '#f2a57a', sunDir: [0.62, 0.2, 0.35] as const,
+  zenith: '#2e3f7c', horizon: '#f59b72', sunDir: [0.62, 0.2, 0.35] as const,
   sun: '#ffb27a', sunI: 1.5, hemiSky: '#9aa0e0', hemiGround: '#5e5a6c', hemiI: 0.85, env: 0.52,
 };
 
@@ -194,10 +194,18 @@ export class StreetLamps {
     // Lantern glow: a camera-facing-ish puff made of two crossed quads.
     const puff = mergeGeos([new THREE.PlaneGeometry(2.2, 2.2), new THREE.PlaneGeometry(2.2, 2.2).rotateY(Math.PI / 2)]);
     const glow = new THREE.InstancedMesh(puff, additive('#ffcf73', 0.95), n);
-    const pool = new THREE.InstancedMesh(new THREE.PlaneGeometry(10, 10).rotateX(-Math.PI / 2), additive('#ffc46a', 0.5), n);
+    // Warm pool of light under the lamp head: out over the curb onto the road (the lamps stand 1.3 m
+    // from the curb, facing the road), longer along the road than across it.
+    const poolMat = additive('#ffbf66', 0.5);
+    poolMat.side = THREE.FrontSide;
+    poolMat.polygonOffset = true; poolMat.polygonOffsetFactor = -2; poolMat.polygonOffsetUnits = -4; // on top of the road paint
+    const pool = new THREE.InstancedMesh(new THREE.PlaneGeometry(14, 11).rotateX(-Math.PI / 2), poolMat, n);
     lamps.forEach((p, i) => {
       const y = groundHeight(p.x, p.z);
-      const g = new THREE.Matrix4().makeTranslation(p.x, y + 5.45 * p.scale, p.z), q = new THREE.Matrix4().makeTranslation(p.x, y + 0.03, p.z);
+      const ox = Math.sin(p.rot), oz = Math.cos(p.rot), px = p.x + ox * 2.4, pz = p.z + oz * 2.4;
+      const g = new THREE.Matrix4().makeTranslation(p.x, y + 5.45 * p.scale, p.z);
+      // (The plane's long side along the road: across the road is the lamp's facing direction.)
+      const q = new THREE.Matrix4().makeRotationY(p.rot + Math.PI / 2).setPosition(px, groundHeight(px, pz) + 0.06, pz);
       glow.setMatrixAt(i, g);
       pool.setMatrixAt(i, q);
       this.lamps.push({ x: p.x, z: p.z, glow: g, pool: q });
@@ -210,6 +218,12 @@ export class StreetLamps {
       this.meshes.push(im);
     }
     this.group.visible = false;
+  }
+
+  /** How dark it is (0 = dusk, 1 = night): the lamps and their pools glow stronger as it gets darker. */
+  setDarkness(k: number) {
+    (this.meshes[0].material as THREE.MeshBasicMaterial).opacity = 0.7 + 0.25 * k;
+    (this.meshes[1].material as THREE.MeshBasicMaterial).opacity = 0.22 + 0.5 * k;
   }
 
   /** Turns the light of the lamp at (x, z) off while it lies knocked over, and on again. */

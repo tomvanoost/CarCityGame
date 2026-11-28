@@ -23,9 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Softer evening and night light** (graphics): warm street-lamp glow pools on the road at night and a
-  gentle orange-pink sky at sunset; no extra lights, shader only.
-
 - [ ] **Picnic in the park** (feature): a picnic blanket on the park grass; sit down with a basket you
   bought at the supermarket or bakery and share it with the ducks (hearts float up); NL + EN.
 - [ ] **Lighter pedestrians** (performance): measure the skinned people (draw calls, bones, update time) and

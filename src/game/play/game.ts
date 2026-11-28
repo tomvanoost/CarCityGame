@@ -1767,6 +1767,8 @@ export class Game {
       if (head) head.visible = evening;
       this.traffic?.setLights(evening);
     }
+    // Darker → the lamps glow stronger (0 at dusk 18:30 / dawn 6:12, 1 from 20:30 until 5:12).
+    this.lamps?.setDarkness(hour >= 12 ? THREE.MathUtils.smoothstep(hour, 18.5, 20.5) : 1 - THREE.MathUtils.smoothstep(hour, 5.2, 6.2));
     // Highway: 100 km/h by day (6:00-18:00), 120 km/h at night.
     const kmh = hour >= 6 && hour < 18 ? 100 : 120;
     this.traffic?.setHighwayKmh(kmh);

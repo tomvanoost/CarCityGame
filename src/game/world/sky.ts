@@ -59,6 +59,9 @@ export function createSky(): THREE.Mesh {
         // The moon: a crisp round disc with soft grey patches, and a faint halo.
         float moon = smoothstep(0.99955, 0.99965, s) * night;
         vec3 moonCol = vec3(0.92, 0.94, 1.0) * (0.8 + 0.2 * vnoise((d.xz - sunDir.xz) * 1400.0));
+        // Sunset / sunrise: a soft pink band above the orange horizon, strongest on the sun's side.
+        float band = smoothstep(0.02, 0.12, h) * (1.0 - smoothstep(0.14, 0.5, h)) * low * (1.0 - night);
+        col = mix(col, vec3(0.88, 0.32, 0.42) * (0.75 + 0.5 * s), band * 0.42);
         col += sunCol * (disc + pow(s, mix(12.0, 60.0, night)) * mix(0.18 + low * 0.25, 0.05, night));
         col = mix(col, moonCol, moon);
         // Stars: tiny twinkling points high in the night sky.
@@ -74,7 +77,7 @@ export function createSky(): THREE.Mesh {
           shade = smoothstep(0.55, 0.9, fbm(uv * 1.3 + 3.7)); // darker cloud bellies
         }
         vec3 cloudDay = mix(vec3(1.0), vec3(0.78, 0.82, 0.88), shade * 0.6) + sunCol * pow(s, 6.0) * 0.4;
-        vec3 cloudSunset = mix(vec3(1.0, 0.72, 0.55), horizon * 1.2, 0.35);
+        vec3 cloudSunset = mix(mix(vec3(1.0, 0.62, 0.62), vec3(1.0, 0.72, 0.5), s), horizon * 1.2, 0.3); // pink, orange towards the sun
         vec3 cloudCol = mix(mix(cloudDay, cloudSunset, low), zenith * 1.8 + vec3(0.02), night);
         col += vec3(1.0) * star * night * smoothstep(0.03, 0.25, d.y) * (1.0 - cloud) * 1.6;
         col = mix(col, cloudCol, cloud * mix(0.92, 0.6, night));
