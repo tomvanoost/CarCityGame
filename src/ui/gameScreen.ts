@@ -102,6 +102,7 @@ export const gameScreen: Screen = (root, nav) => {
   // 🎥 Dashboard view on/off (also F2, or View / Create / Capture on a controller).
   // The rear-view mirror's frame (the game draws the view behind the car inside it, dashboard view only).
   const mirrorFrame = h('div', { class: 'mirror-frame', hidden: true });
+  const mirrorFrameR = h('div', { class: 'mirror-frame right', hidden: true });
   // Binoculars: two round lenses over the zoomed view, with the bird's name.
   const binocName = h('div', { class: 'binoc-name', hidden: true });
   const binocView = h('div', { class: 'binoc-view', hidden: true });
@@ -239,7 +240,7 @@ export const gameScreen: Screen = (root, nav) => {
     ),
   );
 
-  root.append(canvas, binocView, binocName, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, ctxAlt, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, clockEl, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, photoBtn, photoBar, flash, mirrorFrame, mapWrap, panel, mapOverlay, loading);
+  root.append(canvas, binocView, binocName, touch.drive, touch.walk, dash, yieldBubble, jobCard, countEl, ctxBtn, ctxAlt, action, hornBtn, sirenBtn, hint, popups, back, speedBtn, money, clockEl, speedPop, tabletBtn, soundBtn, eveningBtn, viewBtn, photoBtn, photoBar, flash, mirrorFrame, mirrorFrameR, mapWrap, panel, mapOverlay, loading);
 
   let tutorialOpen = false;
   let state: GameState = { mode: 'driving', canEnter: false, kmh: 0, yielding: false, fuel: 1, refueling: false, washing: false, context: null, race: null, clock: '', job: null, dest: null, topSpeed: 0, maxSpeed: null, blinker: null, cockpit: false, mp: null, police: false, siren: false, binoc: null };
@@ -256,7 +257,7 @@ export const gameScreen: Screen = (root, nav) => {
     sirenBtn.hidden = !(driving && state.police) || overlay;
     viewBtn.hidden = !driving;
     photoBtn.hidden = state.context?.kind === 'rideStop' || overlay;
-    mirrorFrame.hidden = !state.cockpit;
+    mirrorFrame.hidden = mirrorFrameR.hidden = !state.cockpit;
     binocView.hidden = binocName.hidden = !state.binoc;
     if (state.binoc) {
       const b = state.binoc;

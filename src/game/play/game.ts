@@ -1320,21 +1320,22 @@ export class Game {
   }
 
   /**
-   * Mirror (dashboard view only): the view back along the left side of the car, drawn over the left
-   * wing mirror (so it doesn't hide the traffic lights ahead). Same size formula as the frame in the HUD
-   * (.mirror-frame): left 4%, top 43%, width min(19vw, 320px), height 56% of the width.
+   * Mirrors (dashboard view only): the view back along the left and the right side of the car, drawn over
+   * the wing mirrors (so they don't hide the traffic lights ahead). Same size formula as the frames in the
+   * HUD (.mirror-frame): 4% from the side, top 43%, width min(19vw, 320px), height 56% of the width.
    */
-  private renderMirror(v: Vehicle) {
+  private renderMirror(v: Vehicle, side: 1 | -1) {
     const r = this.renderer, canvas = r.domElement;
     const cssW = canvas.clientWidth, cssH = canvas.clientHeight;
     if (!cssW || !cssH) return;
-    const w = Math.min(cssW * 0.19, 320), h = w * 0.56, left = cssW * 0.04, top = cssH * 0.43;
+    const w = Math.min(cssW * 0.19, 320), h = w * 0.56, top = cssH * 0.43;
+    const left = side > 0 ? cssW * 0.04 : cssW * 0.96 - w;
     const sf = SKETCHFAB_VEHICLES[v.spec.id];
-    // From the left wing mirror (+x is the car's left side), looking back and a little outward.
-    const back = new THREE.Vector3(v.width / 2 + 0.25, (sf?.height ?? 1.4) * 0.75, v.length / 2 - 1.4);
+    // From the wing mirror (+x is the car's left side, -x its right), looking back and a little outward.
+    const back = new THREE.Vector3(side * (v.width / 2 + 0.25), (sf?.height ?? 1.4) * 0.75, v.length / 2 - 1.4);
     v.car.root.updateWorldMatrix(true, false);
     const from = back.clone().applyMatrix4(v.car.root.matrixWorld);
-    const yaw = v.heading + Math.PI - 0.12;
+    const yaw = v.heading + Math.PI - 0.12 * side;
     this.mirrorCam.aspect = w / h;
     this.mirrorCam.updateProjectionMatrix();
     this.mirrorCam.position.copy(from);
@@ -2142,7 +2143,7 @@ export class Game {
       this.camera.position.copy(s.pos); this.camera.quaternion.copy(s.quat); this.camera.fov = s.fov;
       this.camera.updateProjectionMatrix();
     }
-    if (this.cockpit && this.mode === 'driving') this.renderMirror(v);
+    if (this.cockpit && this.mode === 'driving') { this.renderMirror(v, 1); this.renderMirror(v, -1); }
     this.emitState(ctx);
   };
 

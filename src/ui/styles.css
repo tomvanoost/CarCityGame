@@ -497,6 +497,7 @@ button, input { font: inherit; color: inherit; }
 /* Rear-view mirror frame (dashboard view): the game renders the view behind the car inside it. */
 .mirror-frame { position: absolute; top: 43%; left: 4%; width: min(19vw, 320px); aspect-ratio: 25 / 14;
   border: 5px solid #1b1d22; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.15); pointer-events: none; z-index: 4; }
+.mirror-frame.right { left: auto; right: 4%; }
 .mirror-frame[hidden] { display: none; }
 
 /* New version deployed: countdown before the page reloads. */
@@ -606,3 +607,12 @@ button, input { font: inherit; color: inherit; }
   background: rgba(255,255,255,.95); color: #1d2b44; box-shadow: var(--shadow); white-space: nowrap; }
 .binoc-name b { font-size: 24px; font-weight: 900; }
 .binoc-name small { font-size: 14px; font-weight: 800; color: var(--muted); }
+
+/* 📋 Features (menu): everything the game has, in groups. */
+.menu-top-btns { position: absolute; top: calc(max(12px, env(safe-area-inset-top)) + 100px); right: 12px; display: flex; gap: 10px; }
+.menu-top-btns .btn.settings-btn { position: static; }
+.features-card { max-width: 560px; }
+.feature-group { display: flex; flex-direction: column; gap: 6px; }
+.feature-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.feature-list li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 14px; background: #f3f7ff; color: var(--ink); font-size: 16px; font-weight: 700; line-height: 1.25; }
+.feature-emoji { flex: none; width: 30px; font-size: 22px; text-align: center; }

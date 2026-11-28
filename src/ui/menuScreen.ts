@@ -8,6 +8,7 @@ import { h, icons, svgIcon } from './dom';
 import type { Screen } from './screens';
 import { openStickerBook } from './stickers';
 import { openSettings } from './settings';
+import { openFeatures } from './features';
 import { STICKERS } from '../game/stickers';
 import { renderMissions } from './missions';
 
@@ -48,6 +49,7 @@ export const menuScreen: Screen = (root, nav) => {
   const picker = h('div', { class: 'car-picker' }, prev, carName, next);
 
   let closeSettings: (() => void) | null = null;
+  let closeFeatures: (() => void) | null = null;
   let saveTimer = 0;
   const renderCar = () => {
     const prof = getProfile()!;
@@ -92,7 +94,11 @@ export const menuScreen: Screen = (root, nav) => {
     picker,
     actions,
     h('button', { class: 'icon-btn logout', onclick: logout, 'aria-label': t('logout'), title: t('logout') }, svgIcon(icons.logout, 22)),
-    h('button', { class: 'btn settings-btn', onclick: () => { closeSettings = openSettings(); }, 'aria-label': t('settings'), title: t('settings') }, '⚙️ ', h('span', {}, t('settings'))),
+    // Top right, in one row: 📋 Features (everything the game has) and ⚙️ Settings.
+    h('div', { class: 'menu-top-btns' },
+      h('button', { class: 'btn settings-btn features-btn', onclick: () => { closeFeatures = openFeatures(); }, 'aria-label': t('features'), title: t('features') }, '📋 ', h('span', {}, t('features'))),
+      h('button', { class: 'btn settings-btn', onclick: () => { closeSettings = openSettings(); }, 'aria-label': t('settings'), title: t('settings') }, '⚙️ ', h('span', {}, t('settings'))),
+    ),
   );
 
   const offProfile = onProfileChange((np) => {
@@ -107,6 +113,7 @@ export const menuScreen: Screen = (root, nav) => {
     offProfile();
     document.querySelector('.sticker-book')?.remove();
     closeSettings?.();
+    closeFeatures?.();
     showroom.dispose();
     avatarView.dispose();
   };
