@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BLOCK_SPACING, HALF_CITY, ROAD_WIDTH, WIDE_HALF } from './layout';
 import { LAKE } from './outskirts';
 import { SKY } from '../world/sky';
+import { WEATHER } from '../world/weather';
 
 /** Shared GLSL helpers: value noise + anti-aliased masks. */
 const NOISE = /* glsl */ `
@@ -193,8 +194,10 @@ export function createRoadMaterial() {
   const mat = new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.95, metalness: 0, envMapIntensity: 0.25, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
   mat.onBeforeCompile = (shader) => {
     withWorldPos(shader);
+    shader.uniforms.uWet = WEATHER.wet;
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
+        uniform float uWet;
         const float SPACING = ${BLOCK_SPACING.toFixed(1)};
         const float HALF = ${HALF_CITY.toFixed(1)};
         const float SMALL = ${(ROAD_WIDTH / 2).toFixed(2)};
@@ -242,8 +245,11 @@ export function createRoadMaterial() {
           // stop line across the lanes that drive towards the crossing
           paint = max(paint, step(HC + 4.0, toCross) * (1.0 - step(HC + 4.45, toCross)) * approach * step(0.5, aAcross) * step(aAcross, HW - 0.5));
         }
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92), paint);`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.6, paint);');
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92), paint);
+        // Rain: the asphalt gets darker, and puddles form in the low spots (they shine like mirrors).
+        float puddle = smoothstep(0.62, 0.7, fbm(vWorld.xz * 0.11 + 3.1)) * uWet;
+        diffuseColor.rgb *= 1.0 - 0.3 * uWet - 0.25 * puddle;`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.6, paint);\nroughnessFactor = mix(roughnessFactor, 0.55, uWet * 0.6);\nroughnessFactor = mix(roughnessFactor, 0.05, puddle);');
   };
   mat.customProgramCacheKey = () => 'cityRoad';
   return mat;

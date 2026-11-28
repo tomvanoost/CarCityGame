@@ -356,6 +356,25 @@ class Sounds {
   }
 
   private noiseBuf: AudioBuffer | null = null;
+  private rainGain: GainNode | null = null;
+
+  /** Soft rain hiss (looping filtered noise); 0 = off. */
+  rain(amount: number) {
+    const ctx = this.ready();
+    if (!ctx) { if (this.rainGain && this.ctx) this.rainGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3); return; }
+    if (!this.rainGain) {
+      if (amount <= 0.01) return;
+      if (!this.noiseBuf) { this.noise(ctx, ctx.currentTime, 0.01, 0.0001, 'lowpass', 1000); }
+      const src = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter();
+      src.buffer = this.noiseBuf; src.loop = true;
+      hp.type = 'highpass'; hp.frequency.value = 900;
+      lp.type = 'lowpass'; lp.frequency.value = 6000;
+      this.rainGain = ctx.createGain(); this.rainGain.gain.value = 0;
+      src.connect(hp).connect(lp).connect(this.rainGain).connect(this.master!);
+      src.start();
+    }
+    this.rainGain.gain.setTargetAtTime(amount * 0.07, ctx.currentTime, 0.4);
+  }
 
   /** A burst of filtered noise (cracks, rustling leaves, thuds). */
   private noise(ctx: AudioContext, start: number, dur: number, vol: number, type: BiquadFilterType, freq: number, q = 1, attack = 0.005, endFreq?: number) {

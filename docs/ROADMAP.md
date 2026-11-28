@@ -23,8 +23,6 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Rain showers and rainbows** (feature): now and then a short light rain (puddles on the road,
-  wipers on the traffic cars) followed by a rainbow over the city; only on the Kwaliteit setting.
 - [ ] **Fewer shader programs** (performance): 72 programs at the spawn now (was 113): share identical
   materials, warm up shaders during loading (`renderer.compileAsync`) so there's no stutter the first
   time something comes into view. Target: under 60 programs. Also: the traffic lights are ~180 k

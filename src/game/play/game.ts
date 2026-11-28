@@ -8,6 +8,7 @@ import { HALF_CITY, LINES } from '../city/layout';
 import { getVehicle } from '../vehicles/catalog';
 import { SEATED_SCALE, seatedRootPosition } from '../vehicles/carBuilder';
 import { createSky, skyEnvironment, SKY, SKY_TIME, Sun } from '../world/sky';
+import { Weather } from '../world/weather';
 import { pickQuality, ResolutionScaler } from '../world/quality';
 import { CollisionWorld } from './collision';
 import { FollowCamera } from './followCamera';
@@ -195,6 +196,8 @@ export class Game {
   carWash?: CarWash;
   private iceStand?: IceCreamStand;
   private postOffice?: THREE.Mesh;
+  private weather?: Weather;
+  private fogBase = { near: 0, far: 0 };
   private library?: LibraryBuilding;
   private sandboard?: Sandboard;
   private boat?: Boat;
@@ -320,6 +323,11 @@ export class Game {
     this.renderer = createRenderer(canvas, { shadows: q.shadowMap > 0, antialias: q.antialias });
     this.scaler = new ResolutionScaler(this.renderer, q.maxPixelRatio, q.minPixelRatio);
     this.scene.fog = new THREE.Fog(SKY.horizon, q.fogNear, q.fogFar);
+    this.fogBase = { near: q.fogNear, far: q.fogFar };
+    // Rain showers and rainbows (only on the higher quality settings).
+    this.weather = new Weather(q.name === 'max' || q.name === 'high');
+    this.weather.onRainbow = () => awardSticker('rainbow');
+    this.scene.add(this.weather.group);
     this.scene.environment = skyEnvironment(this.renderer);
     this.scene.environmentIntensity = 0.7;
     this.scene.add(createSky());
@@ -1649,18 +1657,23 @@ export class Game {
   private applyLight(full = false) {
     const L = lightAt(this.clock);
     const hour = (this.clock / 60) % 24;
-    SKY.zenith.copy(L.zenith);
-    SKY.horizon.copy(L.horizon);
+    // Rain: a grey sky, less sun, a bit more haze.
+    const rain = this.weather?.amount ?? 0;
+    const grey = (c: THREE.Color) => c.clone().lerp(new THREE.Color(c.r * 0.3 + c.g * 0.59 + c.b * 0.11, c.r * 0.3 + c.g * 0.59 + c.b * 0.11, c.r * 0.3 + c.g * 0.59 + c.b * 0.11).multiplyScalar(0.8), rain * 0.75);
+    SKY.zenith.copy(grey(L.zenith));
+    SKY.horizon.copy(grey(L.horizon));
     SKY.sunDir.copy(L.sunDir);
-    (this.scene.fog as THREE.Fog).color.copy(SKY.horizon);
+    const fog = this.scene.fog as THREE.Fog;
+    fog.color.copy(SKY.horizon);
+    fog.near = this.fogBase.near * (1 - 0.4 * rain); fog.far = this.fogBase.far * (1 - 0.3 * rain);
     this.sun.light.color.copy(L.sun);
-    this.sun.light.intensity = L.sunI;
+    this.sun.light.intensity = L.sunI * (1 - 0.55 * rain);
     this.sun.hemi.color.copy(L.hemiSky);
     this.sun.hemi.groundColor.copy(L.hemiGround);
     this.sun.hemi.intensity = L.hemiI;
     this.scene.environmentIntensity = L.env;
     // Reflections come from the sky: bake them again when its colors changed noticeably.
-    const look = `${L.zenith.getHexString().slice(0, 4)}${L.horizon.getHexString().slice(0, 4)}`;
+    const look = `${SKY.zenith.getHexString().slice(0, 4)}${SKY.horizon.getHexString().slice(0, 4)}`;
     if (full || look !== this.bakedLook) {
       this.bakedLook = look;
       const old = this.scene.environment;
@@ -1986,6 +1999,11 @@ export class Game {
     // The clock runs on (one game minute per second); the light follows it.
     this.clock = (this.clock + dt) % 1440;
     SKY_TIME.value += dt;
+    if (this.weather) {
+      const hr = (this.clock / 60) % 24;
+      this.weather.update(dt, this.camera, SKY.sunDir, hr >= 7 && hr < 18);
+      sounds.rain(this.weather.amount);
+    }
     this.lightTimer -= dt;
     if (this.lightTimer <= 0) { this.lightTimer = 0.5; this.applyLight(); }
     this.sun.follow(this.focus);
@@ -2116,6 +2134,8 @@ export class Game {
     this.balloon?.dispose();
     this.sandboard?.dispose();
     this.boat?.dispose();
+    this.weather?.dispose();
+    sounds.rain(0);
     this.skate?.dispose();
     this.kite?.dispose();
     this.garden?.dispose();
