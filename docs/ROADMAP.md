@@ -23,9 +23,10 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Picnic in the park** (feature): a picnic blanket on the park grass; sit down with a basket you
-  bought at the supermarket or bakery and share it with the ducks (hearts float up); NL + EN.
 - [ ] **Lighter pedestrians** (performance): measure the skinned people (draw calls, bones, update time) and
   draw the far ones with fewer bones or a simpler animation; nothing may look worse up close.
+
+- [ ] **Wet roads after rain** (graphics): when a shower stops, the roads stay shiny and reflective for a
+  minute and dry up slowly (puddles last longest); shader only, no extra draw calls.
 
 (Add new ideas here, in order, for the next runs.)

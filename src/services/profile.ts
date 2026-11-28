@@ -40,6 +40,7 @@ export function newProfile(username: string, gender: Gender): PlayerProfile {
     animalsFed: [],
     animalsBrushed: [],
     birdsSeen: [],
+    picnicBaskets: 0,
     swimFloat: false,
     kite: false,
     garden: null,
@@ -88,6 +89,7 @@ export function normalizeProfile(raw: Partial<PlayerProfile>, fallbackName: stri
   p.animalsFed = toArray(raw.animalsFed, []);
   p.animalsBrushed = toArray(raw.animalsBrushed, []);
   p.birdsSeen = toArray(raw.birdsSeen, []);
+  p.picnicBaskets = Math.max(0, Math.min(3, Math.floor(Number(raw.picnicBaskets) || 0)));
   p.swimFloat = p.swimFloat === true;
   p.kite = p.kite === true;
   const gd = raw.garden as { crop?: unknown; at?: unknown } | null | undefined;

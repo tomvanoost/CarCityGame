@@ -31,6 +31,7 @@ import { HORNS } from '../game/horns';
 import { BAKERY } from '../game/play/bakery';
 import { ANIMAL_EMOJI } from '../game/play/pettingFarm';
 import { REPAIR_PRICE } from '../game/vehicles/dents';
+import { MAX_BASKETS, PICNIC_PRICE } from '../game/play/picnic';
 import { sounds } from '../game/play/sounds';
 
 const TABLET_KEY = 'carcity.tablet';
@@ -310,6 +311,8 @@ export const gameScreen: Screen = (root, nav) => {
         : c.kind === 'fireworks' ? `🎆 ${t('fireworks')} ${euro(c.price)}`
         : c.kind === 'feed' ? `🥕 ${t('feedAnimal')} ${ANIMAL_EMOJI[c.animal]} ${euro(c.price)}`
         : c.kind === 'paintShop' ? `🎨 ${t('paintShop')}`
+        : c.kind === 'ride' && c.ride === 'picnic' ? `🧺 ${t('ridePicnic')} (${game.picnicBaskets})`
+        : c.kind === 'picnicNeed' ? `🧺 ${t('picnicNeedBtn')}`
         : c.kind === 'ride' ? `${c.ride === 'wheel' ? '🎡' : c.ride === 'balloon' ? '🎈' : c.ride === 'sandboard' ? '🏂' : c.ride === 'boat' ? '⛴️' : c.ride === 'skate' ? '🛹' : '🎠'} ${t(c.ride === 'wheel' ? 'rideWheel' : c.ride === 'balloon' ? 'rideBalloon' : c.ride === 'sandboard' ? 'rideSandboard' : c.ride === 'boat' ? 'rideBoat' : c.ride === 'skate' ? 'rideSkate' : 'rideCarousel')}${c.price ? ` ${euro(c.price)}` : ''}`
         : c.kind === 'rideStop' ? `🚶 ${t('rideStop')}`
         : c.kind === 'binoculars' ? `🔭 ${t(c.looking ? 'binocNext' : 'binocLook')}`
@@ -536,7 +539,7 @@ export const gameScreen: Screen = (root, nav) => {
       ),
       ...harvestRow(close),
       h('h3', {}, t('pickSnack')),
-      h('div', { class: 'tiles' }, ...SNACKS.map((sn) => {
+      h('div', { class: 'tiles' }, picnicTile(close), ...SNACKS.map((sn) => {
         const b = h('button', { class: 'tile snack-tile' },
           h('span', { class: 'tile-emoji' }, sn.emoji),
           h('b', {}, `${t(`sn_${sn.id}`)} ${euro(sn.price)}`),
@@ -548,6 +551,19 @@ export const gameScreen: Screen = (root, nav) => {
     ));
     panel.hidden = false;
     render();
+  }
+
+  /** Supermarket / bakery: a picnic basket for the blanket by the park pond. */
+  function picnicTile(close: () => void) {
+    const b = h('button', { class: 'tile snack-tile' },
+      h('span', { class: 'tile-emoji' }, '🧺'),
+      h('b', {}, `${t('picnicBasket')} ${euro(PICNIC_PRICE)}`),
+      h('small', {}, `${t('picnicBasketInfo')}${game.picnicBaskets ? ` (${game.picnicBaskets}/${MAX_BASKETS})` : ''}`));
+    b.addEventListener('click', () => {
+      if (game.picnicBaskets >= MAX_BASKETS) { toast(t('picnicFull')); return; }
+      if (game.buyPicnicBasket()) { close(); toast(t('picnicBought')); }
+    });
+    return b;
   }
 
   /** Supermarket: "sell your harvest" button when you carry vegetables from your garden. */
@@ -593,7 +609,7 @@ export const gameScreen: Screen = (root, nav) => {
         h('button', { class: 'icon-btn close-btn', 'aria-label': t('back'), onclick: close }, '✕'),
       ),
       h('h3', {}, t('pickTreat')),
-      h('div', { class: 'tiles' }, ...BAKERY.map((it) => {
+      h('div', { class: 'tiles' }, picnicTile(close), ...BAKERY.map((it) => {
         const b = h('button', { class: 'tile snack-tile' },
           h('span', { class: 'tile-emoji' }, it.emoji),
           h('b', {}, `${t(`bk_${it.id}` as TKey)} ${euro(it.price)}`),

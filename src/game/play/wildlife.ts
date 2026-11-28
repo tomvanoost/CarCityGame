@@ -111,6 +111,11 @@ export class Wildlife {
   private pond: { x: number; z: number; r: number; y: number };
 
   private parkRect: { x0: number; z0: number; x1: number; z1: number };
+  /** Picnic: the ducks swim over to the shore near (x, z) for a while (seconds left, and the spot). */
+  private lure = { t: 0, x: 0, z: 0, k: 0 };
+
+  /** The duck families come over to the shore near (x, z) for `secs` seconds (a picnic on the bank). */
+  attract(x: number, z: number, secs: number) { this.lure = { t: secs, x, z, k: this.lure.k }; }
 
   constructor(layout: CityLayout) {
     const pk = layout.park;
@@ -215,16 +220,32 @@ export class Wildlife {
     this.t += dt;
     const t = this.t, pd = this.pond;
 
+    // Picnic on the bank: the ducks swim over to the shore in front of it and stay there (k: 0..1, eased).
+    const L = this.lure;
+    L.t = Math.max(0, L.t - dt);
+    L.k = THREE.MathUtils.clamp(L.k + (L.t > 0 ? dt / 3 : -dt / 3), 0, 1);
+    const lk = L.k * L.k * (3 - 2 * L.k);
+    const la = Math.atan2(L.z - pd.z, L.x - pd.x);
+    /** Moves a duck from its loop spot towards its place in a little group by the shore (slot = which place). */
+    const lured = (d: { x: number; z: number; heading: number }, slot: number) => {
+      if (lk <= 0) return d;
+      // Two short rows close to the bank: mothers in front, ducklings around them.
+      const a = la + (Math.floor(slot / 2) - 2) * 0.05, r = pd.r * (0.93 - (slot % 2) * 0.07);
+      const tx = pd.x + Math.cos(a) * r, tz = pd.z + Math.sin(a) * r;
+      const face = Math.atan2(L.x - tx, L.z - tz); // looking at the picnic
+      const dh = Math.atan2(Math.sin(face - d.heading), Math.cos(face - d.heading));
+      return { x: d.x + (tx - d.x) * lk, z: d.z + (tz - d.z) * lk, heading: d.heading + dh * lk };
+    };
     // Ducks: mothers lead, ducklings follow in a row on the same loop, a bit behind.
     for (let f = 0; f < 2; f++) {
-      const d = this.duckAt(f, t);
+      const d = lured(this.duckAt(f, t), f === 0 ? 3 : 6);
       const bob = Math.sin(t * 2.2 + f) * 0.012;
       this.put(this.moms, f, d.x, pd.y + bob, d.z, d.heading, Math.sin(t * 1.7 + f) * 0.05, 0, DUCK);
     }
     this.ducklings.forEach((k, i) => {
       const lead = this.duckAt(k.family, 0);
       const delay = (0.55 * DUCK * k.lag) / Math.max(0.05, lead.speed); // in a neat row behind mom
-      const d = this.duckAt(k.family, t - delay);
+      const d = lured(this.duckAt(k.family, t - delay), [0, 1, 2, 4, 5, 7, 8, 9][i] ?? i);
       const wiggle = Math.sin(t * 3 + i * 1.3) * 0.06;
       this.put(this.kids, i, d.x + Math.cos(d.heading) * wiggle, pd.y + Math.sin(t * 3.1 + i) * 0.01, d.z - Math.sin(d.heading) * wiggle, d.heading + wiggle, 0, 0, DUCK);
     });

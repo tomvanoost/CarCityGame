@@ -57,6 +57,8 @@ export interface PlayerProfile {
   animalsBrushed: string[];
   /** Bird kinds you spotted with the binoculars at the park pond. */
   birdsSeen: string[];
+  /** Picnic baskets you carry (bought at the supermarket / bakery, used on the blanket in the park). */
+  picnicBaskets: number;
   /** Has the rubber duck float for swimming. */
   swimFloat: boolean;
   /** Has a kite (flies on the beach). */

@@ -21,6 +21,7 @@ import { createArrow, createIcon } from './markers';
 import { Navigator } from './navigation';
 import { Pedestrians } from './pedestrians';
 import { BIRD_KINDS, Wildlife, type BirdKind } from './wildlife';
+import { MAX_BASKETS, PICNIC_PRICE, Picnic } from './picnic';
 import { CarWash, WASH_PRICE, WASH_TIME } from './carWash';
 import { Pet, PetShopBuilding, getPet } from './pets';
 import { FURNITURE } from '../furniture';
@@ -38,7 +39,7 @@ import { CROPS, Garden, HARVEST, cropOf, growth, type CropId } from './garden';
 import { SANDBOARD_END, SANDBOARD_FRONT, SANDBOARD_PRICE, SANDBOARD_TOP, Sandboard } from './sandboard';
 import { FIREWORKS_FRONT, FIREWORKS_PRICE, FIREWORKS_STAND, Fireworks } from './fireworks';
 import { Beach, FLOAT_FRONT, FLOAT_PRICE, floatGeometry } from './beach';
-type RideKind = FairRide | 'balloon' | 'sandboard' | 'boat' | 'skate';
+type RideKind = FairRide | 'balloon' | 'sandboard' | 'boat' | 'skate' | 'picnic';
 import { COIN_COUNT, COIN_REWARD, Coins } from './coins';
 import { turnLinesMesh } from './turnLines';
 import { LibraryBuilding, QUIZ_REWARD, today } from './library';
@@ -77,7 +78,7 @@ import { sounds } from './sounds';
 export type Mode = 'driving' | 'walking';
 
 /** Something you can do right here with the big blue button. */
-export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number; brush: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'iceTruck' } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId } | { kind: 'binoculars'; looking: boolean };
+export type ContextAction = { kind: 'buyFloat'; price: number } | { kind: 'fireworks'; price: number } | { kind: 'feed'; animal: FarmAnimalKind; price: number; brush: number } | { kind: 'bakery' } | { kind: 'paintShop' } | { kind: 'petShop' } | { kind: 'supermarket' } | { kind: 'iceCream'; price: number } | { kind: 'refuel' } | { kind: 'wash'; price: number } | { kind: 'takeCar'; id: string } | { kind: 'home' } | { kind: 'apartment' } | { kind: 'buyApartment'; price: number } | { kind: 'ride'; ride: RideKind; price: number } | { kind: 'rideStop' } | { kind: 'raceStart' } | { kind: 'raceStop' } | { kind: 'fish' } | { kind: 'fishReel'; bite: boolean } | { kind: 'treasureMap' } | { kind: 'openTreasure' } | { kind: 'library' } | { kind: 'buyKite'; price: number } | { kind: 'iceTruck' } | { kind: 'garden' } | { kind: 'gardenWait'; secs: number; crop: CropId } | { kind: 'harvest'; crop: CropId } | { kind: 'binoculars'; looking: boolean } | { kind: 'picnicNeed' };
 
 const MAX_SPEED_KEY = 'carcity.maxSpeed';
 function loadMaxSpeed(): number | null {
@@ -175,7 +176,7 @@ export interface GameEvents {
   /** Player walked into the house/apartment. */
   onPlace(place: 'home' | 'apartment' | 'iceCream' | 'supermarket' | 'petShop' | 'paintShop' | 'bakery' | 'library' | 'garden'): void;
   /** Short message (i18n key + optional number). */
-  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'kiteBought' | 'harvested' | 'gardenGrowing' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek', n?: number): void;
+  onMessage(key: 'needMoney' | 'freeFuel' | 'fuelEmpty' | 'arrived' | 'washed' | 'fishWait' | 'fishGone' | 'dented' | 'fireworksEvening' | 'floatBought' | 'kiteBought' | 'harvested' | 'gardenGrowing' | 'treasureMapGot' | 'treasureHave' | 'treasureNextWeek' | 'picnicNeed', n?: number): void;
   /** Multiplayer: someone joined / left the server, or we reached the player we navigated to. */
   onPlayer?(kind: 'joined' | 'left' | 'found', name: string): void;
   /** Photo mode: the interact key / controller A was pressed (take the picture). */
@@ -205,6 +206,8 @@ export class Game {
   vehicle?: Vehicle;
   people?: Pedestrians;
   wildlife?: Wildlife;
+  /** Picnic blanket by the park pond. */
+  picnic?: Picnic;
   carWash?: CarWash;
   private iceStand?: IceCreamStand;
   private postOffice?: THREE.Mesh;
@@ -422,8 +425,11 @@ export class Game {
     this.people.load();
     this.wildlife = new Wildlife(city.layout);
     this.scene.add(this.wildlife.group);
+    this.picnic = new Picnic(city.layout, this.wildlife);
+    this.scene.add(this.picnic.group);
     if (this.grassRadius > 0) {
-      this.grass = new GrassField(city.layout, (x, z) => this.world!.pointBlocked(x, z), this.grassRadius);
+      // (No grass blades growing through the picnic blanket.)
+      this.grass = new GrassField(city.layout, (x, z) => this.world!.pointBlocked(x, z) || !!this.picnic?.covers(x, z), this.grassRadius);
       this.scene.add(this.grass.mesh, this.grass.flowers);
     }
     this.carWash = new CarWash(city.layout);
@@ -874,6 +880,20 @@ export class Game {
     return total;
   }
 
+  /** Supermarket / bakery: a picnic basket for the blanket by the park pond (you can carry a few). */
+  buyPicnicBasket(): boolean {
+    const p = this.profile;
+    if (p.picnicBaskets >= MAX_BASKETS) return false;
+    if (p.money < PICNIC_PRICE) { this.events.onMessage('needMoney', PICNIC_PRICE - p.money); return false; }
+    const picnicBaskets = p.picnicBaskets + 1;
+    setProfile({ ...p, money: p.money - PICNIC_PRICE, picnicBaskets });
+    void updateProfile({ money: p.money - PICNIC_PRICE, picnicBaskets });
+    this.events.onMoney(-PICNIC_PRICE, 'supermarket');
+    sounds.coin();
+    return true;
+  }
+  get picnicBaskets() { return this.profile.picnicBaskets; }
+
   /** The harvest you carry (crop → how many). */
   get basket() { return this.profile.basket; }
 
@@ -1206,6 +1226,24 @@ export class Game {
       awardSticker('sandboard');
       return;
     }
+    if (kind === 'picnic') {
+      // Picnic: one basket from your bag; sit on the blanket facing the pond, the ducks come over.
+      if (!this.picnic || p.picnicBaskets <= 0) return;
+      const picnicBaskets = p.picnicBaskets - 1;
+      setProfile({ ...this.profile, picnicBaskets });
+      void updateProfile({ picnicBaskets });
+      const { seat, duration } = this.picnic.board();
+      const a = this.avatar, scale = 0.9;
+      seat.add(a.root);
+      a.root.position.copy(seatedRootPosition(new THREE.Vector3(), scale));
+      a.root.rotation.set(0, 0, 0);
+      a.root.scale.setScalar(scale);
+      a.setTallGear(false);
+      a.play('SitDown', { once: true, fade: 0.2, then: null });
+      this.ride = { kind, t: 0, dur: duration, exit: this.picnic.front, from: this.picnic.spot };
+      awardSticker('picnic');
+      return;
+    }
     if (kind === 'boat' && !this.boat) return;
     this.events.onMoney(-price, kind === 'balloon' ? 'balloon' : kind === 'boat' ? 'boat' : 'funFair');
     const { seat, duration } = kind === 'balloon' ? this.balloon.board() : kind === 'boat' ? this.boat!.board() : this.funFair.board(kind);
@@ -1232,6 +1270,7 @@ export class Game {
     if (this.ride.kind === 'balloon') this.balloon?.leave();
     else if (this.ride.kind === 'boat') this.boat?.leave();
     else if (this.ride.kind === 'sandboard') this.sandboard?.leave();
+    else if (this.ride.kind === 'picnic') this.picnic?.leave();
     else this.funFair?.leave();
     const wasBoard = this.ride.kind === 'sandboard' || this.ride.kind === 'skate';
     this.ride = null;
@@ -1484,6 +1523,10 @@ export class Game {
     if (near(L.pois.petShop.front)) return { kind: 'petShop' };
     if (near(L.pois.bakery.front)) return { kind: 'bakery' };
     if (near(L.pois.library.front)) return { kind: 'library' };
+    // Picnic blanket by the pond: sit down with a basket (or a hint where to buy one).
+    if (this.picnic && Math.hypot(p.x - this.picnic.spot.x, p.z - this.picnic.spot.z) < 2.8) {
+      return this.profile.picnicBaskets > 0 ? { kind: 'ride', ride: 'picnic', price: 0 } : { kind: 'picnicNeed' };
+    }
     // Binoculars: anywhere on the edge of the park pond.
     const pd = L.park.pond;
     if (this.binoc || Math.max(Math.abs(p.x - pd.x), Math.abs(p.z - pd.z)) < pd.r + 6) return { kind: 'binoculars', looking: !!this.binoc };
@@ -1620,6 +1663,9 @@ export class Game {
         if (['goat', 'sheep', 'rabbit', 'pony'].every((k) => animalsFed.includes(k))) awardSticker('farmFriend');
         break;
       }
+      case 'picnicNeed':
+        this.events.onMessage('picnicNeed');
+        break;
       case 'binoculars':
         this.lookAtBird();
         break;
@@ -2176,6 +2222,7 @@ export class Game {
     }
     this.city.update(this.camera.position, dt);
     this.wildlife?.update(dt, this.camera.position, this.focus);
+    this.picnic?.update(dt);
     this.grass?.update(dt, this.focus);
     this.carWash?.update(dt, this.camera.position, this.washTimer, v);
     if (this.iceCreamTimer > 0) {
@@ -2287,6 +2334,7 @@ export class Game {
     this.nav?.dispose();
     this.people?.dispose();
     this.wildlife?.dispose();
+    this.picnic?.dispose();
     this.grass?.dispose();
     this.carWash?.dispose();
     this.iceStand?.dispose();
