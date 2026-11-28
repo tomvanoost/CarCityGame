@@ -70,7 +70,8 @@ import { Vehicle } from './vehicle';
 import { cleanText } from '../../services/textFilter';
 import { GrassField } from './grassField';
 
-const FP_KEY = 'carcity.firstPerson';
+// (v2: everyone starts in first person again once; a controller button used to switch it off by accident.)
+const FP_KEY = 'carcity.firstPerson2';
 /** First person (or the camera behind you), remembered on this device; first person unless chosen otherwise. */
 function loadFirstPerson() { try { return localStorage.getItem(FP_KEY) !== '0'; } catch { return true; } }
 function saveFirstPerson(on: boolean) { try { localStorage.setItem(FP_KEY, on ? '1' : '0'); } catch { /* private mode */ } }

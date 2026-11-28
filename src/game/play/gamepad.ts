@@ -15,8 +15,8 @@
  *   Y / △ (top)         get in / out         paddles          horn
  *   X / □ (left)        horn
  *   B / ○ (right)       run (walking), close a panel   button 4 (△/Y)   close a panel
- *   View / Create (select)  dashboard view on/off
- *   Capture / Share (logo)  hazard lights (both turn signals)   Share / View button  hazard lights
+ *   View / − (select)       first person on/off (PlayStation: touchpad click)
+ *   Capture / Share (logo)  hazard lights (both turn signals) (PlayStation: Create)   Share / View button  hazard lights
  *   RB / R1             siren (police car)             R2 / L2 buttons  siren (police car)
  *                                                      LSB / RSB        turn signal left / right
  */
@@ -166,10 +166,16 @@ export class Gamepads {
       s.hornHeld ||= b(2);
       s.back ||= tap(1);
       s.siren ||= tap(5);
-      // View (Xbox) / Create (PlayStation) / − (Nintendo): dashboard view on/off.
-      s.view ||= (std ? tap(8) : false);
-      // Capture / Share button (the logo button next to the home button): hazard lights.
-      s.hazard ||= (std ? tap(17) : false);
+      // PlayStation: the Create / Share button (8, the capture icon) is the hazard lights, so the view
+      // switch is the touchpad click (17); otherwise both would happen at once and the hazard lights
+      // would also switch first person off. Xbox View / Nintendo −: view on/off; Share / Capture: hazards.
+      if (padKind(pad) === 'playstation') {
+        s.hazard ||= (std ? tap(8) : false);
+        s.view ||= (std ? tap(17) : false);
+      } else {
+        s.view ||= (std ? tap(8) : false);
+        s.hazard ||= (std ? tap(17) : false);
+      }
     }
     if (s) s.steer = Math.max(-1, Math.min(1, s.steer));
     return s;
