@@ -2154,7 +2154,7 @@ export class Game {
       this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.4;
     }
     const pos = this.mode === 'driving' ? v : this.player;
-    this.people?.update(dt, this.focus.x, this.focus.z, v, this.mode === 'walking' ? this.player : null);
+    this.people?.update(dt, this.focus.x, this.focus.z, v, this.mode === 'walking' ? this.player : null, this.camera);
     this.jobs?.update(dt, pos, this.mode === 'driving', v.kmh);
     this.traffic?.update(dt, this.focus, v, this.mode === 'walking' ? this.player : null, this.people, this.sirenOn);
     this.bumpTraffic();

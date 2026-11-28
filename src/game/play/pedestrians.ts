@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import type { MeshoptSimplifier as Simplifier } from 'meshoptimizer/simplifier';
 import { loadClips, loadGltf } from '../../engine/assets';
 import { animsUrl, outfitUrl, type OutfitModel } from '../avatar/clothes';
 import { faceDetailGeometry } from '../avatar/faceDetails';
@@ -34,9 +35,17 @@ type Anim = 'Idle' | 'Walk' | 'Run' | 'Victory';
 /** People this close to a honking car wave at it. */
 const HONK_RANGE = 22;
 
+/** Further away than this, a person is drawn with the light (simplified) body. */
+const LOD_DIST = 20;
+/** Drawn up to this distance (further away they're only a few pixels tall). */
+const DRAW_DIST = 75;
+
 interface Person {
   root: THREE.Object3D;
-  mesh: THREE.Object3D;
+  mesh: THREE.SkinnedMesh;
+  /** The full and the light body (same vertices and skinning, fewer triangles). */
+  near: THREE.BufferGeometry;
+  far: THREE.BufferGeometry;
   mixer: THREE.AnimationMixer;
   actions: Record<Anim, THREE.AnimationAction | undefined>;
   anim: Anim;
@@ -60,6 +69,8 @@ interface Person {
   /** After crossing: continue on this block from this corner. */
   next?: { block: number; corner: number };
   active: boolean;
+  /** Animation time not played while off-screen (caught up when seen again). */
+  skipped: number;
 }
 
 /** The four corners of a block's sidewalk loop: 0 NW, 1 NE, 2 SE, 3 SW. */
@@ -80,6 +91,11 @@ export class Pedestrians {
   private rng = new Rng(77);
   private tmp = { x: 0, z: 0 };
   private material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 });
+  private simplifier: typeof Simplifier | null = null;
+  private frustum = new THREE.Frustum();
+  private projView = new THREE.Matrix4();
+  private sphere = new THREE.Sphere();
+  private tmpV = new THREE.Vector3();
   private geometries: THREE.BufferGeometry[] = [];
   private disposed = false;
 
@@ -93,6 +109,12 @@ export class Pedestrians {
   /** Loads the people models in the background; people appear when ready. */
   async load() {
     const clips = { boy: loadClips(animsUrl('boy')), girl: loadClips(animsUrl('girl')) };
+    // The mesh simplifier (for the light bodies) is its own small file, loaded in the background here.
+    try {
+      const { MeshoptSimplifier } = await import('meshoptimizer/simplifier');
+      await MeshoptSimplifier.ready;
+      this.simplifier = MeshoptSimplifier;
+    } catch { /* no light bodies: everyone keeps the full body */ }
     const loaded = await Promise.all(TEMPLATES.map(async ([model, gender], i) => {
       const gltf = await loadGltf(outfitUrl(model, gender));
       return { scene: this.mergeCharacter(gltf.scene, SKIN_TONES[i % SKIN_TONES.length]), clips: await clips[gender] };
@@ -137,7 +159,11 @@ export class Pedestrians {
     mesh.position.copy(first.position);
     mesh.quaternion.copy(first.quaternion);
     mesh.scale.copy(first.scale);
-    mesh.frustumCulled = false;
+    // Off-screen people aren't drawn: a bounding sphere from the bind pose, made roomy enough for every
+    // pose (arms out while waving, a running stride), so nobody pops away at the edge of the screen.
+    mesh.computeBoundingSphere();
+    mesh.boundingSphere!.radius *= 1.6;
+    mesh.userData.far = this.lightBody(merged);
     first.parent!.add(mesh);
     meshes.forEach((m) => m.removeFromParent());
     const box = new THREE.Box3().setFromObject(scene);
@@ -147,6 +173,25 @@ export class Pedestrians {
     const holder = new THREE.Group();
     holder.add(scene);
     return holder;
+  }
+
+  /**
+   * The light body for people further away: the same vertices (so the same skinning and colors) with
+   * about a quarter of the triangles (meshoptimizer, keeping the outline and the color borders).
+   */
+  private lightBody(full: THREE.BufferGeometry): THREE.BufferGeometry {
+    if (!this.simplifier) return full;
+    const pos = full.getAttribute('position') as THREE.BufferAttribute;
+    const index = full.getIndex()!;
+    const src = new Uint32Array(index.array);
+    const target = Math.floor((src.length / 3) * 0.25) * 3;
+    const [out] = this.simplifier.simplify(src, new Float32Array(pos.array as ArrayLike<number>), 3, target, 0.02, ['LockBorder']);
+    const g = new THREE.BufferGeometry();
+    for (const [name, attr] of Object.entries(full.attributes)) g.setAttribute(name, attr); // shared buffers
+    g.setIndex(new THREE.BufferAttribute(out, 1));
+    g.boundingSphere = full.boundingSphere?.clone() ?? null;
+    this.geometries.push(g);
+    return g;
   }
 
   private spawn(p: Person | null, fx: number, fz: number): Person | null {
@@ -174,9 +219,11 @@ export class Pedestrians {
         const actions = { Idle: clip('Idle'), Walk: clip('Walk'), Run: clip('Run'), Victory: clip('Victory') };
         actions.Walk?.play();
         mixer.update(this.rng.range(0, 2)); // desync
-        let mesh: THREE.Object3D = root;
-        root.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) mesh = o; });
-        p = { root, mesh, mixer, actions, anim: 'Walk', x, z, heading: 0, speed: 1, block, corner: 0, dir: 1, state: 'walk', tx: 0, tz: 0, timer: 0, active: true, wave: 0, wx: 0, wz: 0 };
+        let mesh!: THREE.SkinnedMesh;
+        root.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) mesh = o as THREE.SkinnedMesh; });
+        let far: THREE.BufferGeometry = mesh.geometry;
+        tpl.scene.traverse((o) => { if (o.userData.far) far = o.userData.far; });
+        p = { root, mesh, near: mesh.geometry, far, mixer, actions, anim: 'Walk', x, z, heading: 0, speed: 1, block, corner: 0, dir: 1, state: 'walk', tx: 0, tz: 0, timer: 0, active: true, wave: 0, wx: 0, wz: 0, skipped: 0 };
         this.group.add(root);
         this.people.push(p);
       }
@@ -278,8 +325,13 @@ export class Pedestrians {
     return this.people.filter((p) => p.active).map((p) => ({ x: p.x, z: p.z, r: 0.45 }));
   }
 
-  update(dt: number, fx: number, fz: number, car: Vehicle | null, _playerPos: { x: number; z: number } | null) {
+  /** camera: people off-screen are neither drawn nor animated. */
+  update(dt: number, fx: number, fz: number, car: Vehicle | null, _playerPos: { x: number; z: number } | null, camera?: THREE.Camera) {
     if (!this.templates.length) return;
+    if (camera) {
+      camera.updateMatrixWorld();
+      this.frustum.setFromProjectionMatrix(this.projView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    }
     // Keep the right number of people around the player.
     while (this.people.length < this.count) if (!this.spawn(null, fx, fz)) break;
 
@@ -364,13 +416,16 @@ export class Pedestrians {
       const moving = speed > 0 && d > 0.05;
       this.play(p, waving ? 'Victory' : !moving ? 'Idle' : speed > 2.5 ? 'Run' : 'Walk');
       if (p.actions.Walk) p.actions.Walk.timeScale = speed / (1.4 * p.root.scale.x);
-      const visible = dist < 75; // further away they're only a few pixels tall (saves draw calls)
+      const visible = dist < DRAW_DIST; // further away they're only a few pixels tall (saves draw calls)
       p.root.visible = visible;
       if (visible) {
-        p.mixer.update(dt);
         p.root.position.set(p.x, groundHeight(p.x, p.z), p.z);
         p.root.rotation.y = p.heading;
         p.mesh.castShadow = dist < 45;
+        p.mesh.geometry = dist > LOD_DIST ? p.far : p.near;
+        // Off-screen (with a margin): not drawn by three.js anyway, so don't animate either.
+        this.sphere.set(this.tmpV.set(p.x, groundHeight(p.x, p.z) + 0.9, p.z), 2.2);
+        if (!camera || this.frustum.intersectsSphere(this.sphere)) { p.mixer.update(p.skipped + dt); p.skipped = 0; } else p.skipped = Math.min(p.skipped + dt, 1);
       }
     }
   }

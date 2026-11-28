@@ -23,10 +23,12 @@ graphics upgrade**, and so on. Keep that rotation when adding steps.
 - **Graphics**: stylized and light, no heavy post-processing; must keep the FPS. (The realistic trees
   glitched once and were reverted: compare screenshots before/after and revert anything that looks off.)
 
-- [ ] **Lighter pedestrians** (performance): measure the skinned people (draw calls, bones, update time) and
-  draw the far ones with fewer bones or a simpler animation; nothing may look worse up close.
-
 - [ ] **Wet roads after rain** (graphics): when a shower stops, the roads stay shiny and reflective for a
   minute and dry up slowly (puddles last longest); shader only, no extra draw calls.
+
+- [ ] **Paper plane contest** (feature): at the library you get a paper plane; throw it from the top of
+  the park hill / a bridge and see how far it glides (best distance saved, a sticker for 50 m); NL + EN.
+- [ ] **Lighter traffic cars** (performance): measure the traffic cars (draw calls, triangles, update time) at
+  the six spots; draw far traffic cars with an even lighter model or skip their wheels' spin; nothing may look worse.
 
 (Add new ideas here, in order, for the next runs.)
